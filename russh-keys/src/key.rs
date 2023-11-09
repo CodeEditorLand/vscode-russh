@@ -12,10 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 //
-use serde::{Serialize, Deserialize};
 #[cfg(feature = "openssl")]
 use openssl::pkey::{Private, Public};
 use russh_cryptovec::CryptoVec;
+use serde::{Deserialize, Serialize};
 
 use crate::encoding::{Encoding, Reader};
 pub use crate::signature::*;

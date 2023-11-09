@@ -1,8 +1,8 @@
 use byteorder::{BigEndian, ByteOrder};
-use log::debug;
 use curve25519_dalek::constants::ED25519_BASEPOINT_TABLE;
 use curve25519_dalek::montgomery::MontgomeryPoint;
 use curve25519_dalek::scalar::Scalar;
+use log::debug;
 use russh_cryptovec::CryptoVec;
 use russh_keys::encoding::Encoding;
 
