@@ -11,4 +11,4 @@ version = "0.7.0"
 
 [dependencies]
 libc = "0.2"
-winapi = { version = "0.3", features = ["basetsd", "minwindef", "memoryapi"] }
+winapi = {version = "0.3", features = ["basetsd", "minwindef", "memoryapi"]}
