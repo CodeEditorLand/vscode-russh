@@ -120,7 +120,7 @@ fn decrypt_secret_key(
                 #[allow(clippy::indexing_slicing)] // output length is static
                 match bcrypt_pbkdf::bcrypt_pbkdf(password, salt, rounds, &mut key[..n]) {
                     Err(bcrypt_pbkdf::Error::InvalidParamLen) => return Err(Error::KeyIsEncrypted),
-                    e => e.unwrap(),
+                    e => e.unwrap()
                 }
             }
             _kdfname => {

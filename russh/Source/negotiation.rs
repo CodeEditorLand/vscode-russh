@@ -14,8 +14,8 @@
 //
 use std::str::from_utf8;
 
-use log::debug;
 use rand::RngCore;
+use log::debug;
 use russh_cryptovec::CryptoVec;
 use russh_keys::encoding::{Encoding, Reader};
 use russh_keys::key;
@@ -89,13 +89,13 @@ impl Preferred {
             #[cfg(feature = "rs-crypto")]
             kex::CURVE25519,
             kex::DH_G14_SHA256,
-        ],
+            ],
         key: &[
             #[cfg(feature = "rs-crypto")]
             key::ED25519,
             key::RSA_SHA2_256,
             key::RSA_SHA2_512,
-        ],
+            ],
         cipher: CIPHER_ORDER,
         mac: HMAC_ORDER,
         compression: &["none", "zlib", "zlib@openssh.com"],
