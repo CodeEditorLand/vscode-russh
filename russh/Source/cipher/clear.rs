@@ -22,79 +22,79 @@ pub struct Key;
 pub struct Clear {}
 
 impl super::Cipher for Clear {
-    fn key_len(&self) -> usize {
-        0
-    }
+	fn key_len(&self) -> usize {
+		0
+	}
 
-    fn make_opening_key(
-        &self,
-        _: &[u8],
-        _: &[u8],
-        _: &[u8],
-        _: &dyn MacAlgorithm,
-    ) -> Result<Box<dyn super::OpeningKey + Send>, Error> {
-        Ok(Box::new(Key {}))
-    }
+	fn make_opening_key(
+		&self,
+		_: &[u8],
+		_: &[u8],
+		_: &[u8],
+		_: &dyn MacAlgorithm,
+	) -> Result<Box<dyn super::OpeningKey + Send>, Error> {
+		Ok(Box::new(Key {}))
+	}
 
-    fn make_sealing_key(
-        &self,
-        _: &[u8],
-        _: &[u8],
-        _: &[u8],
-        _: &dyn MacAlgorithm,
-    ) -> Result<Box<dyn super::SealingKey + Send>, Error> {
-        Ok(Box::new(Key {}))
-    }
+	fn make_sealing_key(
+		&self,
+		_: &[u8],
+		_: &[u8],
+		_: &[u8],
+		_: &dyn MacAlgorithm,
+	) -> Result<Box<dyn super::SealingKey + Send>, Error> {
+		Ok(Box::new(Key {}))
+	}
 }
 
 impl super::OpeningKey for Key {
-    fn decrypt_packet_length(&self, _seqn: u32, packet_length: [u8; 4]) -> Result<[u8; 4], Error> {
-        Ok(packet_length)
-    }
+	fn decrypt_packet_length(&self, _seqn: u32, packet_length: [u8; 4]) -> Result<[u8; 4], Error> {
+		Ok(packet_length)
+	}
 
-    fn tag_len(&self) -> usize {
-        0
-    }
+	fn tag_len(&self) -> usize {
+		0
+	}
 
-    fn open<'a>(
-        &mut self,
-        _seqn: u32,
-        ciphertext_in_plaintext_out: &'a mut [u8],
-        tag: &[u8],
-    ) -> Result<&'a [u8], Error> {
-        debug_assert_eq!(tag.len(), 0); // self.tag_len());
-        #[allow(clippy::indexing_slicing)] // length known
-        Ok(&ciphertext_in_plaintext_out[4..])
-    }
+	fn open<'a>(
+		&mut self,
+		_seqn: u32,
+		ciphertext_in_plaintext_out: &'a mut [u8],
+		tag: &[u8],
+	) -> Result<&'a [u8], Error> {
+		debug_assert_eq!(tag.len(), 0); // self.tag_len());
+		#[allow(clippy::indexing_slicing)] // length known
+		Ok(&ciphertext_in_plaintext_out[4..])
+	}
 }
 
 impl super::SealingKey for Key {
-    // Cleartext packets (including lengths) must be multiple of 8 in
-    // length.
-    fn padding_length(&self, payload: &[u8]) -> usize {
-        let block_size = 8;
-        let padding_len = block_size - ((5 + payload.len()) % block_size);
-        if padding_len < 4 {
-            padding_len + block_size
-        } else {
-            padding_len
-        }
-    }
+	// Cleartext packets (including lengths) must be multiple of 8 in
+	// length.
+	fn padding_length(&self, payload: &[u8]) -> usize {
+		let block_size = 8;
+		let padding_len = block_size - ((5 + payload.len()) % block_size);
+		if padding_len < 4 {
+			padding_len + block_size
+		} else {
+			padding_len
+		}
+	}
 
-    fn fill_padding(&self, padding_out: &mut [u8]) {
-        // Since the packet is unencrypted anyway, there's no advantage to
-        // randomizing the padding, so avoid possibly leaking extra RNG state
-        // by padding with zeros.
-        for padding_byte in padding_out {
-            *padding_byte = 0;
-        }
-    }
+	fn fill_padding(&self, padding_out: &mut [u8]) {
+		// Since the packet is unencrypted anyway, there's no advantage to
+		// randomizing the padding, so avoid possibly leaking extra RNG state
+		// by padding with zeros.
+		for padding_byte in padding_out {
+			*padding_byte = 0;
+		}
+	}
 
-    fn tag_len(&self) -> usize {
-        0
-    }
+	fn tag_len(&self) -> usize {
+		0
+	}
 
-    fn seal(&mut self, _seqn: u32, _plaintext_in_ciphertext_out: &mut [u8], tag_out: &mut [u8]) {
-        debug_assert_eq!(tag_out.len(), self.tag_len());
-    }
+	fn seal(&mut self, _seqn: u32, _plaintext_in_ciphertext_out: &mut [u8], tag_out: &mut [u8]) {
+		debug_assert_eq!(tag_out.len(), self.tag_len());
+	}
 }
