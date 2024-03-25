@@ -60,8 +60,8 @@ This is a fork of [Thrussh](https://nest.pijul.com/pijul/thrussh) by Pierre-Éti
 
 ## Ecosystem
 
-* [russh-sftp](https://crates.io/crates/russh-sftp) - server-side SFTP subsystem support for `russh` - see `russh/examples/sftp_server.rs`.
-* [async-ssh2-tokio](https://crates.io/crates/async-ssh2-tokio) - simple high-level API for running commands over SSH.
+* [russh-sftp](HTTPS://Crates.IO/crates/russh-sftp) - server-side SFTP subsystem support for `russh` - see `russh/examples/sftp_server.rs`.
+* [async-ssh2-tokio](HTTPS://Crates.IO/crates/async-ssh2-tokio) - simple high-level API for running commands over SSH.
 
 ## Contributors ✨
 
