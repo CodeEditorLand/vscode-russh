@@ -8,7 +8,7 @@ keywords = ["ssh"]
 license = "Apache-2.0"
 name = "russh"
 readme = "../README.md"
-repository = "https://github.com/warp-tech/russh"
+repository = "HTTPS://GitHub.Com/warp-tech/russh"
 version = "0.37.1"
 rust-version = "1.60"
 

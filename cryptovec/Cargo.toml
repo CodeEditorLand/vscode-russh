@@ -6,7 +6,7 @@ edition = "2018"
 include = ["Cargo.toml", "src/lib.rs"]
 license = "Apache-2.0"
 name = "russh-cryptovec"
-repository = "https://github.com/warp-tech/russh"
+repository = "HTTPS://GitHub.Com/warp-tech/russh"
 version = "0.7.0"
 
 [dependencies]
