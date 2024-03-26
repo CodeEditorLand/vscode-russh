@@ -9,7 +9,7 @@
       "login": "mihirsamdarshi",
       "name": "Mihir Samdarshi",
       "avatar_url": "https://avatars.githubusercontent.com/u/5462077?v=4",
-      "profile": "HTTPS://GitHub.Com/mihirsamdarshi",
+      "profile": "https://GitHub.Com/mihirsamdarshi",
       "contributions": [
         "doc"
       ]
@@ -27,7 +27,7 @@
       "login": "kvzn",
       "name": "KVZN",
       "avatar_url": "https://avatars.githubusercontent.com/u/313271?v=4",
-      "profile": "HTTPS://GitHub.Com/kvzn",
+      "profile": "https://GitHub.Com/kvzn",
       "contributions": [
         "code"
       ]
@@ -63,7 +63,7 @@
       "login": "AspectUnk",
       "name": "AspectUnk",
       "avatar_url": "https://avatars.githubusercontent.com/u/59799956?v=4",
-      "profile": "HTTPS://GitHub.Com/AspectUnk",
+      "profile": "https://GitHub.Com/AspectUnk",
       "contributions": [
         "code"
       ]
@@ -90,7 +90,7 @@
       "login": "yorkz1994",
       "name": "yorkz1994",
       "avatar_url": "https://avatars.githubusercontent.com/u/16678950?v=4",
-      "profile": "HTTPS://GitHub.Com/yorkz1994",
+      "profile": "https://GitHub.Com/yorkz1994",
       "contributions": [
         "code"
       ]
@@ -108,7 +108,7 @@
       "login": "mllken",
       "name": "Eric Milliken",
       "avatar_url": "https://avatars.githubusercontent.com/u/11590808?v=4",
-      "profile": "HTTPS://GitHub.Com/mllken",
+      "profile": "https://GitHub.Com/mllken",
       "contributions": [
         "code"
       ]
@@ -117,7 +117,7 @@
       "login": "Swelio",
       "name": "Swelio",
       "avatar_url": "https://avatars.githubusercontent.com/u/24651896?v=4",
-      "profile": "HTTPS://GitHub.Com/Swelio",
+      "profile": "https://GitHub.Com/Swelio",
       "contributions": [
         "code"
       ]
@@ -126,7 +126,7 @@
       "login": "joshbenz",
       "name": "Joshua Benz",
       "avatar_url": "https://avatars.githubusercontent.com/u/94999261?v=4",
-      "profile": "HTTPS://GitHub.Com/joshbenz",
+      "profile": "https://GitHub.Com/joshbenz",
       "contributions": [
         "code"
       ]
@@ -144,7 +144,7 @@
       "login": "mateuszkj",
       "name": "mateuszkj",
       "avatar_url": "https://avatars.githubusercontent.com/u/2494082?v=4",
-      "profile": "HTTPS://GitHub.Com/mateuszkj",
+      "profile": "https://GitHub.Com/mateuszkj",
       "contributions": [
         "code"
       ]
@@ -154,7 +154,7 @@
   "projectName": "russh",
   "projectOwner": "warp-tech",
   "repoType": "github",
-  "repoHost": "HTTPS://GitHub.Com",
+  "repoHost": "https://GitHub.Com",
   "skipCi": true,
   "commitConvention": "none"
 }
