@@ -17,13 +17,13 @@ default = ["flate2", "rs-crypto"]
 openssl = ["russh-keys/openssl", "dep:openssl"]
 vendored-openssl = ["openssl/vendored", "russh-keys/vendored-openssl"]
 rs-crypto = [
-	"russh-keys/rs-crypto",
-	"dep:aes",
-	"dep:aes-gcm",
-	"dep:curve25519-dalek",
-	"dep:poly1305",
-	"dep:ctr",
-	"dep:chacha20",
+    "russh-keys/rs-crypto",
+    "dep:aes",
+    "dep:aes-gcm",
+    "dep:curve25519-dalek",
+    "dep:poly1305",
+    "dep:ctr",
+    "dep:chacha20",
 ]
 
 [dependencies]
@@ -54,13 +54,13 @@ num-bigint = { version = "0.4", features = ["rand"] }
 subtle = "2.4"
 thiserror = "1.0"
 tokio = { version = "1.17.0", features = [
-	"io-util",
-	"rt-multi-thread",
-	"time",
-	"net",
-	"sync",
-	"macros",
-	"process",
+    "io-util",
+    "rt-multi-thread",
+    "time",
+    "net",
+    "sync",
+    "macros",
+    "process",
 ] }
 tokio-util = "0.7"
 
@@ -68,11 +68,11 @@ tokio-util = "0.7"
 anyhow = "1.0"
 env_logger = "0.9"
 tokio = { version = "1.17.0", features = [
-	"io-util",
-	"rt-multi-thread",
-	"time",
-	"net",
-	"sync",
-	"macros",
+    "io-util",
+    "rt-multi-thread",
+    "time",
+    "net",
+    "sync",
+    "macros",
 ] }
 russh-sftp = "1.1"
