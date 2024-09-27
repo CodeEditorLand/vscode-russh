@@ -286,6 +286,7 @@ impl Session {
 		self.common.write_buffer.buffer.clear();
 
 		let (stream_read, mut stream_write) = stream.split();
+
 		let buffer = SSHBuffer::new();
 
 		// Allow handing out references to the cipher
@@ -294,8 +295,11 @@ impl Session {
 
 		let reading = start_reading(stream_read, buffer, opening_cipher);
 		pin!(reading);
+
 		let mut is_reading = None;
+
 		let mut decomp = CryptoVec::new();
+
 		let delay = self.common.config.connection_timeout;
 
 		#[allow(clippy::panic)] // false positive in macro

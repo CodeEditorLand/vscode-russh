@@ -239,8 +239,10 @@ impl PublicKey {
 	/// Compute the key fingerprint, hashed with sha2-256.
 	pub fn fingerprint(&self) -> String {
 		use super::PublicKeyBase64;
+
 		let key = self.public_key_bytes();
 		use sha2::{Digest, Sha256};
+
 		let mut hasher = Sha256::new();
 		hasher.update(&key[..]);
 		data_encoding::BASE64_NOPAD.encode(&hasher.finalize())
@@ -346,6 +348,7 @@ impl KeyPair {
 	#[cfg(feature = "rs-crypto")]
 	pub fn generate_ed25519() -> Option<Self> {
 		use rand::rngs::OsRng;
+
 		let keypair = ed25519_dalek::Keypair::generate(&mut OsRng {});
 		assert_eq!(
 			keypair.public.as_bytes(),

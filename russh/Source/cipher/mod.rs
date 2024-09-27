@@ -182,8 +182,10 @@ pub(crate) trait SealingKey {
 
 		let padding_length = self.padding_length(payload);
 		debug!("padding length {:?}", padding_length);
+
 		let packet_length = PADDING_LENGTH_LEN + payload.len() + padding_length;
 		debug!("packet_length {:?}", packet_length);
+
 		let offset = buffer.buffer.len();
 
 		// Maximum packet length:

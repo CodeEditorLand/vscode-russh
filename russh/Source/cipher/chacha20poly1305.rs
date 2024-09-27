@@ -50,6 +50,7 @@ impl super::Cipher for SshChacha20Poly1305Cipher {
 		_: &dyn MacAlgorithm,
 	) -> Result<Box<dyn super::OpeningKey + Send>, Error> {
 		let mut k1 = Key::default();
+
 		let mut k2 = Key::default();
 		k1.clone_from_slice(&k[KeyLength::to_usize()..]);
 		k2.clone_from_slice(&k[..KeyLength::to_usize()]);
@@ -65,6 +66,7 @@ impl super::Cipher for SshChacha20Poly1305Cipher {
 		_: &dyn MacAlgorithm,
 	) -> Result<Box<dyn super::SealingKey + Send>, Error> {
 		let mut k1 = Key::default();
+
 		let mut k2 = Key::default();
 		k1.clone_from_slice(&k[KeyLength::to_usize()..]);
 		k2.clone_from_slice(&k[..KeyLength::to_usize()]);
@@ -97,6 +99,7 @@ impl super::OpeningKey for OpeningKey {
 		mut encrypted_packet_length: [u8; 4],
 	) -> Result<[u8; 4], Error> {
 		let nonce = make_counter(sequence_number);
+
 		let mut cipher = ChaCha20Legacy::new(&self.k1, &nonce);
 		cipher.apply_keystream(&mut encrypted_packet_length);
 		Ok(encrypted_packet_length)
@@ -114,6 +117,7 @@ impl super::OpeningKey for OpeningKey {
 		tag: &[u8],
 	) -> Result<&'a [u8], Error> {
 		let nonce = make_counter(sequence_number);
+
 		let expected_tag = compute_poly1305(&nonce, &self.k2, ciphertext_in_plaintext_out);
 
 		if !bool::from(expected_tag.ct_eq(tag)) {
@@ -132,7 +136,9 @@ impl super::OpeningKey for OpeningKey {
 impl super::SealingKey for SealingKey {
 	fn padding_length(&self, payload: &[u8]) -> usize {
 		let block_size = 8;
+
 		let extra_len = super::PACKET_LENGTH_LEN + super::PADDING_LENGTH_LEN;
+
 		let padding_len = if payload.len() + extra_len <= super::MINIMUM_PACKET_LEN {
 			super::MINIMUM_PACKET_LEN - payload.len() - super::PADDING_LENGTH_LEN
 		} else {

@@ -92,7 +92,9 @@ impl server::Handler for Server {
 		session: Session,
 	) -> Result<(Self, bool, Session), Self::Error> {
 		let handle = session.handle();
+
 		let address = address.to_string();
+
 		let port = *port;
 		tokio::spawn(async move {
 			let mut channel =

@@ -232,6 +232,7 @@ impl PublicKeyBase64 for key::PublicKey {
 impl PublicKeyBase64 for key::KeyPair {
 	fn public_key_bytes(&self) -> Vec<u8> {
 		let name = self.name().as_bytes();
+
 		let mut s = Vec::new();
 		#[allow(clippy::unwrap_used)] // Vec<>.write_all can't fail
 		s.write_u32::<BigEndian>(name.len() as u32).unwrap();
@@ -517,7 +518,9 @@ QR+u0AypRPmzHnOPAAAAEXJvb3RAMTQwOTExNTQ5NDBkAQ==
 	#[test]
 	fn test_check_known_hosts() {
 		env_logger::try_init().unwrap_or(());
+
 		let dir = tempdir::TempDir::new("russh").unwrap();
+
 		let path = dir.path().join("known_hosts");
 		{
 			let mut f = File::create(&path).unwrap();
@@ -580,6 +583,7 @@ QR+u0AypRPmzHnOPAAAAEXJvb3RAMTQwOTExNTQ5NDBkAQ==
 	#[cfg(feature = "openssl")]
 	fn test_srhb() {
 		env_logger::try_init().unwrap_or(());
+
 		let key = "AAAAB3NzaC1yc2EAAAADAQABAAACAQC0Xtz3tSNgbUQAXem4d+d6hMx7S8Nwm/DOO2AWyWCru+n/+jQ7wz2b5+3oG2+7GbWZNGj8HCc6wJSA3jUsgv1N6PImIWclD14qvoqY3Dea1J0CJgXnnM1xKzBz9C6pDHGvdtySg+yzEO41Xt4u7HFn4Zx5SGuI2NBsF5mtMLZXSi33jCIWVIkrJVd7sZaY8jiqeVZBB/UvkLPWewGVuSXZHT84pNw4+S0Rh6P6zdNutK+JbeuO+5Bav4h9iw4t2sdRkEiWg/AdMoSKmo97Gigq2mKdW12ivnXxz3VfxrCgYJj9WwaUUWSfnAju5SiNly0cTEAN4dJ7yB0mfLKope1kRhPsNaOuUmMUqlu/hBDM/luOCzNjyVJ+0LLB7SV5vOiV7xkVd4KbEGKou8eeCR3yjFazUe/D1pjYPssPL8cJhTSuMc+/UC9zD8yeEZhB9V+vW4NMUR+lh5+XeOzenl65lWYd/nBZXLBbpUMf1AOfbz65xluwCxr2D2lj46iApSIpvE63i3LzFkbGl9GdUiuZJLMFJzOWdhGGc97cB5OVyf8umZLqMHjaImxHEHrnPh1MOVpv87HYJtSBEsN4/omINCMZrk++CRYAIRKRpPKFWV7NQHcvw3m7XLR3KaTYe+0/MINIZwGdou9fLUU3zSd521vDjA/weasH0CyDHq7sZw==";
 
 		parse_public_key_base64(key).unwrap();
@@ -589,6 +593,7 @@ QR+u0AypRPmzHnOPAAAAEXJvb3RAMTQwOTExNTQ5NDBkAQ==
 	#[cfg(feature = "openssl")]
 	fn test_nikao() {
 		env_logger::try_init().unwrap_or(());
+
 		let key = "-----BEGIN RSA PRIVATE KEY-----
 MIIEpQIBAAKCAQEAw/FG8YLVoXhsUVZcWaY7iZekMxQ2TAfSVh0LTnRuzsumeLhb
 0fh4scIt4C4MLwpGe/u3vj290C28jLkOtysqnIpB4iBUrFNRmEz2YuvjOzkFE8Ju
@@ -654,6 +659,7 @@ xV/JrzLAwPoKk3bkqys3bUmgo6DxVC/6RmMwPQ0rmpw78kOgEej90g==
 	#[cfg(feature = "openssl")]
 	fn test_loewenheim() -> Result<(), Error> {
 		env_logger::try_init().unwrap_or(());
+
 		let key = "-----BEGIN RSA PRIVATE KEY-----
 Proc-Type: 4,ENCRYPTED
 DEK-Info: AES-128-CBC,80E4FCAD049EE007CCE1C65D52CDB87A
@@ -685,9 +691,13 @@ raMODVc+NiJE0Qe6bwAi4HSpJ0qw2lKwVHYB8cdnNVv13acApod326/9itdbb3lt
 KJaj7gc0n6gmKY6r0/Ddufy1JZ6eihBCSJ64RARBXeg2rZpyT+xxhMEZLK5meOeR
 -----END RSA PRIVATE KEY-----
 ";
+
 		let key = decode_secret_key(key, Some("passphrase")).unwrap();
+
 		let public = key.clone_public_key()?;
+
 		let buf = b"blabla";
+
 		let sig = key.sign_detached(buf).unwrap();
 		assert!(public.verify_detached(buf, sig.as_ref()));
 		Ok(())
@@ -775,7 +785,9 @@ Cog3JMeTrb3LiPHgN6gU2P30MRp6L1j1J/MtlOAr5rux
 	#[cfg(feature = "openssl")]
 	fn test_gpg() {
 		env_logger::try_init().unwrap_or(());
+
 		let algo = [115, 115, 104, 45, 114, 115, 97];
+
 		let key = [
 			0, 0, 0, 7, 115, 115, 104, 45, 114, 115, 97, 0, 0, 0, 3, 1, 0, 1, 0, 0, 1, 129, 0, 163,
 			72, 59, 242, 4, 248, 139, 217, 57, 126, 18, 195, 170, 3, 94, 154, 9, 150, 89, 171, 236,
@@ -816,8 +828,11 @@ Cog3JMeTrb3LiPHgN6gU2P30MRp6L1j1J/MtlOAr5rux
 	fn test_client_agent(key: key::KeyPair) {
 		env_logger::try_init().unwrap_or(());
 		use std::process::{Command, Stdio};
+
 		let dir = tempdir::TempDir::new("russh").unwrap();
+
 		let agent_path = dir.path().join("agent");
+
 		let mut agent = Command::new("ssh-agent")
 			.arg("-a")
 			.arg(&agent_path)
@@ -827,6 +842,7 @@ Cog3JMeTrb3LiPHgN6gU2P30MRp6L1j1J/MtlOAr5rux
 			.spawn()
 			.expect("failed to execute process");
 		std::thread::sleep(std::time::Duration::from_millis(10));
+
 		let rt = tokio::runtime::Runtime::new().unwrap();
 		rt.block_on(async move {
 			let public = key.clone_public_key()?;
@@ -883,7 +899,9 @@ Cog3JMeTrb3LiPHgN6gU2P30MRp6L1j1J/MtlOAr5rux
 	#[cfg(feature = "openssl")]
 	fn test_agent() {
 		env_logger::try_init().unwrap_or(());
+
 		let dir = tempdir::TempDir::new("russh").unwrap();
+
 		let agent_path = dir.path().join("agent");
 
 		let core = tokio::runtime::Runtime::new().unwrap();
@@ -905,6 +923,7 @@ Cog3JMeTrb3LiPHgN6gU2P30MRp6L1j1J/MtlOAr5rux
 
 			agent::server::serve(Incoming { listener: &mut listener }, X {}).await
 		});
+
 		let key = decode_secret_key(PKCS8_ENCRYPTED, Some("blabla")).unwrap();
 		core.block_on(async move {
 			let public = key.clone_public_key()?;

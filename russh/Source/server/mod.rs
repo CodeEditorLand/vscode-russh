@@ -671,6 +671,7 @@ pub async fn run<H: Server + Send + 'static, A: ToSocketAddrs>(
 	}
 	while let Ok((socket, _)) = socket.accept().await {
 		let config = config.clone();
+
 		let server = server.new_client(socket.peer_addr().ok());
 		tokio::spawn(run_stream(config, socket, server));
 	}

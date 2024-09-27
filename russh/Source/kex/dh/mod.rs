@@ -97,6 +97,7 @@ impl<D: Digest> KexAlgorithm for DhGroupKex<D> {
 		debug!("client_pubkey: {:?}", client_pubkey);
 
 		self.dh.generate_private_key(true);
+
 		let server_pubkey = &self.dh.generate_public_key();
 		if !self.dh.validate_public_key(server_pubkey) {
 			return Err(crate::Error::Inconsistent);
@@ -128,6 +129,7 @@ impl<D: Digest> KexAlgorithm for DhGroupKex<D> {
 		buf: &mut CryptoVec,
 	) -> Result<(), crate::Error> {
 		self.dh.generate_private_key(false);
+
 		let client_pubkey = &self.dh.generate_public_key();
 
 		if !self.dh.validate_public_key(client_pubkey) {

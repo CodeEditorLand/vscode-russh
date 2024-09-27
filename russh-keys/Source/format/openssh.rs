@@ -11,7 +11,9 @@ pub fn decode_openssh(secret: &[u8], password: Option<&str>) -> Result<key::KeyP
 		let mut position = secret.reader(15);
 
 		let ciphername = position.read_string()?;
+
 		let kdfname = position.read_string()?;
+
 		let kdfoptions = position.read_string()?;
 
 		let nkeys = position.read_u32()?;
@@ -23,9 +25,13 @@ pub fn decode_openssh(secret: &[u8], password: Option<&str>) -> Result<key::KeyP
 
 		// Read all secret keys
 		let secret_ = position.read_string()?;
+
 		let secret = decrypt_secret_key(ciphername, kdfname, kdfoptions, password, secret_)?;
+
 		let mut position = secret.reader(0);
+
 		let _check0 = position.read_u32()?;
+
 		let _check1 = position.read_u32()?;
 		#[allow(clippy::never_loop)]
 		for _ in 0..nkeys {
@@ -99,6 +105,7 @@ fn decrypt_secret_key(
 		}
 	} else if let Some(password) = password {
 		let mut key = [0; 48];
+
 		let n = match ciphername {
 			b"aes128-cbc" | b"aes128-ctr" => 32,
 			b"aes256-cbc" | b"aes256-ctr" => 48,
@@ -121,6 +128,7 @@ fn decrypt_secret_key(
 				return Err(Error::CouldNotReadKey);
 			}
 		};
+
 		let (key, iv) = key.split_at(n - 16);
 
 		let mut dec = secret_key.to_vec();

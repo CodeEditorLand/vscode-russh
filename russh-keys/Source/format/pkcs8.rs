@@ -89,7 +89,9 @@ fn asn1_read_pbkdf2(
 ) -> Result<Result<KeyDerivation, Error>, yasna::ASN1Error> {
 	reader.next().read_sequence(|reader| {
 		let salt = reader.next().read_bytes()?;
+
 		let rounds = reader.next().read_u64()?;
+
 		let digest = reader.next().read_sequence(|reader| {
 			let oid = reader.next().read_oid()?;
 			if oid.components().as_slice() == HMAC_SHA256 {
@@ -194,6 +196,7 @@ fn read_key_v0(reader: &mut BERReaderSeq) -> Result<key::KeyPair, Error> {
 	})?;
 	if oid.components().as_slice() == RSA {
 		let seq = &reader.next().read_bytes()?;
+
 		let rsa: Result<Rsa<Private>, Error> = yasna::parse_der(seq, |reader| {
 			reader.read_sequence(|reader| {
 				let version = reader.next().read_u32()?;

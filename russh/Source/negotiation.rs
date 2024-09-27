@@ -174,7 +174,9 @@ pub trait Select {
 
 	fn read_kex(buffer: &[u8], pref: &Preferred) -> Result<Names, Error> {
 		let mut r = buffer.reader(17);
+
 		let kex_string = r.read_string()?;
+
 		let (kex_both_first, kex_algorithm) = if let Some(x) = Self::select(pref.kex, kex_string) {
 			x
 		} else {
@@ -187,6 +189,7 @@ pub trait Select {
 		};
 
 		let key_string = r.read_string()?;
+
 		let (key_both_first, key_algorithm) = if let Some(x) = Self::select(pref.key, key_string) {
 			x
 		} else {
@@ -199,6 +202,7 @@ pub trait Select {
 		};
 
 		let cipher_string = r.read_string()?;
+
 		let cipher = Self::select(pref.cipher, cipher_string);
 		if cipher.is_none() {
 			debug!(
@@ -221,6 +225,7 @@ pub trait Select {
 		} else {
 			mac::NONE
 		};
+
 		let server_mac = if let Some((_, m)) = Self::select(pref.mac, r.read_string()?) {
 			m
 		} else if need_mac {

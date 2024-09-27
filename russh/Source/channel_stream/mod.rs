@@ -28,6 +28,7 @@ pub struct ChannelStream {
 impl ChannelStream {
 	pub fn new() -> (Self, mpsc::UnboundedReceiver<Vec<u8>>, mpsc::UnboundedSender<Vec<u8>>) {
 		let (w_tx, w_rx) = mpsc::unbounded_channel();
+
 		let (r_tx, r_rx) = mpsc::unbounded_channel();
 		(
 			ChannelStream {

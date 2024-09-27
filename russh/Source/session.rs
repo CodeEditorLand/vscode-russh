@@ -239,6 +239,7 @@ impl Encrypted {
 			#[allow(clippy::indexing_slicing)] // length checked
 			&buf0[from..]
 		};
+
 		let buf_len = buf.len();
 
 		while !buf.is_empty() {
@@ -349,6 +350,7 @@ impl Encrypted {
 		}
 
 		let now = std::time::Instant::now();
+
 		let dur = now.duration_since(self.last_rekey);
 		Ok(write_buffer.bytes >= limits.rekey_write_limit || dur >= limits.rekey_time_limit)
 	}

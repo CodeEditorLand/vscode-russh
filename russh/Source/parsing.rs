@@ -15,8 +15,11 @@ impl OpenChannelMessage {
 	pub fn parse(r: &mut Position) -> Result<Self, crate::Error> {
 		// https://tools.ietf.org/html/rfc4254#section-5.1
 		let typ = r.read_string().map_err(crate::Error::from)?;
+
 		let sender = r.read_u32().map_err(crate::Error::from)?;
+
 		let window = r.read_u32().map_err(crate::Error::from)?;
+
 		let maxpacket = r.read_u32().map_err(crate::Error::from)?;
 
 		let typ = match typ {
@@ -100,10 +103,13 @@ impl TcpChannelInfo {
 		let host_to_connect = std::str::from_utf8(r.read_string().map_err(crate::Error::from)?)
 			.map_err(crate::Error::from)?
 			.to_owned();
+
 		let port_to_connect = r.read_u32().map_err(crate::Error::from)?;
+
 		let originator_address = std::str::from_utf8(r.read_string().map_err(crate::Error::from)?)
 			.map_err(crate::Error::from)?
 			.to_owned();
+
 		let originator_port = r.read_u32().map_err(crate::Error::from)?;
 
 		Ok(Self { host_to_connect, port_to_connect, originator_address, originator_port })
@@ -121,8 +127,11 @@ pub(crate) struct ChannelOpenConfirmation {
 impl ChannelOpenConfirmation {
 	pub fn parse(r: &mut Position) -> Result<Self, crate::Error> {
 		let recipient_channel = r.read_u32().map_err(crate::Error::from)?;
+
 		let sender_channel = r.read_u32().map_err(crate::Error::from)?;
+
 		let initial_window_size = r.read_u32().map_err(crate::Error::from)?;
+
 		let maximum_packet_size = r.read_u32().map_err(crate::Error::from)?;
 
 		Ok(Self { recipient_channel, sender_channel, initial_window_size, maximum_packet_size })

@@ -48,6 +48,7 @@ pub fn decode_secret_key(secret: &str, password: Option<&str>) -> Result<key::Ke
 	let mut format = None;
 	let secret = {
 		let mut started = false;
+
 		let mut sec = String::new();
 		for l in secret.lines() {
 			if started {

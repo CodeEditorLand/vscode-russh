@@ -113,6 +113,7 @@ impl<S: AsyncRead + AsyncWrite + Send + Unpin + 'static, A: Agent + Send + 'stat
 			}
 		};
 		writebuf.extend(&[0, 0, 0, 0]);
+
 		let mut r = self.buf.reader(0);
 		match r.read_byte() {
 			Ok(11) if !is_locked => {
@@ -199,6 +200,7 @@ impl<S: AsyncRead + AsyncWrite + Send + Unpin + 'static, A: Agent + Send + 'stat
 
 	fn lock(&self, mut r: Position) -> Result<(), Error> {
 		let password = r.read_string()?;
+
 		let mut lock = self.lock.0.write().or(Err(Error::AgentFailure))?;
 		lock.extend(password);
 		Ok(())
@@ -206,6 +208,7 @@ impl<S: AsyncRead + AsyncWrite + Send + Unpin + 'static, A: Agent + Send + 'stat
 
 	fn unlock(&self, mut r: Position) -> Result<bool, Error> {
 		let password = r.read_string()?;
+
 		let mut lock = self.lock.0.write().or(Err(Error::AgentFailure))?;
 		if &lock[..] == password {
 			lock.clear();
@@ -235,7 +238,9 @@ impl<S: AsyncRead + AsyncWrite + Send + Unpin + 'static, A: Agent + Send + 'stat
 	) -> Result<bool, Error> {
 		#[cfg(feature = "rs-crypto")]
 		let pos0 = r.position;
+
 		let t = r.read_string()?;
+
 		let (blob, key) = match t {
 			#[cfg(feature = "rs-crypto")]
 			b"ssh-ed25519" => {
@@ -305,7 +310,9 @@ impl<S: AsyncRead + AsyncWrite + Send + Unpin + 'static, A: Agent + Send + 'stat
 			}
 			_ => return Ok(false),
 		};
+
 		let mut w = self.keys.0.write().or(Err(Error::AgentFailure))?;
+
 		let now = SystemTime::now();
 		if constrained {
 			let n = r.read_u32()?;
@@ -350,6 +357,7 @@ impl<S: AsyncRead + AsyncWrite + Send + Unpin + 'static, A: Agent + Send + 'stat
 		writebuf: &mut CryptoVec,
 	) -> Result<(A, bool), Error> {
 		let mut needs_confirm = false;
+
 		let key = {
 			let blob = r.read_string()?;
 			let k = self.keys.0.read().or(Err(Error::AgentFailure))?;
@@ -362,6 +370,7 @@ impl<S: AsyncRead + AsyncWrite + Send + Unpin + 'static, A: Agent + Send + 'stat
 				return Ok((agent, false));
 			}
 		};
+
 		let agent = if needs_confirm {
 			let (agent, ok) = agent.confirm(key.clone()).await;
 			if !ok {
@@ -372,8 +381,10 @@ impl<S: AsyncRead + AsyncWrite + Send + Unpin + 'static, A: Agent + Send + 'stat
 			agent
 		};
 		writebuf.push(msg::SIGN_RESPONSE);
+
 		let data = r.read_string()?;
 		key.add_signature(writebuf, data)?;
+
 		let len = writebuf.len();
 		BigEndian::write_u32(writebuf, (len - 4) as u32);
 

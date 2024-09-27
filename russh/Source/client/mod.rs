@@ -683,9 +683,11 @@ impl Session {
 			stream.flush().await.map_err(crate::Error::from)?;
 		}
 		self.common.write_buffer.buffer.clear();
+
 		let mut decomp = CryptoVec::new();
 
 		let (stream_read, mut stream_write) = stream.split();
+
 		let buffer = SSHBuffer::new();
 
 		// Allow handing out references to the cipher
@@ -922,10 +924,12 @@ impl Session {
 
 	fn read_ssh_id(&mut self, sshid: &[u8]) -> Result<(), crate::Error> {
 		// self.read_buffer.bytes += sshid.bytes_read + 2;
+
 		let mut exchange = Exchange::new();
 		exchange.server_id.extend(sshid);
 		// Preparing the response
 		exchange.client_id.extend(self.common.config.client_id.as_kex_hash_bytes());
+
 		let mut kexinit = KexInit { exchange, algo: None, sent: false, session_id: None };
 		self.common.write_buffer.buffer.clear();
 		kexinit.client_write(
@@ -986,6 +990,7 @@ impl KexDhDone {
 		buf: &[u8],
 	) -> Result<(NewKeys, H), H::Error> {
 		let mut reader = buf.reader(1);
+
 		let pubkey = reader.read_string().map_err(crate::Error::from)?; // server public key.
 		let pubkey = parse_public_key(
 			pubkey,

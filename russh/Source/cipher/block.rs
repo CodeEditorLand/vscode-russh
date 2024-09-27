@@ -46,6 +46,7 @@ impl<C: StreamCipher + KeySizeUser + IvSizeUser + KeyIvInit + Send + 'static> su
 		mac: &dyn MacAlgorithm,
 	) -> Result<Box<dyn super::OpeningKey + Send>, Error> {
 		let mut key = GenericArray::<u8, C::KeySize>::default();
+
 		let mut nonce = GenericArray::<u8, C::IvSize>::default();
 		key.clone_from_slice(k);
 		nonce.clone_from_slice(n);
@@ -60,6 +61,7 @@ impl<C: StreamCipher + KeySizeUser + IvSizeUser + KeyIvInit + Send + 'static> su
 		mac: &dyn MacAlgorithm,
 	) -> Result<Box<dyn super::SealingKey + Send>, Error> {
 		let mut key = GenericArray::<u8, C::KeySize>::default();
+
 		let mut nonce = GenericArray::<u8, C::IvSize>::default();
 		key.clone_from_slice(k);
 		nonce.clone_from_slice(n);

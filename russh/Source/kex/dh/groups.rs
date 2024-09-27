@@ -69,6 +69,7 @@ impl DH {
 
 	pub fn generate_private_key(&mut self, is_server: bool) -> BigUint {
 		let q = (&self.prime_num - &BigUint::from(1u8)) / &BigUint::from(2u8);
+
 		let mut rng = rand::thread_rng();
 		self.private_key =
 			rng.gen_biguint_range(&if is_server { 1u8.into() } else { 2u8.into() }, &q);
@@ -87,6 +88,7 @@ impl DH {
 
 	pub fn validate_shared_secret(&self, shared_secret: &BigUint) -> bool {
 		let one = BigUint::from(1u8);
+
 		let prime_minus_one = &self.prime_num - &one;
 
 		shared_secret > &one && shared_secret < &prime_minus_one
@@ -98,6 +100,7 @@ impl DH {
 
 	pub fn validate_public_key(&self, public_key: &BigUint) -> bool {
 		let one = BigUint::from(1u8);
+
 		let prime_minus_one = &self.prime_num - &one;
 
 		public_key > &one && public_key < &prime_minus_one

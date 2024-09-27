@@ -73,6 +73,7 @@ impl super::SealingKey for Key {
 	// length.
 	fn padding_length(&self, payload: &[u8]) -> usize {
 		let block_size = 8;
+
 		let padding_len = block_size - ((5 + payload.len()) % block_size);
 		if padding_len < 4 {
 			padding_len + block_size

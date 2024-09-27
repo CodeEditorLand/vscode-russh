@@ -193,6 +193,7 @@ impl<S: AsyncRead + AsyncWrite + Unpin> AgentClient<S> {
 		self.buf.resize(4);
 		self.buf.push(msg::LOCK);
 		self.buf.extend_ssh_string(passphrase);
+
 		let len = self.buf.len() - 4;
 		BigEndian::write_u32(&mut self.buf[..], len as u32);
 		self.read_response().await?;
@@ -205,6 +206,7 @@ impl<S: AsyncRead + AsyncWrite + Unpin> AgentClient<S> {
 		self.buf.resize(4);
 		self.buf.push(msg::UNLOCK);
 		self.buf.extend_ssh_string(passphrase);
+
 		let len = self.buf.len() - 4;
 		#[allow(clippy::indexing_slicing)] // static length
 		BigEndian::write_u32(&mut self.buf[..], len as u32);
@@ -218,11 +220,13 @@ impl<S: AsyncRead + AsyncWrite + Unpin> AgentClient<S> {
 		self.buf.clear();
 		self.buf.resize(4);
 		self.buf.push(msg::REQUEST_IDENTITIES);
+
 		let len = self.buf.len() - 4;
 		BigEndian::write_u32(&mut self.buf[..], len as u32);
 
 		self.read_response().await?;
 		debug!("identities: {:?}", &self.buf[..]);
+
 		let mut keys = Vec::new();
 
 		#[allow(clippy::indexing_slicing)] // static length
@@ -272,6 +276,7 @@ impl<S: AsyncRead + AsyncWrite + Unpin> AgentClient<S> {
 		mut data: CryptoVec,
 	) -> impl futures::Future<Output = (Self, Result<CryptoVec, Error>)> {
 		debug!("sign_request: {:?}", data);
+
 		let hash = self.prepare_sign_request(public, &data);
 
 		async move {
@@ -320,6 +325,7 @@ impl<S: AsyncRead + AsyncWrite + Unpin> AgentClient<S> {
 			_ => 0,
 		};
 		self.buf.push_u32_be(hash);
+
 		let len = self.buf.len() - 4;
 		BigEndian::write_u32(&mut self.buf[..], len as u32);
 		Ok(hash)
@@ -327,7 +333,9 @@ impl<S: AsyncRead + AsyncWrite + Unpin> AgentClient<S> {
 
 	fn write_signature(&self, hash: u32, data: &mut CryptoVec) -> Result<(), Error> {
 		let mut r = self.buf.reader(1);
+
 		let mut resp = r.read_string()?.reader(0);
+
 		let t = resp.read_string()?;
 		if (hash == 2 && t == b"rsa-sha2-256") || (hash == 4 && t == b"rsa-sha2-512") || hash == 0 {
 			let sig = resp.read_string()?;
@@ -345,6 +353,7 @@ impl<S: AsyncRead + AsyncWrite + Unpin> AgentClient<S> {
 		data: &[u8],
 	) -> impl futures::Future<Output = (Self, Result<String, Error>)> {
 		debug!("sign_request: {:?}", data);
+
 		let r = self.prepare_sign_request(public, data);
 		async move {
 			if let Err(e) = r {
@@ -429,6 +438,7 @@ impl<S: AsyncRead + AsyncWrite + Unpin> AgentClient<S> {
 		self.buf.resize(4);
 		self.buf.push(msg::REMOVE_IDENTITY);
 		key_blob(public, &mut self.buf)?;
+
 		let len = self.buf.len() - 4;
 		BigEndian::write_u32(&mut self.buf[..], len as u32);
 		self.read_response().await?;
@@ -442,6 +452,7 @@ impl<S: AsyncRead + AsyncWrite + Unpin> AgentClient<S> {
 		self.buf.push(msg::REMOVE_SMARTCARD_KEY);
 		self.buf.extend_ssh_string(id.as_bytes());
 		self.buf.extend_ssh_string(pin);
+
 		let len = self.buf.len() - 4;
 		BigEndian::write_u32(&mut self.buf[..], len as u32);
 		self.read_response().await?;
@@ -465,6 +476,7 @@ impl<S: AsyncRead + AsyncWrite + Unpin> AgentClient<S> {
 		self.buf.push(msg::EXTENSION);
 		self.buf.extend_ssh_string(typ);
 		self.buf.extend_ssh_string(ext);
+
 		let len = self.buf.len() - 4;
 		BigEndian::write_u32(&mut self.buf[..], len as u32);
 		self.read_response().await?;
@@ -477,6 +489,7 @@ impl<S: AsyncRead + AsyncWrite + Unpin> AgentClient<S> {
 		self.buf.resize(4);
 		self.buf.push(msg::EXTENSION);
 		self.buf.extend_ssh_string(typ);
+
 		let len = self.buf.len() - 4;
 		BigEndian::write_u32(&mut self.buf[..], len as u32);
 		self.read_response().await?;

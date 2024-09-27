@@ -59,11 +59,16 @@ impl Session {
 		addrs: A,
 	) -> Result<Self> {
 		let key_pair = load_secret_key(key_path, None)?;
+
 		let config =
 			client::Config { connection_timeout: Some(Duration::from_secs(5)), ..<_>::default() };
+
 		let config = Arc::new(config);
+
 		let sh = Client {};
+
 		let mut session = client::connect(config, addrs, sh).await?;
+
 		let _auth_res = session.authenticate_publickey(user, Arc::new(key_pair)).await?;
 		Ok(Self { session })
 	}
@@ -71,7 +76,9 @@ impl Session {
 	async fn call(&mut self, command: &str) -> Result<CommandResult> {
 		let mut channel = self.session.channel_open_session().await?;
 		channel.exec(true, command).await?;
+
 		let mut output = Vec::new();
+
 		let mut code = None;
 		while let Some(msg) = channel.wait().await {
 			match msg {

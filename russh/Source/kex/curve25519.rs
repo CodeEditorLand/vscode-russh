@@ -67,11 +67,13 @@ impl KexAlgorithm for Curve25519Kex {
 		};
 
 		let server_secret = Scalar::from_bytes_mod_order(rand::random::<[u8; 32]>());
+
 		let server_pubkey = (&ED25519_BASEPOINT_TABLE * &server_secret).to_montgomery();
 
 		// fill exchange.
 		exchange.server_ephemeral.clear();
 		exchange.server_ephemeral.extend(&server_pubkey.0);
+
 		let shared = server_secret * client_pubkey;
 		self.shared_secret = Some(shared);
 		Ok(())
@@ -84,6 +86,7 @@ impl KexAlgorithm for Curve25519Kex {
 		buf: &mut CryptoVec,
 	) -> Result<(), crate::Error> {
 		let client_secret = Scalar::from_bytes_mod_order(rand::random::<[u8; 32]>());
+
 		let client_pubkey = (&ED25519_BASEPOINT_TABLE * &client_secret).to_montgomery();
 
 		// fill exchange.
@@ -103,6 +106,7 @@ impl KexAlgorithm for Curve25519Kex {
 
 		let mut remote_pubkey = MontgomeryPoint([0; 32]);
 		remote_pubkey.0.clone_from_slice(remote_pubkey_);
+
 		let shared = local_secret * remote_pubkey;
 		self.shared_secret = Some(shared);
 		Ok(())
@@ -130,6 +134,7 @@ impl KexAlgorithm for Curve25519Kex {
 		}
 
 		use sha2::Digest;
+
 		let mut hasher = sha2::Sha256::new();
 		hasher.update(&buffer);
 

@@ -290,6 +290,7 @@ impl CryptoVec {
 	/// ```
 	pub fn push_u32_be(&mut self, s: u32) {
 		let s = s.to_be();
+
 		let x: [u8; 4] = s.to_ne_bytes();
 		self.extend(&x)
 	}
@@ -305,6 +306,7 @@ impl CryptoVec {
 	/// ```
 	pub fn read_u32_be(&self, i: usize) -> u32 {
 		assert!(i + 4 <= self.size);
+
 		let mut x: u32 = 0;
 		unsafe {
 			libc::memcpy((&mut x) as *mut u32 as *mut c_void, self.p.add(i) as *const c_void, 4);
@@ -321,6 +323,7 @@ impl CryptoVec {
 	) -> Result<usize, std::io::Error> {
 		let cur_size = self.size;
 		self.resize(cur_size + n_bytes);
+
 		let s = unsafe { std::slice::from_raw_parts_mut(self.p.add(cur_size), n_bytes) };
 		// Resize the buffer to its appropriate size.
 		match r.read(s) {

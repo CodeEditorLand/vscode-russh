@@ -146,6 +146,7 @@ impl Session {
 		// If we've successfully read a packet.
 		trace!("process_packet buf = {:?} bytes", buf.len());
 		trace!("buf = {:?}", buf);
+
 		let mut is_authenticated = false;
 		if let Some(ref mut enc) = self.common.encrypted {
 			match enc.state {

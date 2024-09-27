@@ -17,6 +17,7 @@ impl KexInit {
 		write_buffer: &mut SSHBuffer,
 	) -> Result<KexDhDone, crate::Error> {
 		trace!("client parse {:?} {:?}", buf.len(), buf);
+
 		let algo = {
 			// read algorithms from packet.
 			debug!("extending {:?}", &self.exchange.server_kex_init[..]);

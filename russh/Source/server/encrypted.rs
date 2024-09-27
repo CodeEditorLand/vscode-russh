@@ -128,6 +128,7 @@ impl Session {
 	) -> Result<(H, Self), H::Error> {
 		let rejection_wait_until =
 			tokio::time::Instant::now() + self.common.config.auth_rejection_time;
+
 		let initial_none_rejection_wait_until = if self.common.auth_attempts == 0 {
 			tokio::time::Instant::now()
 				+ self
@@ -250,9 +251,13 @@ impl Encrypted {
 	) -> Result<H, H::Error> {
 		// https://tools.ietf.org/html/rfc4252#section-5
 		let mut r = buf.reader(1);
+
 		let user = r.read_string().map_err(crate::Error::from)?;
+
 		let user = std::str::from_utf8(user).map_err(crate::Error::from)?;
+
 		let service_name = r.read_string().map_err(crate::Error::from)?;
+
 		let method = r.read_string().map_err(crate::Error::from)?;
 		debug!(
 			"name: {:?} {:?} {:?}",
@@ -369,8 +374,11 @@ impl Encrypted {
 		} else {
 			unreachable!()
 		};
+
 		let is_real = r.read_byte().map_err(crate::Error::from)?;
+
 		let pubkey_algo = r.read_string().map_err(crate::Error::from)?;
+
 		let pubkey_key = r.read_string().map_err(crate::Error::from)?;
 		debug!("algo: {:?}, key: {:?}", pubkey_algo, pubkey_key);
 		match key::PublicKey::parse(pubkey_algo, pubkey_key) {
@@ -515,10 +523,14 @@ async fn read_userauth_info_response<H: Handler + Send>(
 ) -> Result<(H, bool), H::Error> {
 	if let Some(CurrentRequest::KeyboardInteractive { ref submethods }) = auth_request.current {
 		let mut r = b.reader(1);
+
 		let n = r.read_u32().map_err(crate::Error::from)?;
+
 		let response = Response { pos: r, n };
+
 		let (h, auth) = handler.auth_keyboard_interactive(user, submethods, Some(response)).await?;
 		handler = h;
+
 		let resp = reply_userauth_info_response(until, auth_request, write, auth)
 			.await
 			.map_err(H::Error::from)?;
@@ -915,6 +927,7 @@ impl Session {
 		buf: &[u8],
 	) -> Result<(H, bool, Self), H::Error> {
 		let mut r = buf.reader(1);
+
 		let msg = OpenChannelMessage::parse(&mut r)?;
 
 		let sender_channel = if let Some(ref mut enc) = self.common.encrypted {
@@ -922,6 +935,7 @@ impl Session {
 		} else {
 			unreachable!()
 		};
+
 		let channel_params = ChannelParams {
 			recipient_channel: msg.recipient_channel,
 
@@ -938,6 +952,7 @@ impl Session {
 		};
 
 		let (sender, receiver) = unbounded_channel();
+
 		let channel = Channel {
 			id: sender_channel,
 			sender: self.sender.sender.clone(),

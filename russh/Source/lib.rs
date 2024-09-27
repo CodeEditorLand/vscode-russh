@@ -121,11 +121,15 @@ pub use sshbuffer::SshId;
 macro_rules! push_packet {
 	( $buffer:expr, $x:expr ) => {{
 		use byteorder::{BigEndian, ByteOrder};
+
 		let i0 = $buffer.len();
 		$buffer.extend(b"\0\0\0\0");
+
 		let x = $x;
+
 		let i1 = $buffer.len();
 		use std::ops::DerefMut;
+
 		let buf = $buffer.deref_mut();
 		#[allow(clippy::indexing_slicing)] // length checked
 		BigEndian::write_u32(&mut buf[i0..], (i1 - i0 - 4) as u32);
@@ -492,15 +496,19 @@ mod test_compress {
 		let _ = env_logger::try_init();
 
 		let client_key = geneate_keypair();
+
 		let mut config = server::Config::default();
 		config.preferred = Preferred::COMPRESSED;
 		config.connection_timeout = None; // Some(std::time::Duration::from_secs(3));
 		config.auth_rejection_time = std::time::Duration::from_secs(3);
 		config.keys.push(geneate_keypair());
+
 		let config = Arc::new(config);
+
 		let mut sh = Server { clients: Arc::new(Mutex::new(HashMap::new())), id: 0 };
 
 		let socket = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+
 		let addr = socket.local_addr().unwrap();
 
 		tokio::spawn(async move {
@@ -510,10 +518,13 @@ mod test_compress {
 		});
 
 		let config = client::Config { preferred: Preferred::COMPRESSED, ..Default::default() };
+
 		let config = Arc::new(config);
 
 		dbg!(&addr);
+
 		let mut session = client::connect(config, addr, Client {}).await.unwrap();
+
 		let authenticated = session
 			.authenticate_publickey(
 				std::env::var("USER").unwrap_or("user".to_owned()),
@@ -522,10 +533,12 @@ mod test_compress {
 			.await
 			.unwrap();
 		assert!(authenticated);
+
 		let mut channel = session.channel_open_session().await.unwrap();
 
 		let data = &b"Hello, world!"[..];
 		channel.data(data).await.unwrap();
+
 		let msg = channel.wait().await.unwrap();
 		match msg {
 			ChannelMsg::Data { data: msg_data } => {
@@ -656,7 +669,9 @@ async fn test_session<RC, RS, CH, SH, F1, F2, CERR, SERR>(
 
 	let client_join = tokio::spawn(async move {
 		let config = Arc::new(client::Config::default());
+
 		let mut session = client::connect(config, addr, client_handler).await.unwrap();
+
 		let authenticated = session
 			.authenticate_publickey(
 				std::env::var("USER").unwrap_or("user".to_owned()),
@@ -749,6 +764,7 @@ mod test_channels {
 		}
 
 		let mut sh = ServerHandle { did_auth: None };
+
 		let a = sh.get_auth_waiter();
 		test_session(
 			Client {},
@@ -828,6 +844,7 @@ mod test_channels {
 		}
 
 		let mut sh = ServerHandle { channel: None };
+
 		let scw = sh.get_channel_waiter();
 
 		test_session(

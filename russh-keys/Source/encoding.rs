@@ -63,6 +63,7 @@ impl Encoding for Vec<u8> {
 	#[allow(clippy::unwrap_used)] // writing into Vec<> can't panic
 	fn extend_ssh_string_blank(&mut self, len: usize) -> &mut [u8] {
 		self.write_u32::<BigEndian>(len as u32).unwrap();
+
 		let current = self.len();
 		self.resize(current + len, 0u8);
 		#[allow(clippy::indexing_slicing)] // length is known
@@ -91,6 +92,7 @@ impl Encoding for Vec<u8> {
 	fn extend_list<A: Bytes, I: Iterator<Item = A>>(&mut self, list: I) {
 		let len0 = self.len();
 		self.extend([0, 0, 0, 0]);
+
 		let mut first = true;
 		for i in list {
 			if !first {
@@ -119,6 +121,7 @@ impl Encoding for CryptoVec {
 	#[allow(clippy::indexing_slicing)] // length is known
 	fn extend_ssh_string_blank(&mut self, len: usize) -> &mut [u8] {
 		self.push_u32_be(len as u32);
+
 		let current = self.len();
 		self.resize(current + len);
 		&mut self[current..]
@@ -144,6 +147,7 @@ impl Encoding for CryptoVec {
 	fn extend_list<A: Bytes, I: Iterator<Item = A>>(&mut self, list: I) {
 		let len0 = self.len();
 		self.extend(&[0, 0, 0, 0]);
+
 		let mut first = true;
 		for i in list {
 			if !first {
