@@ -21,7 +21,7 @@ pub fn decode_pkcs5(
 
 				#[allow(clippy::unwrap_used)] // AES parameters are static
 				decrypt(Cipher::aes_128_cbc(), &md5.0, Some(&iv[..]), secret)?
-			}
+			},
 			Encryption::Aes256Cbc(_) => unimplemented!(),
 		};
 		super::decode_rsa(&sec)

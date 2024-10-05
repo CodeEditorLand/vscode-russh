@@ -30,7 +30,9 @@ impl SshId {
 	pub(crate) fn as_kex_hash_bytes(&self) -> &[u8] {
 		match self {
 			Self::Standard(s) => s.as_bytes(),
-			Self::Raw(s) => s.trim_end_matches(|c| c == '\n' || c == '\r').as_bytes(),
+			Self::Raw(s) => {
+				s.trim_end_matches(|c| c == '\n' || c == '\r').as_bytes()
+			},
 		}
 	}
 
@@ -52,8 +54,14 @@ fn test_ssh_id() {
 	SshId::Raw("SSH-2.0-raw\n".to_string()).write(&mut buffer);
 	assert_eq!(&buffer[..], b"SSH-2.0-raw\n");
 
-	assert_eq!(SshId::Standard("SSH-2.0-acme".to_string()).as_kex_hash_bytes(), b"SSH-2.0-acme");
-	assert_eq!(SshId::Raw("SSH-2.0-raw\n".to_string()).as_kex_hash_bytes(), b"SSH-2.0-raw");
+	assert_eq!(
+		SshId::Standard("SSH-2.0-acme".to_string()).as_kex_hash_bytes(),
+		b"SSH-2.0-acme"
+	);
+	assert_eq!(
+		SshId::Raw("SSH-2.0-raw\n".to_string()).as_kex_hash_bytes(),
+		b"SSH-2.0-raw"
+	);
 }
 
 #[derive(Debug, Default)]
@@ -68,7 +76,12 @@ pub struct SSHBuffer {
 
 impl SSHBuffer {
 	pub fn new() -> Self {
-		SSHBuffer { buffer: CryptoVec::new(), len: 0, bytes: 0, seqn: Wrapping(0) }
+		SSHBuffer {
+			buffer: CryptoVec::new(),
+			len: 0,
+			bytes: 0,
+			seqn: Wrapping(0),
+		}
 	}
 
 	pub fn send_ssh_id(&mut self, id: &SshId) {

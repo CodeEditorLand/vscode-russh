@@ -44,7 +44,9 @@ pub struct SshRead<R> {
 }
 
 impl<R: AsyncRead + AsyncWrite> SshRead<R> {
-	pub fn split(self) -> (SshRead<tokio::io::ReadHalf<R>>, tokio::io::WriteHalf<R>) {
+	pub fn split(
+		self,
+	) -> (SshRead<tokio::io::ReadHalf<R>>, tokio::io::WriteHalf<R>) {
 		let (r, w) = tokio::io::split(self.r);
 		(SshRead { id: self.id, r }, w)
 	}
@@ -89,7 +91,10 @@ impl<R: AsyncWrite + Unpin> AsyncWrite for SshRead<R> {
 		AsyncWrite::poll_write(Pin::new(&mut self.r), cx, buf)
 	}
 
-	fn poll_flush(mut self: Pin<&mut Self>, cx: &mut Context) -> Poll<Result<(), std::io::Error>> {
+	fn poll_flush(
+		mut self: Pin<&mut Self>,
+		cx: &mut Context,
+	) -> Poll<Result<(), std::io::Error>> {
 		AsyncWrite::poll_flush(Pin::new(&mut self.r), cx)
 	}
 
@@ -114,13 +119,17 @@ impl<R: AsyncRead + Unpin> SshRead<R> {
 			debug!("read_ssh_id: reading");
 
 			#[allow(clippy::indexing_slicing)] // length checked
-			let n = AsyncReadExt::read(&mut self.r, &mut ssh_id.buf[ssh_id.total..]).await?;
+			let n = AsyncReadExt::read(&mut self.r, &mut ssh_id.buf[ssh_id.total..])
+				.await?;
 			debug!("read {:?}", n);
 
 			ssh_id.total += n;
 			#[allow(clippy::indexing_slicing)] // length checked
 			{
-				debug!("{:?}", std::str::from_utf8(&ssh_id.buf[..ssh_id.total]));
+				debug!(
+					"{:?}",
+					std::str::from_utf8(&ssh_id.buf[..ssh_id.total])
+				);
 			}
 			if n == 0 {
 				return Err(Error::Disconnect);

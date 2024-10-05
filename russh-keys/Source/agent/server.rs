@@ -18,7 +18,13 @@ use crate::{key, Error};
 
 #[derive(Clone)]
 #[allow(clippy::type_complexity)]
-struct KeyStore(Arc<RwLock<HashMap<Vec<u8>, (Arc<key::KeyPair>, SystemTime, Vec<Constraint>)>>>);
+struct KeyStore(
+	Arc<
+		RwLock<
+			HashMap<Vec<u8>, (Arc<key::KeyPair>, SystemTime, Vec<Constraint>)>,
+		>,
+	>,
+);
 
 #[derive(Clone)]
 struct Lock(Arc<RwLock<CryptoVec>>);
@@ -81,8 +87,10 @@ struct Connection<S: AsyncRead + AsyncWrite + Send + 'static, A: Agent> {
 	buf: CryptoVec,
 }
 
-impl<S: AsyncRead + AsyncWrite + Send + Unpin + 'static, A: Agent + Send + 'static>
-	Connection<S, A>
+impl<
+		S: AsyncRead + AsyncWrite + Send + Unpin + 'static,
+		A: Agent + Send + 'static,
+	> Connection<S, A>
 {
 	async fn run(mut self) -> Result<(), Error> {
 		let mut writebuf = CryptoVec::new();
@@ -128,7 +136,7 @@ impl<S: AsyncRead + AsyncWrite + Send + Unpin + 'static, A: Agent + Send + 'stat
 				} else {
 					writebuf.push(msg::FAILURE)
 				}
-			}
+			},
 			Ok(13) if !is_locked => {
 				// sign request
 				let agent = self.agent.take().ok_or(Error::AgentFailure)?;
@@ -140,14 +148,14 @@ impl<S: AsyncRead + AsyncWrite + Send + Unpin + 'static, A: Agent + Send + 'stat
 					writebuf.resize(4);
 					writebuf.push(msg::FAILURE)
 				}
-			}
+			},
 			Ok(17) if !is_locked => {
 				// add identity
 				if let Ok(true) = self.add_key(r, false, writebuf).await {
 				} else {
 					writebuf.push(msg::FAILURE)
 				}
-			}
+			},
 			Ok(18) if !is_locked => {
 				// remove identity
 				if let Ok(true) = self.remove_identity(r) {
@@ -155,7 +163,7 @@ impl<S: AsyncRead + AsyncWrite + Send + Unpin + 'static, A: Agent + Send + 'stat
 				} else {
 					writebuf.push(msg::FAILURE)
 				}
-			}
+			},
 			Ok(19) if !is_locked => {
 				// remove all identities
 				if let Ok(mut keys) = self.keys.0.write() {
@@ -164,7 +172,7 @@ impl<S: AsyncRead + AsyncWrite + Send + Unpin + 'static, A: Agent + Send + 'stat
 				} else {
 					writebuf.push(msg::FAILURE)
 				}
-			}
+			},
 			Ok(22) if !is_locked => {
 				// lock
 				if let Ok(()) = self.lock(r) {
@@ -172,7 +180,7 @@ impl<S: AsyncRead + AsyncWrite + Send + Unpin + 'static, A: Agent + Send + 'stat
 				} else {
 					writebuf.push(msg::FAILURE)
 				}
-			}
+			},
 			Ok(23) if is_locked => {
 				// unlock
 				if let Ok(true) = self.unlock(r) {
@@ -180,18 +188,18 @@ impl<S: AsyncRead + AsyncWrite + Send + Unpin + 'static, A: Agent + Send + 'stat
 				} else {
 					writebuf.push(msg::FAILURE)
 				}
-			}
+			},
 			Ok(25) if !is_locked => {
 				// add identity constrained
 				if let Ok(true) = self.add_key(r, true, writebuf).await {
 				} else {
 					writebuf.push(msg::FAILURE)
 				}
-			}
+			},
 			_ => {
 				// Message not understood
 				writebuf.push(msg::FAILURE)
-			}
+			},
 		}
 		let len = writebuf.len() - 4;
 		BigEndian::write_u32(&mut writebuf[..], len as u32);
@@ -261,9 +269,12 @@ impl<S: AsyncRead + AsyncWrite + Send + Unpin + 'static, A: Agent + Send + 'stat
 				#[allow(clippy::indexing_slicing)] // positions checked before
 				(
 					self.buf[pos0..pos1].to_vec(),
-					key::KeyPair::Ed25519(ed25519_dalek::Keypair { public, secret }),
+					key::KeyPair::Ed25519(ed25519_dalek::Keypair {
+						public,
+						secret,
+					}),
 				)
-			}
+			},
 			#[cfg(feature = "openssl")]
 			b"ssh-rsa" => {
 				use openssl::bn::{BigNum, BigNumContext};
@@ -307,7 +318,7 @@ impl<S: AsyncRead + AsyncWrite + Send + Unpin + 'static, A: Agent + Send + 'stat
 				writebuf.resize(len0);
 				writebuf.push(msg::SUCCESS);
 				(blob, key::KeyPair::RSA { key, hash: SignatureHash::SHA2_256 })
-			}
+			},
 			_ => return Ok(false),
 		};
 
@@ -327,11 +338,12 @@ impl<S: AsyncRead + AsyncWrite + Send + Unpin + 'static, A: Agent + Send + 'stat
 					tokio::spawn(async move {
 						sleep(Duration::from_secs(seconds as u64)).await;
 						if let Ok(mut keys) = keys.0.write() {
-							let delete = if let Some(&(_, time, _)) = keys.get(&blob) {
-								time == now
-							} else {
-								false
-							};
+							let delete =
+								if let Some(&(_, time, _)) = keys.get(&blob) {
+									time == now
+								} else {
+									false
+								};
 							if delete {
 								keys.remove(&blob);
 							}

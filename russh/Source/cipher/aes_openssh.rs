@@ -42,7 +42,8 @@ impl super::Cipher for AesSshCipher {
 		mac_key: &[u8],
 		mac: &dyn MacAlgorithm,
 	) -> Result<Box<dyn super::OpeningKey + Send>, Error> {
-		let mut ctx = CipherCtx::new().expect("expected to make openssl cipher");
+		let mut ctx =
+			CipherCtx::new().expect("expected to make openssl cipher");
 		ctx.decrypt_init(Some(self.0()), Some(key), Some(iv))?;
 
 		Ok(Box::new(OpeningKey {
@@ -61,7 +62,8 @@ impl super::Cipher for AesSshCipher {
 		mac_key: &[u8],
 		mac: &dyn MacAlgorithm,
 	) -> Result<Box<dyn super::SealingKey + Send>, Error> {
-		let mut ctx = CipherCtx::new().expect("expected to make openssl cipher");
+		let mut ctx =
+			CipherCtx::new().expect("expected to make openssl cipher");
 		ctx.encrypt_init(Some(self.0()), Some(key), Some(iv))?;
 
 		Ok(Box::new(SealingKey { ctx, mac: mac.make_mac(mac_key) }))
@@ -91,11 +93,17 @@ impl super::OpeningKey for OpeningKey {
 		if self.mac.is_etm() {
 			Ok(encrypted_packet_length)
 		} else {
-			let mut ctx = CipherCtx::new().expect("expected to make openssl cipher");
-			ctx.decrypt_init(Some(self.cipher), Some(&self.key), Some(&self.iv))?;
+			let mut ctx =
+				CipherCtx::new().expect("expected to make openssl cipher");
+			ctx.decrypt_init(
+				Some(self.cipher),
+				Some(&self.key),
+				Some(&self.iv),
+			)?;
 
 			let input = encrypted_packet_length;
-			let n = ctx.cipher_update(&input, Some(&mut encrypted_packet_length))?;
+			let n =
+				ctx.cipher_update(&input, Some(&mut encrypted_packet_length))?;
 			#[allow(clippy::indexing_slicing)]
 			ctx.cipher_final(&mut encrypted_packet_length[n..])?;
 			Ok(encrypted_packet_length)
@@ -123,9 +131,14 @@ impl super::OpeningKey for OpeningKey {
 				Some(&mut ciphertext_in_plaintext_out[PACKET_LENGTH_LEN..]),
 			)?;
 		} else {
-			self.ctx.cipher_update(&input, Some(ciphertext_in_plaintext_out))?;
+			self.ctx
+				.cipher_update(&input, Some(ciphertext_in_plaintext_out))?;
 
-			if !self.mac.verify(sequence_number, ciphertext_in_plaintext_out, tag) {
+			if !self.mac.verify(
+				sequence_number,
+				ciphertext_in_plaintext_out,
+				tag,
+			) {
 				return Err(Error::PacketAuth);
 			}
 		}
@@ -142,13 +155,19 @@ impl super::SealingKey for SealingKey {
 
 		let pll = if self.mac.is_etm() { 0 } else { PACKET_LENGTH_LEN };
 
-		let extra_len = PACKET_LENGTH_LEN + super::PADDING_LENGTH_LEN + self.mac.mac_len();
+		let extra_len =
+			PACKET_LENGTH_LEN + super::PADDING_LENGTH_LEN + self.mac.mac_len();
 
-		let padding_len = if payload.len() + extra_len <= super::MINIMUM_PACKET_LEN {
-			super::MINIMUM_PACKET_LEN - payload.len() - super::PADDING_LENGTH_LEN - pll
-		} else {
-			block_size - ((pll + super::PADDING_LENGTH_LEN + payload.len()) % block_size)
-		};
+		let padding_len =
+			if payload.len() + extra_len <= super::MINIMUM_PACKET_LEN {
+				super::MINIMUM_PACKET_LEN
+					- payload.len() - super::PADDING_LENGTH_LEN
+					- pll
+			} else {
+				block_size
+					- ((pll + super::PADDING_LENGTH_LEN + payload.len())
+						% block_size)
+			};
 		if padding_len < PACKET_LENGTH_LEN {
 			padding_len + block_size
 		} else {
@@ -179,7 +198,11 @@ impl super::SealingKey for SealingKey {
 					Some(&mut plaintext_in_ciphertext_out[PACKET_LENGTH_LEN..]),
 				)
 				.expect("cipher update should not fail");
-			self.mac.compute(sequence_number, plaintext_in_ciphertext_out, tag_out);
+			self.mac.compute(
+				sequence_number,
+				plaintext_in_ciphertext_out,
+				tag_out,
+			);
 		} else {
 			self.mac.compute(sequence_number, &plaintext, tag_out);
 			self.ctx

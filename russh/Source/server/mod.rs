@@ -261,7 +261,11 @@ pub trait Handler: Sized {
 	/// `config.auth_rejection_time`, except if this method takes more
 	/// than that.
 	#[allow(unused_variables)]
-	async fn auth_password(self, user: &str, password: &str) -> Result<(Self, Auth), Self::Error> {
+	async fn auth_password(
+		self,
+		user: &str,
+		password: &str,
+	) -> Result<(Self, Auth), Self::Error> {
 		Ok((self, Auth::Reject { proceed_with_methods: None }))
 	}
 
@@ -297,7 +301,10 @@ pub trait Handler: Sized {
 
 	/// Called when authentication succeeds for a session.
 	#[allow(unused_variables)]
-	async fn auth_succeeded(self, session: Session) -> Result<(Self, Session), Self::Error> {
+	async fn auth_succeeded(
+		self,
+		session: Session,
+	) -> Result<(Self, Session), Self::Error> {
 		Ok((self, session))
 	}
 
@@ -390,7 +397,9 @@ pub trait Handler: Sized {
 		session: Session,
 	) -> Result<(Self, Session), Self::Error> {
 		if let Some(channel) = session.channels.get(&id) {
-			channel.send(ChannelMsg::Open { id, max_packet_size, window_size }).unwrap_or(());
+			channel
+				.send(ChannelMsg::Open { id, max_packet_size, window_size })
+				.unwrap_or(());
 		} else {
 			error!("no channel for id {:?}", id);
 		}
@@ -407,7 +416,8 @@ pub trait Handler: Sized {
 		session: Session,
 	) -> Result<(Self, Session), Self::Error> {
 		if let Some(chan) = session.channels.get(&channel) {
-			chan.send(ChannelMsg::Data { data: CryptoVec::from_slice(data) }).unwrap_or(())
+			chan.send(ChannelMsg::Data { data: CryptoVec::from_slice(data) })
+				.unwrap_or(())
 		}
 		Ok((self, session))
 	}
@@ -425,8 +435,11 @@ pub trait Handler: Sized {
 		session: Session,
 	) -> Result<(Self, Session), Self::Error> {
 		if let Some(chan) = session.channels.get(&channel) {
-			chan.send(ChannelMsg::ExtendedData { ext: code, data: CryptoVec::from_slice(data) })
-				.unwrap_or(())
+			chan.send(ChannelMsg::ExtendedData {
+				ext: code,
+				data: CryptoVec::from_slice(data),
+			})
+			.unwrap_or(())
 		}
 		Ok((self, session))
 	}
@@ -539,7 +552,8 @@ pub trait Handler: Sized {
 		session: Session,
 	) -> Result<(Self, Session), Self::Error> {
 		if let Some(chan) = session.channels.get(&channel) {
-			chan.send(ChannelMsg::RequestShell { want_reply: true }).unwrap_or(())
+			chan.send(ChannelMsg::RequestShell { want_reply: true })
+				.unwrap_or(())
 		}
 		Ok((self, session))
 	}
@@ -554,7 +568,11 @@ pub trait Handler: Sized {
 		session: Session,
 	) -> Result<(Self, Session), Self::Error> {
 		if let Some(chan) = session.channels.get(&channel) {
-			chan.send(ChannelMsg::Exec { want_reply: true, command: data.into() }).unwrap_or(())
+			chan.send(ChannelMsg::Exec {
+				want_reply: true,
+				command: data.into(),
+			})
+			.unwrap_or(())
 		}
 		Ok((self, session))
 	}
@@ -569,8 +587,11 @@ pub trait Handler: Sized {
 		session: Session,
 	) -> Result<(Self, Session), Self::Error> {
 		if let Some(chan) = session.channels.get(&channel) {
-			chan.send(ChannelMsg::RequestSubsystem { want_reply: true, name: name.into() })
-				.unwrap_or(())
+			chan.send(ChannelMsg::RequestSubsystem {
+				want_reply: true,
+				name: name.into(),
+			})
+			.unwrap_or(())
 		}
 		Ok((self, session))
 	}
@@ -587,8 +608,13 @@ pub trait Handler: Sized {
 		session: Session,
 	) -> Result<(Self, Session), Self::Error> {
 		if let Some(chan) = session.channels.get(&channel) {
-			chan.send(ChannelMsg::WindowChange { col_width, row_height, pix_width, pix_height })
-				.unwrap_or(())
+			chan.send(ChannelMsg::WindowChange {
+				col_width,
+				row_height,
+				pix_width,
+				pix_height,
+			})
+			.unwrap_or(())
 		}
 		Ok((self, session))
 	}
@@ -601,7 +627,8 @@ pub trait Handler: Sized {
 		session: Session,
 	) -> Result<(Self, bool, Session), Self::Error> {
 		if let Some(chan) = session.channels.get(&channel) {
-			chan.send(ChannelMsg::AgentForward { want_reply: true }).unwrap_or(())
+			chan.send(ChannelMsg::AgentForward { want_reply: true })
+				.unwrap_or(())
 		}
 		Ok((self, false, session))
 	}
@@ -651,7 +678,10 @@ pub trait Server {
 	/// The type of handlers.
 	type Handler: Handler + Send;
 	/// Called when a new client connects.
-	fn new_client(&mut self, peer_addr: Option<std::net::SocketAddr>) -> Self::Handler;
+	fn new_client(
+		&mut self,
+		peer_addr: Option<std::net::SocketAddr>,
+	) -> Self::Handler;
 }
 
 /// Run a server.
@@ -744,11 +774,15 @@ where
 	// Writing SSH id.
 	let mut write_buffer = SSHBuffer::new();
 	write_buffer.send_ssh_id(&config.as_ref().server_id);
-	stream.write_all(&write_buffer.buffer[..]).await.map_err(crate::Error::from)?;
+	stream
+		.write_all(&write_buffer.buffer[..])
+		.await
+		.map_err(crate::Error::from)?;
 	info!("wrote id");
 	// Reading SSH id and allocating a session.
 	let mut stream = SshRead::new(stream);
-	let (sender, receiver) = tokio::sync::mpsc::channel(config.event_buffer_size);
+	let (sender, receiver) =
+		tokio::sync::mpsc::channel(config.event_buffer_size);
 	let common = read_ssh_id(config, &mut stream).await?;
 	info!("read other id");
 	let handle = server::session::Handle { sender };
@@ -781,11 +815,18 @@ async fn read_ssh_id<R: AsyncRead + Unpin>(
 	exchange.client_id.extend(sshid);
 	// Preparing the response
 	exchange.server_id.extend(config.as_ref().server_id.as_kex_hash_bytes());
-	let mut kexinit = KexInit { exchange, algo: None, sent: false, session_id: None };
-	let mut cipher =
-		CipherPair { local_to_remote: Box::new(clear::Key), remote_to_local: Box::new(clear::Key) };
+	let mut kexinit =
+		KexInit { exchange, algo: None, sent: false, session_id: None };
+	let mut cipher = CipherPair {
+		local_to_remote: Box::new(clear::Key),
+		remote_to_local: Box::new(clear::Key),
+	};
 	let mut write_buffer = SSHBuffer::new();
-	kexinit.server_write(config.as_ref(), &mut *cipher.local_to_remote, &mut write_buffer)?;
+	kexinit.server_write(
+		config.as_ref(),
+		&mut *cipher.local_to_remote,
+		&mut write_buffer,
+	)?;
 	Ok(CommonSession {
 		write_buffer,
 		kex: Some(Kex::Init(kexinit)),
@@ -810,7 +851,8 @@ async fn reply<H: Handler + Send>(
 	if session.common.encrypted.is_none() {
 		match session.common.kex.take() {
 			Some(Kex::Init(kexinit)) => {
-				if kexinit.algo.is_some() || buf.first() == Some(&msg::KEXINIT) {
+				if kexinit.algo.is_some() || buf.first() == Some(&msg::KEXINIT)
+				{
 					session.common.kex = Some(kexinit.server_parse(
 						session.common.config.as_ref(),
 						&mut *session.common.cipher.local_to_remote,
@@ -824,7 +866,7 @@ async fn reply<H: Handler + Send>(
 					// not returning.
 					session.common.kex = Some(Kex::Init(kexinit))
 				}
-			}
+			},
 			Some(Kex::Dh(kexdh)) => {
 				session.common.kex = Some(kexdh.parse(
 					session.common.config.as_ref(),
@@ -833,24 +875,27 @@ async fn reply<H: Handler + Send>(
 					&mut session.common.write_buffer,
 				)?);
 				return Ok((handler, session));
-			}
+			},
 			Some(Kex::Keys(newkeys)) => {
 				if buf.first() != Some(&msg::NEWKEYS) {
 					return Err(Error::Kex.into());
 				}
 				// Ok, NEWKEYS received, now encrypted.
 				session.common.encrypted(
-					EncryptedState::WaitingAuthServiceRequest { sent: false, accepted: false },
+					EncryptedState::WaitingAuthServiceRequest {
+						sent: false,
+						accepted: false,
+					},
 					newkeys,
 				);
 				session.maybe_send_ext_info();
 				return Ok((handler, session));
-			}
+			},
 			Some(kex) => {
 				session.common.kex = Some(kex);
 				return Ok((handler, session));
-			}
-			None => {}
+			},
+			None => {},
 		}
 		Ok((handler, session))
 	} else {

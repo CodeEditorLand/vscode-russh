@@ -44,7 +44,10 @@ enum Format {
 
 /// Decode a secret key, possibly deciphering it with the supplied
 /// password.
-pub fn decode_secret_key(secret: &str, password: Option<&str>) -> Result<key::KeyPair, Error> {
+pub fn decode_secret_key(
+	secret: &str,
+	password: Option<&str>,
+) -> Result<key::KeyPair, Error> {
 	let mut format = None;
 	let secret = {
 		let mut started = false;
@@ -60,14 +63,17 @@ pub fn decode_secret_key(secret: &str, password: Option<&str>) -> Result<key::Ke
 				} else if l.starts_with(AES_128_CBC) {
 					#[cfg(feature = "openssl")]
 					{
-						let iv_: Vec<u8> = HEXLOWER_PERMISSIVE
-							.decode(l.split_at(AES_128_CBC.len()).1.as_bytes())?;
+						let iv_: Vec<u8> = HEXLOWER_PERMISSIVE.decode(
+							l.split_at(AES_128_CBC.len()).1.as_bytes(),
+						)?;
 						if iv_.len() != 16 {
 							return Err(Error::CouldNotReadKey);
 						}
 						let mut iv = [0; 16];
 						iv.clone_from_slice(&iv_);
-						format = Some(Format::Pkcs5Encrypted(Encryption::Aes128Cbc(iv)))
+						format = Some(Format::Pkcs5Encrypted(
+							Encryption::Aes128Cbc(iv),
+						))
 					}
 				}
 			}
@@ -77,7 +83,9 @@ pub fn decode_secret_key(secret: &str, password: Option<&str>) -> Result<key::Ke
 			} else if l == "-----BEGIN RSA PRIVATE KEY-----" {
 				#[cfg(not(feature = "openssl"))]
 				{
-					return Err(Error::UnsupportedKeyType("rsa".as_bytes().to_vec()));
+					return Err(Error::UnsupportedKeyType(
+						"rsa".as_bytes().to_vec(),
+					));
 				}
 				#[cfg(feature = "openssl")]
 				{
@@ -104,12 +112,15 @@ pub fn decode_secret_key(secret: &str, password: Option<&str>) -> Result<key::Ke
 		Some(Format::Pkcs5Encrypted(enc)) => decode_pkcs5(&secret, password, enc),
 		Some(Format::Pkcs8Encrypted) | Some(Format::Pkcs8) => {
 			self::pkcs8::decode_pkcs8(&secret, password.map(|x| x.as_bytes()))
-		}
+		},
 		None => Err(Error::CouldNotReadKey),
 	}
 }
 
-pub fn encode_pkcs8_pem<W: Write>(key: &key::KeyPair, mut w: W) -> Result<(), Error> {
+pub fn encode_pkcs8_pem<W: Write>(
+	key: &key::KeyPair,
+	mut w: W,
+) -> Result<(), Error> {
 	let x = self::pkcs8::encode_pkcs8(key);
 	w.write_all(b"-----BEGIN PRIVATE KEY-----\n")?;
 	w.write_all(BASE64_MIME.encode(&x).as_bytes())?;

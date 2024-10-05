@@ -1,4 +1,9 @@
-#![deny(clippy::unwrap_used, clippy::expect_used, clippy::indexing_slicing, clippy::panic)]
+#![deny(
+	clippy::unwrap_used,
+	clippy::expect_used,
+	clippy::indexing_slicing,
+	clippy::panic
+)]
 #![allow(clippy::single_match, clippy::upper_case_acronyms)]
 // length checked
 // Copyright 2016 Pierre-Étienne Meunier
@@ -304,7 +309,11 @@ pub struct Limits {
 impl Limits {
 	/// Create a new `Limits`, checking that the given bounds cannot lead to
 	/// nonce reuse.
-	pub fn new(write_limit: usize, read_limit: usize, time_limit: std::time::Duration) -> Limits {
+	pub fn new(
+		write_limit: usize,
+		read_limit: usize,
+		time_limit: std::time::Duration,
+	) -> Limits {
 		assert!(write_limit <= 1 << 30 && read_limit <= 1 << 30);
 		Limits {
 			rekey_write_limit: write_limit,
@@ -487,8 +496,11 @@ mod test_compress {
 
 	#[cfg(all(feature = "openssl", not(feature = "rs-crypto")))]
 	fn geneate_keypair() -> russh_keys::key::KeyPair {
-		russh_keys::key::KeyPair::generate_rsa(2048, russh_keys::key::SignatureHash::SHA2_256)
-			.unwrap()
+		russh_keys::key::KeyPair::generate_rsa(
+			2048,
+			russh_keys::key::SignatureHash::SHA2_256,
+		)
+		.unwrap()
 	}
 
 	#[tokio::test]
@@ -505,9 +517,11 @@ mod test_compress {
 
 		let config = Arc::new(config);
 
-		let mut sh = Server { clients: Arc::new(Mutex::new(HashMap::new())), id: 0 };
+		let mut sh =
+			Server { clients: Arc::new(Mutex::new(HashMap::new())), id: 0 };
 
-		let socket = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+		let socket =
+			tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
 
 		let addr = socket.local_addr().unwrap();
 
@@ -517,13 +531,17 @@ mod test_compress {
 			server::run_stream(config, socket, server).await.unwrap();
 		});
 
-		let config = client::Config { preferred: Preferred::COMPRESSED, ..Default::default() };
+		let config = client::Config {
+			preferred: Preferred::COMPRESSED,
+			..Default::default()
+		};
 
 		let config = Arc::new(config);
 
 		dbg!(&addr);
 
-		let mut session = client::connect(config, addr, Client {}).await.unwrap();
+		let mut session =
+			client::connect(config, addr, Client {}).await.unwrap();
 
 		let authenticated = session
 			.authenticate_publickey(
@@ -543,7 +561,7 @@ mod test_compress {
 		match msg {
 			ChannelMsg::Data { data: msg_data } => {
 				assert_eq!(*data, *msg_data)
-			}
+			},
 			msg => panic!("Unexpected message {:?}", msg),
 		}
 	}
@@ -644,8 +662,11 @@ async fn test_session<RC, RS, CH, SH, F1, F2, CERR, SERR>(
 
 	#[cfg(not(feature = "rs-crypto"))]
 	fn generate_keypair() -> russh_keys::key::KeyPair {
-		russh_keys::key::KeyPair::generate_rsa(2048, russh_keys::key::SignatureHash::SHA2_256)
-			.unwrap()
+		russh_keys::key::KeyPair::generate_rsa(
+			2048,
+			russh_keys::key::SignatureHash::SHA2_256,
+		)
+		.unwrap()
 	}
 
 	let _ = env_logger::try_init();
@@ -664,13 +685,17 @@ async fn test_session<RC, RS, CH, SH, F1, F2, CERR, SERR>(
 	let server_join = tokio::spawn(async move {
 		let (socket, _) = socket.accept().await.unwrap();
 
-		server::run_stream(config, socket, server_handler).await.map_err(|_| ()).unwrap()
+		server::run_stream(config, socket, server_handler)
+			.await
+			.map_err(|_| ())
+			.unwrap()
 	});
 
 	let client_join = tokio::spawn(async move {
 		let config = Arc::new(client::Config::default());
 
-		let mut session = client::connect(config, addr, client_handler).await.unwrap();
+		let mut session =
+			client::connect(config, addr, client_handler).await.unwrap();
 
 		let authenticated = session
 			.authenticate_publickey(
@@ -683,11 +708,14 @@ async fn test_session<RC, RS, CH, SH, F1, F2, CERR, SERR>(
 		session
 	});
 
-	let (server_session, client_session) = tokio::join!(server_join, client_join);
+	let (server_session, client_session) =
+		tokio::join!(server_join, client_join);
 	let client_handle = tokio::spawn(run_client(client_session.unwrap()));
-	let server_handle = tokio::spawn(run_server(server_session.unwrap().handle()));
+	let server_handle =
+		tokio::spawn(run_server(server_session.unwrap().handle()));
 
-	let (server_session, client_session) = tokio::join!(server_handle, client_handle);
+	let (server_session, client_session) =
+		tokio::join!(server_handle, client_handle);
 	drop(client_session);
 	drop(server_session);
 }
@@ -724,7 +752,8 @@ mod test_channels {
 				mut session: client::Session,
 			) -> Result<(Self, client::Session), Self::Error> {
 				assert_eq!(data, &b"hello world!"[..]);
-				session.data(channel, CryptoVec::from_slice(&b"hey there!"[..]));
+				session
+					.data(channel, CryptoVec::from_slice(&b"hey there!"[..]));
 				Ok((self, session))
 			}
 		}
@@ -734,7 +763,9 @@ mod test_channels {
 		}
 
 		impl ServerHandle {
-			fn get_auth_waiter(&mut self) -> tokio::sync::oneshot::Receiver<()> {
+			fn get_auth_waiter(
+				&mut self,
+			) -> tokio::sync::oneshot::Receiver<()> {
 				let (tx, rx) = tokio::sync::oneshot::channel();
 				self.did_auth = Some(tx);
 				rx
@@ -812,7 +843,8 @@ mod test_channels {
 			fn get_channel_waiter(
 				&mut self,
 			) -> tokio::sync::oneshot::Receiver<Channel<server::Msg>> {
-				let (tx, rx) = tokio::sync::oneshot::channel::<Channel<server::Msg>>();
+				let (tx, rx) =
+					tokio::sync::oneshot::channel::<Channel<server::Msg>>();
 				self.channel = Some(tx);
 				rx
 			}
@@ -929,8 +961,8 @@ mod test_channels {
 								channel.data(&data[..]).await.unwrap();
 								channel.close().await.unwrap();
 								break;
-							}
-							_ => {}
+							},
+							_ => {},
 						}
 					}
 				});

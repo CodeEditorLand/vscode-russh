@@ -25,7 +25,10 @@ use russh_keys::encoding::Encoding;
 use crate::cipher::SealingKey;
 use crate::kex::KexAlgorithm;
 use crate::sshbuffer::SSHBuffer;
-use crate::{auth, cipher, mac, msg, negotiation, ChannelId, ChannelParams, Disconnect, Limits};
+use crate::{
+	auth, cipher, mac, msg, negotiation, ChannelId, ChannelParams, Disconnect,
+	Limits,
+};
 
 #[derive(Debug)]
 pub(crate) struct Encrypted {
@@ -102,7 +105,12 @@ impl<C> CommonSession<C> {
 	}
 
 	/// Send a disconnect message.
-	pub fn disconnect(&mut self, reason: Disconnect, description: &str, language_tag: &str) {
+	pub fn disconnect(
+		&mut self,
+		reason: Disconnect,
+		description: &str,
+		language_tag: &str,
+	) {
 		let disconnect = |buf: &mut CryptoVec| {
 			push_packet!(buf, {
 				buf.push(msg::DISCONNECT);
@@ -163,16 +171,28 @@ impl Encrypted {
 		}
 	}
 
-	pub fn adjust_window_size(&mut self, channel: ChannelId, data: &[u8], target: u32) -> bool {
+	pub fn adjust_window_size(
+		&mut self,
+		channel: ChannelId,
+		data: &[u8],
+		target: u32,
+	) -> bool {
 		if let Some(channel) = self.channels.get_mut(&channel) {
-			trace!("adjust_window_size, channel = {}, size = {},", channel.sender_channel, target);
+			trace!(
+				"adjust_window_size, channel = {}, size = {},",
+				channel.sender_channel,
+				target
+			);
 			// Ignore extra data.
 			// https://tools.ietf.org/html/rfc4254#section-5.2
 			if data.len() as u32 <= channel.sender_window_size {
 				channel.sender_window_size -= data.len() as u32;
 			}
 			if channel.sender_window_size < target / 2 {
-				debug!("sender_window_size {:?}, target {:?}", channel.sender_window_size, target);
+				debug!(
+					"sender_window_size {:?}, target {:?}",
+					channel.sender_window_size, target
+				);
 				push_packet!(self.write, {
 					self.write.push(msg::CHANNEL_WINDOW_ADJUST);
 					self.write.push_u32_be(channel.recipient_channel);
@@ -189,7 +209,8 @@ impl Encrypted {
 		let mut pending_size = 0;
 		if let Some(channel) = self.channels.get_mut(&channel) {
 			while let Some((buf, a, from)) = channel.pending_data.pop_front() {
-				let size = Self::data_noqueue(&mut self.write, channel, &buf, from);
+				let size =
+					Self::data_noqueue(&mut self.write, channel, &buf, from);
 				pending_size += size;
 				if from + size < buf.len() {
 					channel.pending_data.push_front((buf, a, from + size));
@@ -203,7 +224,8 @@ impl Encrypted {
 	pub fn flush_all_pending(&mut self) {
 		for (_, channel) in self.channels.iter_mut() {
 			while let Some((buf, a, from)) = channel.pending_data.pop_front() {
-				let size = Self::data_noqueue(&mut self.write, channel, &buf, from);
+				let size =
+					Self::data_noqueue(&mut self.write, channel, &buf, from);
 				if from + size < buf.len() {
 					channel.pending_data.push_front((buf, a, from + size));
 					break;
@@ -232,7 +254,9 @@ impl Encrypted {
 		if from >= buf0.len() {
 			return 0;
 		}
-		let mut buf = if buf0.len() as u32 > from as u32 + channel.recipient_window_size {
+		let mut buf = if buf0.len() as u32
+			> from as u32 + channel.recipient_window_size
+		{
 			#[allow(clippy::indexing_slicing)] // length checked
 			&buf0[from..from + channel.recipient_window_size as usize]
 		} else {
@@ -244,14 +268,21 @@ impl Encrypted {
 
 		while !buf.is_empty() {
 			// Compute the length we're allowed to send.
-			let off = std::cmp::min(buf.len(), channel.recipient_maximum_packet_size as usize);
+			let off = std::cmp::min(
+				buf.len(),
+				channel.recipient_maximum_packet_size as usize,
+			);
 			push_packet!(write, {
 				write.push(msg::CHANNEL_DATA);
 				write.push_u32_be(channel.recipient_channel);
 				#[allow(clippy::indexing_slicing)] // length checked
 				write.extend_ssh_string(&buf[..off]);
 			});
-			trace!("buffer: {:?} {:?}", write.len(), channel.recipient_window_size);
+			trace!(
+				"buffer: {:?} {:?}",
+				write.len(),
+				channel.recipient_window_size
+			);
 			channel.recipient_window_size -= off as u32;
 			#[allow(clippy::indexing_slicing)] // length checked
 			{
@@ -269,7 +300,8 @@ impl Encrypted {
 				channel.pending_data.push_back((buf0, None, 0));
 				return;
 			}
-			let buf_len = Self::data_noqueue(&mut self.write, channel, &buf0, 0);
+			let buf_len =
+				Self::data_noqueue(&mut self.write, channel, &buf0, 0);
 			if buf_len < buf0.len() {
 				channel.pending_data.push_back((buf0, None, buf_len))
 			}
@@ -278,7 +310,12 @@ impl Encrypted {
 		}
 	}
 
-	pub fn extended_data(&mut self, channel: ChannelId, ext: u32, buf0: CryptoVec) {
+	pub fn extended_data(
+		&mut self,
+		channel: ChannelId,
+		ext: u32,
+		buf0: CryptoVec,
+	) {
 		use std::ops::Deref;
 		if let Some(channel) = self.channels.get_mut(&channel) {
 			assert!(channel.confirmed);
@@ -296,7 +333,10 @@ impl Encrypted {
 
 			while !buf.is_empty() {
 				// Compute the length we're allowed to send.
-				let off = std::cmp::min(buf.len(), channel.recipient_maximum_packet_size as usize);
+				let off = std::cmp::min(
+					buf.len(),
+					channel.recipient_maximum_packet_size as usize,
+				);
 				push_packet!(self.write, {
 					self.write.push(msg::CHANNEL_EXTENDED_DATA);
 					self.write.push_u32_be(channel.recipient_channel);
@@ -331,7 +371,8 @@ impl Encrypted {
 				#[allow(clippy::indexing_slicing)] // length checked
 				let len = BigEndian::read_u32(&self.write[self.write_cursor..]) as usize;
 				#[allow(clippy::indexing_slicing)]
-				let to_write = &self.write[(self.write_cursor + 4)..(self.write_cursor + 4 + len)];
+				let to_write = &self.write
+					[(self.write_cursor + 4)..(self.write_cursor + 4 + len)];
 				trace!("server_write_encrypted, buf = {:?}", to_write);
 				#[allow(clippy::indexing_slicing)]
 				let packet = self.compress.compress(to_write, &mut self.compress_buffer)?;
@@ -352,7 +393,8 @@ impl Encrypted {
 		let now = std::time::Instant::now();
 
 		let dur = now.duration_since(self.last_rekey);
-		Ok(write_buffer.bytes >= limits.rekey_write_limit || dur >= limits.rekey_time_limit)
+		Ok(write_buffer.bytes >= limits.rekey_write_limit
+			|| dur >= limits.rekey_time_limit)
 	}
 	pub fn new_channel_id(&mut self) -> ChannelId {
 		self.last_channel_id += Wrapping(1);
@@ -361,7 +403,11 @@ impl Encrypted {
 		}
 		ChannelId(self.last_channel_id.0)
 	}
-	pub fn new_channel(&mut self, window_size: u32, maxpacket: u32) -> ChannelId {
+	pub fn new_channel(
+		&mut self,
+		window_size: u32,
+		maxpacket: u32,
+	) -> ChannelId {
 		loop {
 			self.last_channel_id += Wrapping(1);
 			if let std::collections::hash_map::Entry::Vacant(vacant_entry) =
@@ -441,7 +487,11 @@ pub(crate) struct KexInit {
 }
 
 impl KexInit {
-	pub fn received_rekey(ex: Exchange, algo: negotiation::Names, session_id: &CryptoVec) -> Self {
+	pub fn received_rekey(
+		ex: Exchange,
+		algo: negotiation::Names,
+		session_id: &CryptoVec,
+	) -> Self {
 		let mut kexinit = KexInit {
 			exchange: ex,
 			algo: Some(algo),
@@ -456,8 +506,12 @@ impl KexInit {
 	}
 
 	pub fn initiate_rekey(ex: Exchange, session_id: &CryptoVec) -> Self {
-		let mut kexinit =
-			KexInit { exchange: ex, algo: None, sent: true, session_id: Some(session_id.clone()) };
+		let mut kexinit = KexInit {
+			exchange: ex,
+			algo: None,
+			sent: true,
+			session_id: Some(session_id.clone()),
+		};
 		kexinit.exchange.client_kex_init.clear();
 		kexinit.exchange.server_kex_init.clear();
 		kexinit.exchange.client_ephemeral.clear();
@@ -489,16 +543,31 @@ impl Debug for KexDhDone {
 }
 
 impl KexDhDone {
-	pub fn compute_keys(self, hash: CryptoVec, is_server: bool) -> Result<NewKeys, crate::Error> {
-		let session_id =
-			if let Some(session_id) = self.session_id { session_id } else { hash.clone() };
+	pub fn compute_keys(
+		self,
+		hash: CryptoVec,
+		is_server: bool,
+	) -> Result<NewKeys, crate::Error> {
+		let session_id = if let Some(session_id) = self.session_id {
+			session_id
+		} else {
+			hash.clone()
+		};
 		// Now computing keys.
 		let c = self.kex.compute_keys(
 			&session_id,
 			&hash,
 			self.names.cipher,
-			if is_server { self.names.client_mac } else { self.names.server_mac },
-			if is_server { self.names.server_mac } else { self.names.client_mac },
+			if is_server {
+				self.names.client_mac
+			} else {
+				self.names.server_mac
+			},
+			if is_server {
+				self.names.server_mac
+			} else {
+				self.names.client_mac
+			},
 			is_server,
 		)?;
 		Ok(NewKeys {

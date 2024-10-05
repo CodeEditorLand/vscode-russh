@@ -51,7 +51,10 @@ impl KexInit {
 			.ok_or(crate::Error::UnknownAlgo)?
 			.make();
 
-		kex.client_dh(&mut self.exchange.client_ephemeral, &mut self.exchange.client_kex_init)?;
+		kex.client_dh(
+			&mut self.exchange.client_ephemeral,
+			&mut self.exchange.client_kex_init,
+		)?;
 
 		#[allow(clippy::indexing_slicing)] // length checked
 		cipher.write(&self.exchange.client_kex_init[i0..], write_buffer);
@@ -74,7 +77,11 @@ impl KexInit {
 		write_buffer: &mut SSHBuffer,
 	) -> Result<(), crate::Error> {
 		self.exchange.client_kex_init.clear();
-		negotiation::write_kex(&config.preferred, &mut self.exchange.client_kex_init, false)?;
+		negotiation::write_kex(
+			&config.preferred,
+			&mut self.exchange.client_kex_init,
+			false,
+		)?;
 		self.sent = true;
 		cipher.write(&self.exchange.client_kex_init, write_buffer);
 		Ok(())

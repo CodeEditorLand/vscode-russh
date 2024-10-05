@@ -21,10 +21,13 @@ use super::super::Error;
 use super::PACKET_LENGTH_LEN;
 use crate::mac::{Mac, MacAlgorithm};
 
-pub struct SshBlockCipher<C: StreamCipher + KeySizeUser + IvSizeUser>(pub PhantomData<C>);
+pub struct SshBlockCipher<C: StreamCipher + KeySizeUser + IvSizeUser>(
+	pub PhantomData<C>,
+);
 
-impl<C: StreamCipher + KeySizeUser + IvSizeUser + KeyIvInit + Send + 'static> super::Cipher
-	for SshBlockCipher<C>
+impl<
+		C: StreamCipher + KeySizeUser + IvSizeUser + KeyIvInit + Send + 'static,
+	> super::Cipher for SshBlockCipher<C>
 {
 	fn key_len(&self) -> usize {
 		C::key_size()
@@ -50,7 +53,10 @@ impl<C: StreamCipher + KeySizeUser + IvSizeUser + KeyIvInit + Send + 'static> su
 		let mut nonce = GenericArray::<u8, C::IvSize>::default();
 		key.clone_from_slice(k);
 		nonce.clone_from_slice(n);
-		Ok(Box::new(OpeningKey { cipher: C::new(&key, &nonce), mac: mac.make_mac(m) }))
+		Ok(Box::new(OpeningKey {
+			cipher: C::new(&key, &nonce),
+			mac: mac.make_mac(m),
+		}))
 	}
 
 	fn make_sealing_key(
@@ -65,7 +71,10 @@ impl<C: StreamCipher + KeySizeUser + IvSizeUser + KeyIvInit + Send + 'static> su
 		let mut nonce = GenericArray::<u8, C::IvSize>::default();
 		key.clone_from_slice(k);
 		nonce.clone_from_slice(n);
-		Ok(Box::new(SealingKey { cipher: C::new(&key, &nonce), mac: mac.make_mac(m) }))
+		Ok(Box::new(SealingKey {
+			cipher: C::new(&key, &nonce),
+			mac: mac.make_mac(m),
+		}))
 	}
 }
 
@@ -79,7 +88,9 @@ pub struct SealingKey<C: StreamCipher + KeySizeUser + IvSizeUser> {
 	mac: Box<dyn Mac + Send>,
 }
 
-impl<C: StreamCipher + KeySizeUser + IvSizeUser> super::OpeningKey for OpeningKey<C> {
+impl<C: StreamCipher + KeySizeUser + IvSizeUser> super::OpeningKey
+	for OpeningKey<C>
+{
 	fn decrypt_packet_length(
 		&self,
 		_sequence_number: u32,
@@ -89,7 +100,8 @@ impl<C: StreamCipher + KeySizeUser + IvSizeUser> super::OpeningKey for OpeningKe
 			Ok(encrypted_packet_length)
 		} else {
 			// Work around uncloneable Aes<>
-			let mut cipher: C = unsafe { std::ptr::read(&self.cipher as *const C) };
+			let mut cipher: C =
+				unsafe { std::ptr::read(&self.cipher as *const C) };
 			cipher.apply_keystream(&mut encrypted_packet_length);
 			Ok(encrypted_packet_length)
 		}
@@ -106,15 +118,25 @@ impl<C: StreamCipher + KeySizeUser + IvSizeUser> super::OpeningKey for OpeningKe
 		tag: &[u8],
 	) -> Result<&'a [u8], Error> {
 		if self.mac.is_etm() {
-			if !self.mac.verify(sequence_number, ciphertext_in_plaintext_out, tag) {
+			if !self.mac.verify(
+				sequence_number,
+				ciphertext_in_plaintext_out,
+				tag,
+			) {
 				return Err(Error::PacketAuth);
 			}
 			#[allow(clippy::indexing_slicing)]
-			self.cipher.apply_keystream(&mut ciphertext_in_plaintext_out[PACKET_LENGTH_LEN..]);
+			self.cipher.apply_keystream(
+				&mut ciphertext_in_plaintext_out[PACKET_LENGTH_LEN..],
+			);
 		} else {
 			self.cipher.apply_keystream(ciphertext_in_plaintext_out);
 
-			if !self.mac.verify(sequence_number, ciphertext_in_plaintext_out, tag) {
+			if !self.mac.verify(
+				sequence_number,
+				ciphertext_in_plaintext_out,
+				tag,
+			) {
 				return Err(Error::PacketAuth);
 			}
 		}
@@ -122,19 +144,27 @@ impl<C: StreamCipher + KeySizeUser + IvSizeUser> super::OpeningKey for OpeningKe
 	}
 }
 
-impl<C: StreamCipher + KeySizeUser + IvSizeUser> super::SealingKey for SealingKey<C> {
+impl<C: StreamCipher + KeySizeUser + IvSizeUser> super::SealingKey
+	for SealingKey<C>
+{
 	fn padding_length(&self, payload: &[u8]) -> usize {
 		let block_size = 16;
 
 		let pll = if self.mac.is_etm() { 0 } else { PACKET_LENGTH_LEN };
 
-		let extra_len = PACKET_LENGTH_LEN + super::PADDING_LENGTH_LEN + self.mac.mac_len();
+		let extra_len =
+			PACKET_LENGTH_LEN + super::PADDING_LENGTH_LEN + self.mac.mac_len();
 
-		let padding_len = if payload.len() + extra_len <= super::MINIMUM_PACKET_LEN {
-			super::MINIMUM_PACKET_LEN - payload.len() - super::PADDING_LENGTH_LEN - pll
-		} else {
-			block_size - ((pll + super::PADDING_LENGTH_LEN + payload.len()) % block_size)
-		};
+		let padding_len =
+			if payload.len() + extra_len <= super::MINIMUM_PACKET_LEN {
+				super::MINIMUM_PACKET_LEN
+					- payload.len() - super::PADDING_LENGTH_LEN
+					- pll
+			} else {
+				block_size
+					- ((pll + super::PADDING_LENGTH_LEN + payload.len())
+						% block_size)
+			};
 		if padding_len < PACKET_LENGTH_LEN {
 			padding_len + block_size
 		} else {
@@ -158,10 +188,20 @@ impl<C: StreamCipher + KeySizeUser + IvSizeUser> super::SealingKey for SealingKe
 	) {
 		if self.mac.is_etm() {
 			#[allow(clippy::indexing_slicing)]
-			self.cipher.apply_keystream(&mut plaintext_in_ciphertext_out[PACKET_LENGTH_LEN..]);
-			self.mac.compute(sequence_number, plaintext_in_ciphertext_out, tag_out);
+			self.cipher.apply_keystream(
+				&mut plaintext_in_ciphertext_out[PACKET_LENGTH_LEN..],
+			);
+			self.mac.compute(
+				sequence_number,
+				plaintext_in_ciphertext_out,
+				tag_out,
+			);
 		} else {
-			self.mac.compute(sequence_number, plaintext_in_ciphertext_out, tag_out);
+			self.mac.compute(
+				sequence_number,
+				plaintext_in_ciphertext_out,
+				tag_out,
+			);
 			self.cipher.apply_keystream(plaintext_in_ciphertext_out);
 		}
 	}

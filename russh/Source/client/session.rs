@@ -30,15 +30,19 @@ impl Session {
 						enc.write.push_u32_be(sender_channel.0);
 
 						// window.
-						enc.write.push_u32_be(self.common.config.as_ref().window_size);
+						enc.write.push_u32_be(
+							self.common.config.as_ref().window_size,
+						);
 
 						// max packet size.
-						enc.write.push_u32_be(self.common.config.as_ref().maximum_packet_size);
+						enc.write.push_u32_be(
+							self.common.config.as_ref().maximum_packet_size,
+						);
 
 						write_suffix(&mut enc.write);
 					});
 					sender_channel
-				}
+				},
 				_ => return Err(crate::Error::NotAuthenticated),
 			}
 		} else {
@@ -115,7 +119,8 @@ impl Session {
 					enc.write.push_u32_be(pix_width);
 					enc.write.push_u32_be(pix_height);
 
-					enc.write.push_u32_be((1 + 5 * terminal_modes.len()) as u32);
+					enc.write
+						.push_u32_be((1 + 5 * terminal_modes.len()) as u32);
 					for &(code, value) in terminal_modes {
 						enc.write.push(code as u8);
 						enc.write.push_u32_be(value)
@@ -145,8 +150,12 @@ impl Session {
 					enc.write.extend_ssh_string(b"x11-req");
 					enc.write.push(want_reply as u8);
 					enc.write.push(single_connection as u8);
-					enc.write.extend_ssh_string(x11_authentication_protocol.as_bytes());
-					enc.write.extend_ssh_string(x11_authentication_cookie.as_bytes());
+					enc.write.extend_ssh_string(
+						x11_authentication_protocol.as_bytes(),
+					);
+					enc.write.extend_ssh_string(
+						x11_authentication_cookie.as_bytes(),
+					);
 					enc.write.push_u32_be(x11_screen_number);
 				});
 			}
@@ -189,7 +198,12 @@ impl Session {
 		}
 	}
 
-	pub fn exec(&mut self, channel: ChannelId, want_reply: bool, command: &[u8]) {
+	pub fn exec(
+		&mut self,
+		channel: ChannelId,
+		want_reply: bool,
+		command: &[u8],
+	) {
 		if let Some(ref mut enc) = self.common.encrypted {
 			if let Some(channel) = enc.channels.get(&channel) {
 				push_packet!(enc.write, {
@@ -220,7 +234,12 @@ impl Session {
 		}
 	}
 
-	pub fn request_subsystem(&mut self, want_reply: bool, channel: ChannelId, name: &str) {
+	pub fn request_subsystem(
+		&mut self,
+		want_reply: bool,
+		channel: ChannelId,
+		name: &str,
+	) {
 		if let Some(ref mut enc) = self.common.encrypted {
 			if let Some(channel) = enc.channels.get(&channel) {
 				push_packet!(enc.write, {
@@ -260,7 +279,12 @@ impl Session {
 		}
 	}
 
-	pub fn tcpip_forward(&mut self, want_reply: bool, address: &str, port: u32) {
+	pub fn tcpip_forward(
+		&mut self,
+		want_reply: bool,
+		address: &str,
+		port: u32,
+	) {
 		if let Some(ref mut enc) = self.common.encrypted {
 			push_packet!(enc.write, {
 				enc.write.push(msg::GLOBAL_REQUEST);
@@ -272,7 +296,12 @@ impl Session {
 		}
 	}
 
-	pub fn cancel_tcpip_forward(&mut self, want_reply: bool, address: &str, port: u32) {
+	pub fn cancel_tcpip_forward(
+		&mut self,
+		want_reply: bool,
+		address: &str,
+		port: u32,
+	) {
 		if let Some(ref mut enc) = self.common.encrypted {
 			push_packet!(enc.write, {
 				enc.write.push(msg::GLOBAL_REQUEST);
@@ -308,7 +337,12 @@ impl Session {
 		}
 	}
 
-	pub fn extended_data(&mut self, channel: ChannelId, ext: u32, data: CryptoVec) {
+	pub fn extended_data(
+		&mut self,
+		channel: ChannelId,
+		ext: u32,
+		data: CryptoVec,
+	) {
 		if let Some(ref mut enc) = self.common.encrypted {
 			enc.extended_data(channel, ext, data)
 		} else {
@@ -329,7 +363,12 @@ impl Session {
 		}
 	}
 
-	pub fn disconnect(&mut self, reason: Disconnect, description: &str, language_tag: &str) {
+	pub fn disconnect(
+		&mut self,
+		reason: Disconnect,
+		description: &str,
+		language_tag: &str,
+	) {
 		self.common.disconnect(reason, description, language_tag);
 	}
 

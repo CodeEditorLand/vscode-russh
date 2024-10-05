@@ -96,7 +96,10 @@ fn make_nonce(
 
 	// GCM requires the counter to start from 1
 	#[allow(clippy::indexing_slicing)] // length checked
-	BigEndian::write_u64(&mut new_nonce[i0..], ctr + sequence_number as u64 - GCM_COUNTER_OFFSET);
+	BigEndian::write_u64(
+		&mut new_nonce[i0..],
+		ctr + sequence_number as u64 - GCM_COUNTER_OFFSET,
+	);
 	new_nonce
 }
 
@@ -123,12 +126,20 @@ impl super::OpeningKey for OpeningKey {
 		let mut packet_length = [0; super::PACKET_LENGTH_LEN];
 
 		#[allow(clippy::indexing_slicing)] // length checked
-		packet_length.clone_from_slice(&ciphertext_in_plaintext_out[..super::PACKET_LENGTH_LEN]);
+		packet_length.clone_from_slice(
+			&ciphertext_in_plaintext_out[..super::PACKET_LENGTH_LEN],
+		);
 
-		let mut buffer = vec![0; ciphertext_in_plaintext_out.len() - super::PACKET_LENGTH_LEN];
+		let mut buffer = vec![
+			0;
+			ciphertext_in_plaintext_out.len()
+				- super::PACKET_LENGTH_LEN
+		];
 
 		#[allow(clippy::indexing_slicing)] // length checked
-		buffer.copy_from_slice(&ciphertext_in_plaintext_out[super::PACKET_LENGTH_LEN..]);
+		buffer.copy_from_slice(
+			&ciphertext_in_plaintext_out[super::PACKET_LENGTH_LEN..],
+		);
 
 		let nonce = make_nonce(&self.nonce, sequence_number);
 
@@ -155,11 +166,14 @@ impl super::SealingKey for SealingKey {
 
 		let extra_len = super::PACKET_LENGTH_LEN + super::PADDING_LENGTH_LEN;
 
-		let padding_len = if payload.len() + extra_len <= super::MINIMUM_PACKET_LEN {
-			super::MINIMUM_PACKET_LEN - payload.len() - super::PADDING_LENGTH_LEN
-		} else {
-			block_size - ((super::PADDING_LENGTH_LEN + payload.len()) % block_size)
-		};
+		let padding_len =
+			if payload.len() + extra_len <= super::MINIMUM_PACKET_LEN {
+				super::MINIMUM_PACKET_LEN
+					- payload.len() - super::PADDING_LENGTH_LEN
+			} else {
+				block_size
+					- ((super::PADDING_LENGTH_LEN + payload.len()) % block_size)
+			};
 		if padding_len < super::PACKET_LENGTH_LEN {
 			padding_len + block_size
 		} else {
@@ -184,7 +198,9 @@ impl super::SealingKey for SealingKey {
 		// Packet length is received unencrypted
 		let mut packet_length = [0; super::PACKET_LENGTH_LEN];
 		#[allow(clippy::indexing_slicing)] // length checked
-		packet_length.clone_from_slice(&plaintext_in_ciphertext_out[..super::PACKET_LENGTH_LEN]);
+		packet_length.clone_from_slice(
+			&plaintext_in_ciphertext_out[..super::PACKET_LENGTH_LEN],
+		);
 
 		let nonce = make_nonce(&self.nonce, sequence_number);
 

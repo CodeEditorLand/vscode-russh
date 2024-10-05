@@ -20,7 +20,7 @@ async fn main() -> Result<()> {
 		None => {
 			eprintln!("Usage: {} <host:port> <private-key-path>", args[0]);
 			std::process::exit(1);
-		}
+		},
 	};
 
 	info!("Connecting to {host}");
@@ -60,8 +60,10 @@ impl Session {
 	) -> Result<Self> {
 		let key_pair = load_secret_key(key_path, None)?;
 
-		let config =
-			client::Config { connection_timeout: Some(Duration::from_secs(5)), ..<_>::default() };
+		let config = client::Config {
+			connection_timeout: Some(Duration::from_secs(5)),
+			..<_>::default()
+		};
 
 		let config = Arc::new(config);
 
@@ -69,7 +71,8 @@ impl Session {
 
 		let mut session = client::connect(config, addrs, sh).await?;
 
-		let _auth_res = session.authenticate_publickey(user, Arc::new(key_pair)).await?;
+		let _auth_res =
+			session.authenticate_publickey(user, Arc::new(key_pair)).await?;
 		Ok(Self { session })
 	}
 
@@ -84,18 +87,20 @@ impl Session {
 			match msg {
 				russh::ChannelMsg::Data { ref data } => {
 					output.write_all(data).unwrap();
-				}
+				},
 				russh::ChannelMsg::ExitStatus { exit_status } => {
 					code = Some(exit_status);
-				}
-				_ => {}
+				},
+				_ => {},
 			}
 		}
 		Ok(CommandResult { output, code })
 	}
 
 	async fn close(&mut self) -> Result<()> {
-		self.session.disconnect(Disconnect::ByApplication, "", "English").await?;
+		self.session
+			.disconnect(Disconnect::ByApplication, "", "English")
+			.await?;
 		Ok(())
 	}
 }

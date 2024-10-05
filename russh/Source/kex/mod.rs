@@ -49,7 +49,11 @@ impl Debug for dyn KexAlgorithm + Send {
 pub(crate) trait KexAlgorithm {
 	fn skip_exchange(&self) -> bool;
 
-	fn server_dh(&mut self, exchange: &mut Exchange, payload: &[u8]) -> Result<(), crate::Error>;
+	fn server_dh(
+		&mut self,
+		exchange: &mut Exchange,
+		payload: &[u8],
+	) -> Result<(), crate::Error>;
 
 	fn client_dh(
 		&mut self,
@@ -57,7 +61,10 @@ pub(crate) trait KexAlgorithm {
 		buf: &mut CryptoVec,
 	) -> Result<(), crate::Error>;
 
-	fn compute_shared_secret(&mut self, remote_pubkey_: &[u8]) -> Result<(), crate::Error>;
+	fn compute_shared_secret(
+		&mut self,
+		remote_pubkey_: &[u8],
+	) -> Result<(), crate::Error>;
 
 	fn compute_exchange_hash(
 		&self,
@@ -107,17 +114,19 @@ const _DH_G14_SHA1: DhGroup14Sha1KexType = DhGroup14Sha1KexType {};
 const _DH_G14_SHA256: DhGroup14Sha256KexType = DhGroup14Sha256KexType {};
 const _NONE: none::NoneKexType = none::NoneKexType {};
 
-pub(crate) static KEXES: Lazy<HashMap<&'static Name, &(dyn KexType + Send + Sync)>> =
-	Lazy::new(|| {
-		let mut h: HashMap<&'static Name, &(dyn KexType + Send + Sync)> = HashMap::new();
-		#[cfg(feature = "rs-crypto")]
-		h.insert(&CURVE25519, &_CURVE25519);
-		h.insert(&DH_G14_SHA256, &_DH_G14_SHA256);
-		h.insert(&DH_G14_SHA1, &_DH_G14_SHA1);
-		h.insert(&DH_G1_SHA1, &_DH_G1_SHA1);
-		h.insert(&NONE, &_NONE);
-		h
-	});
+pub(crate) static KEXES: Lazy<
+	HashMap<&'static Name, &(dyn KexType + Send + Sync)>,
+> = Lazy::new(|| {
+	let mut h: HashMap<&'static Name, &(dyn KexType + Send + Sync)> =
+		HashMap::new();
+	#[cfg(feature = "rs-crypto")]
+	h.insert(&CURVE25519, &_CURVE25519);
+	h.insert(&DH_G14_SHA256, &_DH_G14_SHA256);
+	h.insert(&DH_G14_SHA1, &_DH_G14_SHA1);
+	h.insert(&DH_G1_SHA1, &_DH_G1_SHA1);
+	h.insert(&NONE, &_NONE);
+	h
+});
 
 thread_local! {
 	static KEY_BUF: RefCell<CryptoVec> = RefCell::new(CryptoVec::new());
@@ -136,15 +145,20 @@ pub(crate) fn compute_keys<D: Digest>(
 	is_server: bool,
 ) -> Result<super::cipher::CipherPair, crate::Error> {
 	let cipher = CIPHERS.get(&cipher).ok_or(crate::Error::UnknownAlgo)?;
-	let remote_to_local_mac = MACS.get(&remote_to_local_mac).ok_or(crate::Error::UnknownAlgo)?;
-	let local_to_remote_mac = MACS.get(&local_to_remote_mac).ok_or(crate::Error::UnknownAlgo)?;
+	let remote_to_local_mac =
+		MACS.get(&remote_to_local_mac).ok_or(crate::Error::UnknownAlgo)?;
+	let local_to_remote_mac =
+		MACS.get(&local_to_remote_mac).ok_or(crate::Error::UnknownAlgo)?;
 
 	// https://tools.ietf.org/html/rfc4253#section-7.2
 	BUFFER.with(|buffer| {
 		KEY_BUF.with(|key| {
 			NONCE_BUF.with(|nonce| {
 				MAC_BUF.with(|mac| {
-					let compute_key = |c, key: &mut CryptoVec, len| -> Result<(), crate::Error> {
+					let compute_key = |c,
+					                   key: &mut CryptoVec,
+					                   len|
+					 -> Result<(), crate::Error> {
 						let mut buffer = buffer.borrow_mut();
 						buffer.clear();
 						key.clear();
@@ -197,19 +211,46 @@ pub(crate) fn compute_keys<D: Digest>(
 					let mut mac = mac.borrow_mut();
 
 					compute_key(local_to_remote, &mut key, cipher.key_len())?;
-					compute_key(local_to_remote_nonce, &mut nonce, cipher.nonce_len())?;
-					compute_key(local_to_remote_mac_key, &mut mac, local_to_remote_mac.key_len())?;
+					compute_key(
+						local_to_remote_nonce,
+						&mut nonce,
+						cipher.nonce_len(),
+					)?;
+					compute_key(
+						local_to_remote_mac_key,
+						&mut mac,
+						local_to_remote_mac.key_len(),
+					)?;
 
-					let local_to_remote =
-						cipher.make_sealing_key(&key, &nonce, &mac, *local_to_remote_mac)?;
+					let local_to_remote = cipher.make_sealing_key(
+						&key,
+						&nonce,
+						&mac,
+						*local_to_remote_mac,
+					)?;
 
 					compute_key(remote_to_local, &mut key, cipher.key_len())?;
-					compute_key(remote_to_local_nonce, &mut nonce, cipher.nonce_len())?;
-					compute_key(remote_to_local_mac_key, &mut mac, remote_to_local_mac.key_len())?;
-					let remote_to_local =
-						cipher.make_opening_key(&key, &nonce, &mac, *remote_to_local_mac)?;
+					compute_key(
+						remote_to_local_nonce,
+						&mut nonce,
+						cipher.nonce_len(),
+					)?;
+					compute_key(
+						remote_to_local_mac_key,
+						&mut mac,
+						remote_to_local_mac.key_len(),
+					)?;
+					let remote_to_local = cipher.make_opening_key(
+						&key,
+						&nonce,
+						&mac,
+						*remote_to_local_mac,
+					)?;
 
-					Ok(super::cipher::CipherPair { local_to_remote, remote_to_local })
+					Ok(super::cipher::CipherPair {
+						local_to_remote,
+						remote_to_local,
+					})
 				})
 			})
 		})

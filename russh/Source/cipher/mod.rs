@@ -93,40 +93,46 @@ static _CLEAR: Clear = Clear {};
 static _AES_128_CTR: aes_openssh::AesSshCipher =
 	aes_openssh::AesSshCipher(openssl::cipher::Cipher::aes_128_ctr);
 #[cfg(feature = "rs-crypto")]
-static _AES_128_CTR: SshBlockCipher<ctr::Ctr128BE<aes::Aes128>> = SshBlockCipher(PhantomData);
+static _AES_128_CTR: SshBlockCipher<ctr::Ctr128BE<aes::Aes128>> =
+	SshBlockCipher(PhantomData);
 
 #[cfg(all(feature = "openssl", not(feature = "rs-crypto")))]
 static _AES_192_CTR: aes_openssh::AesSshCipher =
 	aes_openssh::AesSshCipher(openssl::cipher::Cipher::aes_192_ctr);
 #[cfg(feature = "rs-crypto")]
-static _AES_192_CTR: SshBlockCipher<ctr::Ctr128BE<aes::Aes192>> = SshBlockCipher(PhantomData);
+static _AES_192_CTR: SshBlockCipher<ctr::Ctr128BE<aes::Aes192>> =
+	SshBlockCipher(PhantomData);
 
 #[cfg(all(feature = "openssl", not(feature = "rs-crypto")))]
 static _AES_256_CTR: aes_openssh::AesSshCipher =
 	aes_openssh::AesSshCipher(openssl::cipher::Cipher::aes_256_ctr);
 #[cfg(feature = "rs-crypto")]
-static _AES_256_CTR: SshBlockCipher<ctr::Ctr128BE<aes::Aes256>> = SshBlockCipher(PhantomData);
+static _AES_256_CTR: SshBlockCipher<ctr::Ctr128BE<aes::Aes256>> =
+	SshBlockCipher(PhantomData);
 
 #[cfg(feature = "rs-crypto")]
 static _AES_256_GCM: GcmCipher = GcmCipher {};
 
 #[cfg(feature = "rs-crypto")]
-static _CHACHA20_POLY1305: SshChacha20Poly1305Cipher = SshChacha20Poly1305Cipher {};
+static _CHACHA20_POLY1305: SshChacha20Poly1305Cipher =
+	SshChacha20Poly1305Cipher {};
 
-pub(crate) static CIPHERS: Lazy<HashMap<&'static Name, &(dyn Cipher + Send + Sync)>> =
-	Lazy::new(|| {
-		let mut h: HashMap<&'static Name, &(dyn Cipher + Send + Sync)> = HashMap::new();
-		h.insert(&CLEAR, &_CLEAR);
-		h.insert(&NONE, &_CLEAR);
-		h.insert(&AES_128_CTR, &_AES_128_CTR);
-		h.insert(&AES_192_CTR, &_AES_192_CTR);
-		h.insert(&AES_256_CTR, &_AES_256_CTR);
-		#[cfg(feature = "rs-crypto")]
-		h.insert(&AES_256_GCM, &_AES_256_GCM);
-		#[cfg(feature = "rs-crypto")]
-		h.insert(&CHACHA20_POLY1305, &_CHACHA20_POLY1305);
-		h
-	});
+pub(crate) static CIPHERS: Lazy<
+	HashMap<&'static Name, &(dyn Cipher + Send + Sync)>,
+> = Lazy::new(|| {
+	let mut h: HashMap<&'static Name, &(dyn Cipher + Send + Sync)> =
+		HashMap::new();
+	h.insert(&CLEAR, &_CLEAR);
+	h.insert(&NONE, &_CLEAR);
+	h.insert(&AES_128_CTR, &_AES_128_CTR);
+	h.insert(&AES_192_CTR, &_AES_192_CTR);
+	h.insert(&AES_256_CTR, &_AES_256_CTR);
+	#[cfg(feature = "rs-crypto")]
+	h.insert(&AES_256_GCM, &_AES_256_GCM);
+	#[cfg(feature = "rs-crypto")]
+	h.insert(&CHACHA20_POLY1305, &_CHACHA20_POLY1305);
+	h
+});
 
 #[derive(Debug, PartialEq, Eq, Copy, Clone, Hash)]
 pub struct Name(&'static str);
@@ -171,7 +177,12 @@ pub(crate) trait SealingKey {
 
 	fn tag_len(&self) -> usize;
 
-	fn seal(&mut self, seqn: u32, plaintext_in_ciphertext_out: &mut [u8], tag_out: &mut [u8]);
+	fn seal(
+		&mut self,
+		seqn: u32,
+		plaintext_in_ciphertext_out: &mut [u8],
+		tag_out: &mut [u8],
+	);
 
 	fn write(&mut self, payload: &[u8], buffer: &mut SSHBuffer) {
 		// https://tools.ietf.org/html/rfc4253#section-6
@@ -200,7 +211,8 @@ pub(crate) trait SealingKey {
 		buffer.buffer.resize_mut(self.tag_len());
 
 		#[allow(clippy::indexing_slicing)] // length checked
-		let (plaintext, tag) = buffer.buffer[offset..].split_at_mut(PACKET_LENGTH_LEN + packet_length);
+		let (plaintext, tag) = buffer.buffer[offset..]
+			.split_at_mut(PACKET_LENGTH_LEN + packet_length);
 
 		self.seal(buffer.seqn.0, plaintext, tag);
 
@@ -243,8 +255,10 @@ pub(crate) async fn read<'a, R: AsyncRead + Unpin>(
 
 	let padding_length = *plaintext.first().to_owned().unwrap_or(&0) as usize;
 	debug!("reading, padding_length {:?}", padding_length);
-	let plaintext_end =
-		plaintext.len().checked_sub(padding_length).ok_or(Error::IndexOutOfBounds)?;
+	let plaintext_end = plaintext
+		.len()
+		.checked_sub(padding_length)
+		.ok_or(Error::IndexOutOfBounds)?;
 
 	// Sequence numbers are on 32 bits and wrap.
 	// https://tools.ietf.org/html/rfc4253#section-6.4

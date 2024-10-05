@@ -27,14 +27,20 @@ async fn main() {
 	let config = Arc::new(config);
 	let sh = Client {};
 
-	let mut agent = russh_keys::agent::client::AgentClient::connect_env().await.unwrap();
+	let mut agent =
+		russh_keys::agent::client::AgentClient::connect_env().await.unwrap();
 	let mut identities = agent.request_identities().await.unwrap();
-	let mut session = russh::client::connect(config, ("127.0.0.1", 2200), sh).await.unwrap();
-	let (_, auth_res) = session.authenticate_future("pe", identities.pop().unwrap(), agent).await;
+	let mut session =
+		russh::client::connect(config, ("127.0.0.1", 2200), sh).await.unwrap();
+	let (_, auth_res) = session
+		.authenticate_future("pe", identities.pop().unwrap(), agent)
+		.await;
 	let auth_res = auth_res.unwrap();
 	println!("=== auth: {}", auth_res);
-	let mut channel =
-		session.channel_open_direct_tcpip("localhost", 8000, "localhost", 3333).await.unwrap();
+	let mut channel = session
+		.channel_open_direct_tcpip("localhost", 8000, "localhost", 3333)
+		.await
+		.unwrap();
 	// let mut channel = session.channel_open_session().await.unwrap();
 	println!("=== after open channel");
 	let data = b"GET /les_affames.mkv HTTP/1.1\nUser-Agent: curl/7.68.0\nAccept: */*\nConnection: close\n\n";
@@ -45,12 +51,12 @@ async fn main() {
 		match msg {
 			russh::ChannelMsg::Data { ref data } => {
 				f.write_all(data).unwrap();
-			}
+			},
 			russh::ChannelMsg::Eof => {
 				f.flush().unwrap();
 				break;
-			}
-			_ => {}
+			},
+			_ => {},
 		}
 	}
 	session.disconnect(Disconnect::ByApplication, "", "English").await.unwrap();

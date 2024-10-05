@@ -25,15 +25,21 @@ impl OpenChannelMessage {
 		let typ = match typ {
 			b"session" => ChannelType::Session,
 			b"x11" => {
-				let originator_address =
-					std::str::from_utf8(r.read_string().map_err(crate::Error::from)?)
-						.map_err(crate::Error::from)?
-						.to_owned();
-				let originator_port = r.read_u32().map_err(crate::Error::from)?;
+				let originator_address = std::str::from_utf8(
+					r.read_string().map_err(crate::Error::from)?,
+				)
+				.map_err(crate::Error::from)?
+				.to_owned();
+				let originator_port =
+					r.read_u32().map_err(crate::Error::from)?;
 				ChannelType::X11 { originator_address, originator_port }
-			}
-			b"direct-tcpip" => ChannelType::DirectTcpip(TcpChannelInfo::new(r)?),
-			b"forwarded-tcpip" => ChannelType::ForwardedTcpIp(TcpChannelInfo::new(r)?),
+			},
+			b"direct-tcpip" => {
+				ChannelType::DirectTcpip(TcpChannelInfo::new(r)?)
+			},
+			b"forwarded-tcpip" => {
+				ChannelType::ForwardedTcpIp(TcpChannelInfo::new(r)?)
+			},
 			b"auth-agent@openssh.com" => ChannelType::AgentForward,
 			t => ChannelType::Unknown { typ: t.to_vec() },
 		};
@@ -76,7 +82,11 @@ impl OpenChannelMessage {
 
 	/// Pushes an unknown type error to the vec.
 	pub fn unknown_type(&self, buffer: &mut CryptoVec) {
-		self.fail(buffer, msg::SSH_OPEN_UNKNOWN_CHANNEL_TYPE, b"Unknown channel type");
+		self.fail(
+			buffer,
+			msg::SSH_OPEN_UNKNOWN_CHANNEL_TYPE,
+			b"Unknown channel type",
+		);
 	}
 }
 
@@ -100,19 +110,26 @@ pub struct TcpChannelInfo {
 
 impl TcpChannelInfo {
 	fn new(r: &mut Position) -> Result<Self, crate::Error> {
-		let host_to_connect = std::str::from_utf8(r.read_string().map_err(crate::Error::from)?)
-			.map_err(crate::Error::from)?
-			.to_owned();
+		let host_to_connect =
+			std::str::from_utf8(r.read_string().map_err(crate::Error::from)?)
+				.map_err(crate::Error::from)?
+				.to_owned();
 
 		let port_to_connect = r.read_u32().map_err(crate::Error::from)?;
 
-		let originator_address = std::str::from_utf8(r.read_string().map_err(crate::Error::from)?)
-			.map_err(crate::Error::from)?
-			.to_owned();
+		let originator_address =
+			std::str::from_utf8(r.read_string().map_err(crate::Error::from)?)
+				.map_err(crate::Error::from)?
+				.to_owned();
 
 		let originator_port = r.read_u32().map_err(crate::Error::from)?;
 
-		Ok(Self { host_to_connect, port_to_connect, originator_address, originator_port })
+		Ok(Self {
+			host_to_connect,
+			port_to_connect,
+			originator_address,
+			originator_port,
+		})
 	}
 }
 
@@ -134,6 +151,11 @@ impl ChannelOpenConfirmation {
 
 		let maximum_packet_size = r.read_u32().map_err(crate::Error::from)?;
 
-		Ok(Self { recipient_channel, sender_channel, initial_window_size, maximum_packet_size })
+		Ok(Self {
+			recipient_channel,
+			sender_channel,
+			initial_window_size,
+			maximum_packet_size,
+		})
 	}
 }

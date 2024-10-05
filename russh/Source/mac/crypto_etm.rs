@@ -11,8 +11,10 @@ pub struct CryptoEtmMacAlgorithm<
 	KL: ArrayLength<u8> + 'static,
 >(pub PhantomData<M>, pub PhantomData<KL>);
 
-impl<M: digest::Mac + KeyInit + Send + 'static, KL: ArrayLength<u8> + 'static> MacAlgorithm
-	for CryptoEtmMacAlgorithm<M, KL>
+impl<
+		M: digest::Mac + KeyInit + Send + 'static,
+		KL: ArrayLength<u8> + 'static,
+	> MacAlgorithm for CryptoEtmMacAlgorithm<M, KL>
 {
 	fn key_len(&self) -> usize {
 		CryptoMacAlgorithm::<M, KL>(self.0, self.1).key_len()
@@ -21,17 +23,22 @@ impl<M: digest::Mac + KeyInit + Send + 'static, KL: ArrayLength<u8> + 'static> M
 	fn make_mac(&self, mac_key: &[u8]) -> Box<dyn Mac + Send> {
 		let mut key = GenericArray::<u8, KL>::default();
 		key.clone_from_slice(mac_key);
-		Box::new(CryptoEtmMac::<M, KL>(CryptoMac::<M, KL> { key, p: PhantomData }))
-			as Box<dyn Mac + Send>
+		Box::new(CryptoEtmMac::<M, KL>(CryptoMac::<M, KL> {
+			key,
+			p: PhantomData,
+		})) as Box<dyn Mac + Send>
 	}
 }
 
-pub struct CryptoEtmMac<M: digest::Mac + KeyInit + Send + 'static, KL: ArrayLength<u8> + 'static>(
-	CryptoMac<M, KL>,
-);
+pub struct CryptoEtmMac<
+	M: digest::Mac + KeyInit + Send + 'static,
+	KL: ArrayLength<u8> + 'static,
+>(CryptoMac<M, KL>);
 
-impl<M: digest::Mac + KeyInit + Send + 'static, KL: ArrayLength<u8> + 'static> Mac
-	for CryptoEtmMac<M, KL>
+impl<
+		M: digest::Mac + KeyInit + Send + 'static,
+		KL: ArrayLength<u8> + 'static,
+	> Mac for CryptoEtmMac<M, KL>
 {
 	fn is_etm(&self) -> bool {
 		true

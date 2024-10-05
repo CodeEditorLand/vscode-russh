@@ -28,7 +28,9 @@ impl<S: AsyncRead + AsyncWrite + Unpin> AgentClient<S> {
 impl AgentClient<tokio::net::UnixStream> {
 	/// Build a future that connects to an SSH agent via the provided
 	/// stream (on Unix, usually a Unix-domain socket).
-	pub async fn connect_uds<P: AsRef<std::path::Path>>(path: P) -> Result<Self, Error> {
+	pub async fn connect_uds<P: AsRef<std::path::Path>>(
+		path: P,
+	) -> Result<Self, Error> {
 		let stream = tokio::net::UnixStream::connect(path).await?;
 		Ok(AgentClient { stream, buf: CryptoVec::new() })
 	}
@@ -42,9 +44,11 @@ impl AgentClient<tokio::net::UnixStream> {
 			return Err(Error::EnvVar("SSH_AUTH_SOCK"));
 		};
 		match Self::connect_uds(var).await {
-			Err(Error::IO(io_err)) if io_err.kind() == std::io::ErrorKind::NotFound => {
+			Err(Error::IO(io_err))
+				if io_err.kind() == std::io::ErrorKind::NotFound =>
+			{
 				Err(Error::BadAuthSock)
-			}
+			},
 			owise => owise,
 		}
 	}
@@ -102,7 +106,7 @@ impl<S: AsyncRead + AsyncWrite + Unpin> AgentClient<S> {
 				self.buf.extend(pair.secret.as_bytes());
 				self.buf.extend(pair.public.as_bytes());
 				self.buf.extend_ssh_string(b"");
-			}
+			},
 			#[cfg(feature = "openssl")]
 			#[allow(clippy::unwrap_used)] // key is known to be private
 			key::KeyPair::RSA { ref key, .. } => {
@@ -115,13 +119,17 @@ impl<S: AsyncRead + AsyncWrite + Unpin> AgentClient<S> {
 				} else {
 					let mut ctx = openssl::bn::BigNumContext::new()?;
 					let mut iqmp = openssl::bn::BigNum::new()?;
-					iqmp.mod_inverse(key.p().unwrap(), key.q().unwrap(), &mut ctx)?;
+					iqmp.mod_inverse(
+						key.p().unwrap(),
+						key.q().unwrap(),
+						&mut ctx,
+					)?;
 					self.buf.extend_ssh_mpint(&iqmp.to_vec());
 				}
 				self.buf.extend_ssh_mpint(&key.p().unwrap().to_vec());
 				self.buf.extend_ssh_mpint(&key.q().unwrap().to_vec());
 				self.buf.extend_ssh_string(b"");
-			}
+			},
 		}
 		if !constraints.is_empty() {
 			self.buf.push_u32_be(constraints.len() as u32);
@@ -130,13 +138,15 @@ impl<S: AsyncRead + AsyncWrite + Unpin> AgentClient<S> {
 					Constraint::KeyLifetime { seconds } => {
 						self.buf.push(msg::CONSTRAIN_LIFETIME);
 						self.buf.push_u32_be(seconds)
-					}
-					Constraint::Confirm => self.buf.push(msg::CONSTRAIN_CONFIRM),
+					},
+					Constraint::Confirm => {
+						self.buf.push(msg::CONSTRAIN_CONFIRM)
+					},
 					Constraint::Extensions { ref name, ref details } => {
 						self.buf.push(msg::CONSTRAIN_EXTENSION);
 						self.buf.extend_ssh_string(name);
 						self.buf.extend_ssh_string(details);
-					}
+					},
 				}
 			}
 		}
@@ -171,13 +181,15 @@ impl<S: AsyncRead + AsyncWrite + Unpin> AgentClient<S> {
 					Constraint::KeyLifetime { seconds } => {
 						self.buf.push(msg::CONSTRAIN_LIFETIME);
 						self.buf.push_u32_be(seconds)
-					}
-					Constraint::Confirm => self.buf.push(msg::CONSTRAIN_CONFIRM),
+					},
+					Constraint::Confirm => {
+						self.buf.push(msg::CONSTRAIN_CONFIRM)
+					},
 					Constraint::Extensions { ref name, ref details } => {
 						self.buf.push(msg::CONSTRAIN_EXTENSION);
 						self.buf.extend_ssh_string(name);
 						self.buf.extend_ssh_string(details);
-					}
+					},
 				}
 			}
 		}
@@ -216,7 +228,9 @@ impl<S: AsyncRead + AsyncWrite + Unpin> AgentClient<S> {
 
 	/// Ask the agent for a list of the currently registered secret
 	/// keys.
-	pub async fn request_identities(&mut self) -> Result<Vec<PublicKey>, Error> {
+	pub async fn request_identities(
+		&mut self,
+	) -> Result<Vec<PublicKey>, Error> {
 		self.buf.clear();
 		self.buf.resize(4);
 		self.buf.push(msg::REQUEST_IDENTITIES);
@@ -248,20 +262,25 @@ impl<S: AsyncRead + AsyncWrite + Unpin> AgentClient<S> {
 						use openssl::pkey::PKey;
 						use openssl::rsa::Rsa;
 						keys.push(PublicKey::RSA {
-							key: key::OpenSSLPKey(PKey::from_rsa(Rsa::from_public_components(
-								BigNum::from_slice(n)?,
-								BigNum::from_slice(e)?,
-							)?)?),
+							key: key::OpenSSLPKey(PKey::from_rsa(
+								Rsa::from_public_components(
+									BigNum::from_slice(n)?,
+									BigNum::from_slice(e)?,
+								)?,
+							)?),
 							hash: SignatureHash::SHA2_512,
 						})
-					}
+					},
 					#[cfg(feature = "rs-crypto")]
-					b"ssh-ed25519" => keys.push(PublicKey::Ed25519(ed25519_dalek::PublicKey::from_bytes(
-						r.read_string()?,
-					)?)),
+					b"ssh-ed25519" => keys.push(PublicKey::Ed25519(
+						ed25519_dalek::PublicKey::from_bytes(r.read_string()?)?,
+					)),
 					t => {
-						info!("Unsupported key type: {:?}", std::str::from_utf8(t))
-					}
+						info!(
+							"Unsupported key type: {:?}",
+							std::str::from_utf8(t)
+						)
+					},
 				}
 			}
 		}
@@ -307,14 +326,19 @@ impl<S: AsyncRead + AsyncWrite + Unpin> AgentClient<S> {
 		}
 	}
 
-	fn prepare_sign_request(&mut self, public: &key::PublicKey, data: &[u8]) -> Result<u32, Error> {
+	fn prepare_sign_request(
+		&mut self,
+		public: &key::PublicKey,
+		data: &[u8],
+	) -> Result<u32, Error> {
 		self.buf.clear();
 		self.buf.resize(4);
 		self.buf.push(msg::SIGN_REQUEST);
 		key_blob(public, &mut self.buf)?;
 		self.buf.extend_ssh_string(data);
 		debug!("public = {:?}", public);
-		#[allow(unreachable_patterns)] // may not be unreachable depending on build flags
+		#[allow(unreachable_patterns)]
+		// may not be unreachable depending on build flags
 		let hash = match public {
 			#[cfg(feature = "openssl")]
 			PublicKey::RSA { hash, .. } => match hash {
@@ -331,13 +355,20 @@ impl<S: AsyncRead + AsyncWrite + Unpin> AgentClient<S> {
 		Ok(hash)
 	}
 
-	fn write_signature(&self, hash: u32, data: &mut CryptoVec) -> Result<(), Error> {
+	fn write_signature(
+		&self,
+		hash: u32,
+		data: &mut CryptoVec,
+	) -> Result<(), Error> {
 		let mut r = self.buf.reader(1);
 
 		let mut resp = r.read_string()?.reader(0);
 
 		let t = resp.read_string()?;
-		if (hash == 2 && t == b"rsa-sha2-256") || (hash == 4 && t == b"rsa-sha2-512") || hash == 0 {
+		if (hash == 2 && t == b"rsa-sha2-256")
+			|| (hash == 4 && t == b"rsa-sha2-512")
+			|| hash == 0
+		{
 			let sig = resp.read_string()?;
 			data.push_u32_be((t.len() + sig.len() + 8) as u32);
 			data.extend_ssh_string(t);
@@ -380,7 +411,9 @@ impl<S: AsyncRead + AsyncWrite + Unpin> AgentClient<S> {
 		mut self,
 		public: &key::PublicKey,
 		data: &[u8],
-	) -> impl futures::Future<Output = (Self, Result<crate::signature::Signature, Error>)> {
+	) -> impl futures::Future<
+		Output = (Self, Result<crate::signature::Signature, Error>),
+	> {
 		debug!("sign_request: {:?}", data);
 
 		let r = self.prepare_sign_request(public, data);
@@ -433,7 +466,10 @@ impl<S: AsyncRead + AsyncWrite + Unpin> AgentClient<S> {
 	}
 
 	/// Ask the agent to remove a key from its memory.
-	pub async fn remove_identity(&mut self, public: &key::PublicKey) -> Result<(), Error> {
+	pub async fn remove_identity(
+		&mut self,
+		public: &key::PublicKey,
+	) -> Result<(), Error> {
 		self.buf.clear();
 		self.buf.resize(4);
 		self.buf.push(msg::REMOVE_IDENTITY);
@@ -446,7 +482,11 @@ impl<S: AsyncRead + AsyncWrite + Unpin> AgentClient<S> {
 	}
 
 	/// Ask the agent to remove a smartcard from its memory.
-	pub async fn remove_smartcard_key(&mut self, id: &str, pin: &[u8]) -> Result<(), Error> {
+	pub async fn remove_smartcard_key(
+		&mut self,
+		id: &str,
+		pin: &[u8],
+	) -> Result<(), Error> {
 		self.buf.clear();
 		self.buf.resize(4);
 		self.buf.push(msg::REMOVE_SMARTCARD_KEY);
@@ -470,7 +510,11 @@ impl<S: AsyncRead + AsyncWrite + Unpin> AgentClient<S> {
 	}
 
 	/// Send a custom message to the agent.
-	pub async fn extension(&mut self, typ: &[u8], ext: &[u8]) -> Result<(), Error> {
+	pub async fn extension(
+		&mut self,
+		typ: &[u8],
+		ext: &[u8],
+	) -> Result<(), Error> {
 		self.buf.clear();
 		self.buf.resize(4);
 		self.buf.push(msg::EXTENSION);
@@ -484,7 +528,11 @@ impl<S: AsyncRead + AsyncWrite + Unpin> AgentClient<S> {
 	}
 
 	/// Ask the agent what extensions about supported extensions.
-	pub async fn query_extension(&mut self, typ: &[u8], mut ext: CryptoVec) -> Result<bool, Error> {
+	pub async fn query_extension(
+		&mut self,
+		typ: &[u8],
+		mut ext: CryptoVec,
+	) -> Result<bool, Error> {
 		self.buf.clear();
 		self.buf.resize(4);
 		self.buf.push(msg::EXTENSION);
@@ -515,7 +563,7 @@ fn key_blob(public: &key::PublicKey, buf: &mut CryptoVec) -> Result<(), Error> {
 			let len1 = buf.len();
 			#[allow(clippy::indexing_slicing)] // length is known
 			BigEndian::write_u32(&mut buf[5..], (len1 - len0) as u32);
-		}
+		},
 		#[cfg(feature = "rs-crypto")]
 		PublicKey::Ed25519(ref p) => {
 			buf.extend(&[0, 0, 0, 0]);
@@ -525,7 +573,7 @@ fn key_blob(public: &key::PublicKey, buf: &mut CryptoVec) -> Result<(), Error> {
 			let len1 = buf.len();
 			#[allow(clippy::indexing_slicing)] // length is known
 			BigEndian::write_u32(&mut buf[5..], (len1 - len0) as u32);
-		}
+		},
 	}
 	Ok(())
 }

@@ -28,7 +28,10 @@ pub struct Curve25519Kex {
 
 impl std::fmt::Debug for Curve25519Kex {
 	fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-		write!(f, "Algorithm {{ local_secret: [hidden], shared_secret: [hidden] }}",)
+		write!(
+			f,
+			"Algorithm {{ local_secret: [hidden], shared_secret: [hidden] }}",
+		)
 	}
 }
 
@@ -41,7 +44,11 @@ impl KexAlgorithm for Curve25519Kex {
 	}
 
 	#[doc(hidden)]
-	fn server_dh(&mut self, exchange: &mut Exchange, payload: &[u8]) -> Result<(), crate::Error> {
+	fn server_dh(
+		&mut self,
+		exchange: &mut Exchange,
+		payload: &[u8],
+	) -> Result<(), crate::Error> {
 		debug!("server_dh");
 
 		let client_pubkey = {
@@ -66,9 +73,11 @@ impl KexAlgorithm for Curve25519Kex {
 			pubkey
 		};
 
-		let server_secret = Scalar::from_bytes_mod_order(rand::random::<[u8; 32]>());
+		let server_secret =
+			Scalar::from_bytes_mod_order(rand::random::<[u8; 32]>());
 
-		let server_pubkey = (&ED25519_BASEPOINT_TABLE * &server_secret).to_montgomery();
+		let server_pubkey =
+			(&ED25519_BASEPOINT_TABLE * &server_secret).to_montgomery();
 
 		// fill exchange.
 		exchange.server_ephemeral.clear();
@@ -85,9 +94,11 @@ impl KexAlgorithm for Curve25519Kex {
 		client_ephemeral: &mut CryptoVec,
 		buf: &mut CryptoVec,
 	) -> Result<(), crate::Error> {
-		let client_secret = Scalar::from_bytes_mod_order(rand::random::<[u8; 32]>());
+		let client_secret =
+			Scalar::from_bytes_mod_order(rand::random::<[u8; 32]>());
 
-		let client_pubkey = (&ED25519_BASEPOINT_TABLE * &client_secret).to_montgomery();
+		let client_pubkey =
+			(&ED25519_BASEPOINT_TABLE * &client_secret).to_montgomery();
 
 		// fill exchange.
 		client_ephemeral.clear();
@@ -100,9 +111,12 @@ impl KexAlgorithm for Curve25519Kex {
 		Ok(())
 	}
 
-	fn compute_shared_secret(&mut self, remote_pubkey_: &[u8]) -> Result<(), crate::Error> {
-		let local_secret =
-			std::mem::replace(&mut self.local_secret, None).ok_or(crate::Error::KexInit)?;
+	fn compute_shared_secret(
+		&mut self,
+		remote_pubkey_: &[u8],
+	) -> Result<(), crate::Error> {
+		let local_secret = std::mem::replace(&mut self.local_secret, None)
+			.ok_or(crate::Error::KexInit)?;
 
 		let mut remote_pubkey = MontgomeryPoint([0; 32]);
 		remote_pubkey.0.clone_from_slice(remote_pubkey_);

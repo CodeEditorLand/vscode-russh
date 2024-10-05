@@ -22,11 +22,14 @@ pub struct ChannelStream {
 	readbuf: ReadBuffer,
 
 	is_write_fut_valid: bool,
-	write_fut: tokio_util::sync::ReusableBoxFuture<'static, Result<(), Vec<u8>>>,
+	write_fut:
+		tokio_util::sync::ReusableBoxFuture<'static, Result<(), Vec<u8>>>,
 }
 
 impl ChannelStream {
-	pub fn new() -> (Self, mpsc::UnboundedReceiver<Vec<u8>>, mpsc::UnboundedSender<Vec<u8>>) {
+	pub fn new(
+	) -> (Self, mpsc::UnboundedReceiver<Vec<u8>>, mpsc::UnboundedSender<Vec<u8>>)
+	{
 		let (w_tx, w_rx) = mpsc::unbounded_channel();
 
 		let (r_tx, r_rx) = mpsc::unbounded_channel();
@@ -36,7 +39,9 @@ impl ChannelStream {
 				outgoing: r_tx,
 				readbuf: ReadBuffer::default(),
 				is_write_fut_valid: false,
-				write_fut: tokio_util::sync::ReusableBoxFuture::new(make_client_write_fut(None)),
+				write_fut: tokio_util::sync::ReusableBoxFuture::new(
+					make_client_write_fut(None),
+				),
 			},
 			r_rx,
 			w_tx,
@@ -52,7 +57,9 @@ async fn make_client_write_fut(
 ) -> Result<(), Vec<u8>> {
 	match data {
 		Some((sender, data)) => sender.send(data).map_err(|e| e.0),
-		None => unreachable!("this future should not be pollable in this state"),
+		None => {
+			unreachable!("this future should not be pollable in this state")
+		},
 	}
 }
 
@@ -64,7 +71,8 @@ impl AsyncWrite for ChannelStream {
 	) -> Poll<Result<usize, io::Error>> {
 		if !self.is_write_fut_valid {
 			let outgoing = self.outgoing.clone();
-			self.write_fut.set(make_client_write_fut(Some((outgoing, buf.to_vec()))));
+			self.write_fut
+				.set(make_client_write_fut(Some((outgoing, buf.to_vec()))));
 			self.is_write_fut_valid = true;
 		}
 
@@ -84,12 +92,12 @@ impl AsyncWrite for ChannelStream {
 			Poll::Ready(Ok(_)) => {
 				self.is_write_fut_valid = false;
 				Poll::Ready(Ok(()))
-			}
+			},
 			Poll::Ready(Err(_)) => {
 				self.is_write_fut_valid = false;
 				debug!("ChannelStream AsyncWrite EOF");
 				Poll::Ready(Err(io::Error::new(io::ErrorKind::Other, "EOF")))
-			}
+			},
 		}
 	}
 

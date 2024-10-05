@@ -64,9 +64,14 @@ impl Iterator for MethodSet {
 
 pub trait Signer: Sized {
 	type Error: From<crate::SendError>;
-	type Future: futures::Future<Output = (Self, Result<CryptoVec, Self::Error>)> + Send;
+	type Future: futures::Future<Output = (Self, Result<CryptoVec, Self::Error>)>
+		+ Send;
 
-	fn auth_publickey_sign(self, key: &key::PublicKey, to_sign: CryptoVec) -> Self::Future;
+	fn auth_publickey_sign(
+		self,
+		key: &key::PublicKey,
+		to_sign: CryptoVec,
+	) -> Self::Future;
 }
 
 #[derive(Debug, Error)]
@@ -83,9 +88,16 @@ impl<R: AsyncRead + AsyncWrite + Unpin + Send + 'static> Signer
 	type Error = AgentAuthError;
 	#[allow(clippy::type_complexity)]
 	type Future = std::pin::Pin<
-		Box<dyn futures::Future<Output = (Self, Result<CryptoVec, Self::Error>)> + Send>,
+		Box<
+			dyn futures::Future<Output = (Self, Result<CryptoVec, Self::Error>)>
+				+ Send,
+		>,
 	>;
-	fn auth_publickey_sign(self, key: &key::PublicKey, to_sign: CryptoVec) -> Self::Future {
+	fn auth_publickey_sign(
+		self,
+		key: &key::PublicKey,
+		to_sign: CryptoVec,
+	) -> Self::Future {
 		let fut = self.sign_request(key, to_sign);
 		futures::FutureExt::boxed(async move {
 			let (a, b) = fut.await;

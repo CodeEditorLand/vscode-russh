@@ -22,7 +22,10 @@ const ED25519: &[u64] = &[1, 3, 101, 112];
 const RSA: &[u64] = &[1, 2, 840, 113549, 1, 1, 1];
 
 /// Decode a PKCS#8-encoded private key.
-pub fn decode_pkcs8(ciphertext: &[u8], password: Option<&[u8]>) -> Result<key::KeyPair, Error> {
+pub fn decode_pkcs8(
+	ciphertext: &[u8],
+	password: Option<&[u8]>,
+) -> Result<key::KeyPair, Error> {
 	let secret = if let Some(pass) = password {
 		Cow::Owned(yasna::parse_der(ciphertext, |reader| {
 			reader.read_sequence(|reader| {
@@ -80,7 +83,9 @@ fn asn1_read_pbes2(
 				Ok(Err(Error::UnknownAlgorithm(oid)))
 			}
 		})?;
-		Ok(keygen.and_then(|keygen| algorithm.map(|algo| Algorithms::Pbes2(keygen, algo))))
+		Ok(keygen.and_then(|keygen| {
+			algorithm.map(|algo| Algorithms::Pbes2(keygen, algo))
+		}))
 	})
 }
 
@@ -115,7 +120,10 @@ fn asn1_read_aes256cbc(
 }
 
 #[cfg(feature = "rs-crypto")]
-fn write_key_v1(writer: &mut yasna::DERWriterSeq, secret: &ed25519_dalek::SecretKey) {
+fn write_key_v1(
+	writer: &mut yasna::DERWriterSeq,
+	secret: &ed25519_dalek::SecretKey,
+) {
 	let public = ed25519_dalek::PublicKey::from(secret);
 	writer.next().write_u32(1);
 	// write OID
@@ -124,7 +132,9 @@ fn write_key_v1(writer: &mut yasna::DERWriterSeq, secret: &ed25519_dalek::Secret
 	});
 	let seed = yasna::construct_der(|writer| {
 		writer.write_bytes(
-			[secret.as_bytes().as_slice(), public.as_bytes().as_slice()].concat().as_slice(),
+			[secret.as_bytes().as_slice(), public.as_bytes().as_slice()]
+				.concat()
+				.as_slice(),
 		)
 	});
 	writer.next().write_bytes(&seed);
@@ -141,18 +151,26 @@ fn read_key_v1(reader: &mut BERReaderSeq) -> Result<key::KeyPair, Error> {
 			use ed25519_dalek::{Keypair, PublicKey, SecretKey};
 			let secret = {
 				let s =
-					yasna::parse_der(&reader.next().read_bytes()?, |reader| reader.read_bytes())?;
+					yasna::parse_der(&reader.next().read_bytes()?, |reader| {
+						reader.read_bytes()
+					})?;
 
 				s.get(..ed25519_dalek::SECRET_KEY_LENGTH)
 					.ok_or(Error::KeyIsCorrupt)
-					.and_then(|s| SecretKey::from_bytes(s).map_err(|_| Error::CouldNotReadKey))?
+					.and_then(|s| {
+						SecretKey::from_bytes(s)
+							.map_err(|_| Error::CouldNotReadKey)
+					})?
 			};
 			let public = {
 				let public = reader
 					.next()
-					.read_tagged(yasna::Tag::context(1), |reader| reader.read_bitvec())?
+					.read_tagged(yasna::Tag::context(1), |reader| {
+						reader.read_bitvec()
+					})?
 					.to_bytes();
-				PublicKey::from_bytes(&public).map_err(|_| Error::CouldNotReadKey)?
+				PublicKey::from_bytes(&public)
+					.map_err(|_| Error::CouldNotReadKey)?
 			};
 			return Ok(key::KeyPair::Ed25519(Keypair { public, secret }));
 		}
@@ -174,14 +192,30 @@ fn write_key_v0(writer: &mut yasna::DERWriterSeq, key: &Rsa<Private>) {
 		writer.write_sequence(|writer| {
 			writer.next().write_u32(0);
 			use num_bigint::BigUint;
-			writer.next().write_biguint(&BigUint::from_bytes_be(&key.n().to_vec()));
-			writer.next().write_biguint(&BigUint::from_bytes_be(&key.e().to_vec()));
-			writer.next().write_biguint(&BigUint::from_bytes_be(&key.d().to_vec()));
-			writer.next().write_biguint(&BigUint::from_bytes_be(&key.p().unwrap().to_vec()));
-			writer.next().write_biguint(&BigUint::from_bytes_be(&key.q().unwrap().to_vec()));
-			writer.next().write_biguint(&BigUint::from_bytes_be(&key.dmp1().unwrap().to_vec()));
-			writer.next().write_biguint(&BigUint::from_bytes_be(&key.dmq1().unwrap().to_vec()));
-			writer.next().write_biguint(&BigUint::from_bytes_be(&key.iqmp().unwrap().to_vec()));
+			writer
+				.next()
+				.write_biguint(&BigUint::from_bytes_be(&key.n().to_vec()));
+			writer
+				.next()
+				.write_biguint(&BigUint::from_bytes_be(&key.e().to_vec()));
+			writer
+				.next()
+				.write_biguint(&BigUint::from_bytes_be(&key.d().to_vec()));
+			writer.next().write_biguint(&BigUint::from_bytes_be(
+				&key.p().unwrap().to_vec(),
+			));
+			writer.next().write_biguint(&BigUint::from_bytes_be(
+				&key.q().unwrap().to_vec(),
+			));
+			writer.next().write_biguint(&BigUint::from_bytes_be(
+				&key.dmp1().unwrap().to_vec(),
+			));
+			writer.next().write_biguint(&BigUint::from_bytes_be(
+				&key.dmq1().unwrap().to_vec(),
+			));
+			writer.next().write_biguint(&BigUint::from_bytes_be(
+				&key.iqmp().unwrap().to_vec(),
+			));
 		})
 	});
 	writer.next().write_bytes(&bytes);
@@ -197,28 +231,45 @@ fn read_key_v0(reader: &mut BERReaderSeq) -> Result<key::KeyPair, Error> {
 	if oid.components().as_slice() == RSA {
 		let seq = &reader.next().read_bytes()?;
 
-		let rsa: Result<Rsa<Private>, Error> = yasna::parse_der(seq, |reader| {
-			reader.read_sequence(|reader| {
-				let version = reader.next().read_u32()?;
-				if version != 0 {
-					return Ok(Err(Error::CouldNotReadKey));
-				}
-				use openssl::bn::BigNum;
-				let mut read_key = || -> Result<Rsa<Private>, Error> {
-					Ok(Rsa::from_private_components(
-						BigNum::from_slice(&reader.next().read_biguint()?.to_bytes_be())?,
-						BigNum::from_slice(&reader.next().read_biguint()?.to_bytes_be())?,
-						BigNum::from_slice(&reader.next().read_biguint()?.to_bytes_be())?,
-						BigNum::from_slice(&reader.next().read_biguint()?.to_bytes_be())?,
-						BigNum::from_slice(&reader.next().read_biguint()?.to_bytes_be())?,
-						BigNum::from_slice(&reader.next().read_biguint()?.to_bytes_be())?,
-						BigNum::from_slice(&reader.next().read_biguint()?.to_bytes_be())?,
-						BigNum::from_slice(&reader.next().read_biguint()?.to_bytes_be())?,
-					)?)
-				};
-				Ok(read_key())
-			})
-		})?;
+		let rsa: Result<Rsa<Private>, Error> =
+			yasna::parse_der(seq, |reader| {
+				reader.read_sequence(|reader| {
+					let version = reader.next().read_u32()?;
+					if version != 0 {
+						return Ok(Err(Error::CouldNotReadKey));
+					}
+					use openssl::bn::BigNum;
+					let mut read_key = || -> Result<Rsa<Private>, Error> {
+						Ok(Rsa::from_private_components(
+							BigNum::from_slice(
+								&reader.next().read_biguint()?.to_bytes_be(),
+							)?,
+							BigNum::from_slice(
+								&reader.next().read_biguint()?.to_bytes_be(),
+							)?,
+							BigNum::from_slice(
+								&reader.next().read_biguint()?.to_bytes_be(),
+							)?,
+							BigNum::from_slice(
+								&reader.next().read_biguint()?.to_bytes_be(),
+							)?,
+							BigNum::from_slice(
+								&reader.next().read_biguint()?.to_bytes_be(),
+							)?,
+							BigNum::from_slice(
+								&reader.next().read_biguint()?.to_bytes_be(),
+							)?,
+							BigNum::from_slice(
+								&reader.next().read_biguint()?.to_bytes_be(),
+							)?,
+							BigNum::from_slice(
+								&reader.next().read_biguint()?.to_bytes_be(),
+							)?,
+						)?)
+					};
+					Ok(read_key())
+				})
+			})?;
 		Ok(key::KeyPair::RSA { key: rsa?, hash: SignatureHash::SHA2_256 })
 	} else {
 		Err(Error::CouldNotReadKey)
@@ -235,8 +286,12 @@ fn read_key_v0(_: &mut BERReaderSeq) -> Result<key::KeyPair, Error> {
 #[cfg(feature = "rs-crypto")]
 fn test_read_write_pkcs8() {
 	use rand_core::OsRng;
-	let ed25519_dalek::Keypair { public, secret } = ed25519_dalek::Keypair::generate(&mut OsRng {});
-	assert_eq!(public.as_bytes(), ed25519_dalek::PublicKey::from(&secret).as_bytes());
+	let ed25519_dalek::Keypair { public, secret } =
+		ed25519_dalek::Keypair::generate(&mut OsRng {});
+	assert_eq!(
+		public.as_bytes(),
+		ed25519_dalek::PublicKey::from(&secret).as_bytes()
+	);
 	let key = key::KeyPair::Ed25519(ed25519_dalek::Keypair { public, secret });
 	let password = b"blabla";
 	let ciphertext = encode_pkcs8_encrypted(password, 100, &key).unwrap();
@@ -251,13 +306,23 @@ fn test_read_write_pkcs8() {
 use yasna::models::ObjectIdentifier;
 
 #[cfg(feature = "rs-crypto")]
-fn pbkdf2(password: &[u8], salt: &[u8], rounds: u32, key: &mut [u8]) -> Result<(), Error> {
+fn pbkdf2(
+	password: &[u8],
+	salt: &[u8],
+	rounds: u32,
+	key: &mut [u8],
+) -> Result<(), Error> {
 	pbkdf2::pbkdf2::<hmac::Hmac<sha2::Sha256>>(password, salt, rounds, key);
 	Ok(())
 }
 
 #[cfg(all(feature = "openssl", not(feature = "rs-crypto")))]
-fn pbkdf2(password: &[u8], salt: &[u8], rounds: u32, key: &mut [u8]) -> Result<(), Error> {
+fn pbkdf2(
+	password: &[u8],
+	salt: &[u8],
+	rounds: u32,
+	key: &mut [u8],
+) -> Result<(), Error> {
 	openssl::pkcs5::pbkdf2_hmac(
 		password,
 		salt,
@@ -269,7 +334,11 @@ fn pbkdf2(password: &[u8], salt: &[u8], rounds: u32, key: &mut [u8]) -> Result<(
 }
 
 #[cfg(all(feature = "openssl", not(feature = "rs-crypto")))]
-fn encrypt_key(key: &[u8], iv: &[u8], plaintext: &mut [u8]) -> Result<Vec<u8>, Error> {
+fn encrypt_key(
+	key: &[u8],
+	iv: &[u8],
+	plaintext: &mut [u8],
+) -> Result<Vec<u8>, Error> {
 	use openssl::cipher::Cipher;
 	use openssl::cipher_ctx::*;
 
@@ -284,7 +353,11 @@ fn encrypt_key(key: &[u8], iv: &[u8], plaintext: &mut [u8]) -> Result<Vec<u8>, E
 }
 
 #[cfg(feature = "rs-crypto")]
-fn encrypt_key(key: &[u8], iv: &[u8], plaintext: &mut [u8]) -> Result<Vec<u8>, Error> {
+fn encrypt_key(
+	key: &[u8],
+	iv: &[u8],
+	plaintext: &mut [u8],
+) -> Result<Vec<u8>, Error> {
 	use aes::cipher::{BlockEncryptMut, KeyIvInit};
 	use aes::*;
 	use block_padding::NoPadding;
@@ -341,7 +414,12 @@ pub fn encode_pkcs8(key: &key::KeyPair) -> Vec<u8> {
 	})
 }
 
-fn asn1_write_pbes2(writer: yasna::DERWriter, rounds: u64, salt: &[u8], iv: &[u8]) {
+fn asn1_write_pbes2(
+	writer: yasna::DERWriter,
+	rounds: u64,
+	salt: &[u8],
+	iv: &[u8],
+) {
 	writer.write_sequence(|writer| {
 		// 1. Key generation algorithm
 		writer.next().write_sequence(|writer| {
@@ -372,14 +450,18 @@ enum Algorithms {
 }
 
 impl Algorithms {
-	fn decrypt(&self, password: &[u8], cipher: &[u8]) -> Result<Vec<u8>, Error> {
+	fn decrypt(
+		&self,
+		password: &[u8],
+		cipher: &[u8],
+	) -> Result<Vec<u8>, Error> {
 		match *self {
 			Algorithms::Pbes2(ref der, ref enc) => {
 				let mut key = enc.key();
 				der.derive(password, &mut key)?;
 				let out = enc.decrypt(&key, cipher)?;
 				Ok(out)
-			}
+			},
 		}
 	}
 }
@@ -390,7 +472,7 @@ impl KeyDerivation {
 			KeyDerivation::Pbkdf2 { ref salt, rounds } => {
 				pbkdf2(password, salt, rounds as u32, key)?
 				// pbkdf2_hmac(password, salt, rounds as usize, digest, key)?
-			}
+			},
 		}
 		Ok(())
 	}
@@ -440,13 +522,13 @@ impl Encryption {
 				let c = cbc::Decryptor::<Aes128>::new_from_slices(key, iv).unwrap();
 				let mut dec = ciphertext.to_vec();
 				Ok(c.decrypt_padded_mut::<Pkcs7>(&mut dec)?.into())
-			}
+			},
 			Encryption::Aes256Cbc(ref iv) => {
 				#[allow(clippy::unwrap_used)] // parameters are static
 				let c = cbc::Decryptor::<Aes256>::new_from_slices(key, iv).unwrap();
 				let mut dec = ciphertext.to_vec();
 				Ok(c.decrypt_padded_mut::<Pkcs7>(&mut dec)?.into())
-			}
+			},
 		}
 	}
 
@@ -456,10 +538,10 @@ impl Encryption {
 		match *self {
 			Encryption::Aes128Cbc(ref iv) => {
 				Ok(decrypt(Cipher::aes_128_cbc(), key, Some(iv), ciphertext)?)
-			}
+			},
 			Encryption::Aes256Cbc(ref iv) => {
 				Ok(decrypt(Cipher::aes_256_cbc(), key, Some(iv), ciphertext)?)
-			}
+			},
 		}
 	}
 }

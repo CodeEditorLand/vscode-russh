@@ -177,7 +177,9 @@ pub trait Select {
 
 		let kex_string = r.read_string()?;
 
-		let (kex_both_first, kex_algorithm) = if let Some(x) = Self::select(pref.kex, kex_string) {
+		let (kex_both_first, kex_algorithm) = if let Some(x) =
+			Self::select(pref.kex, kex_string)
+		{
 			x
 		} else {
 			debug!(
@@ -190,7 +192,9 @@ pub trait Select {
 
 		let key_string = r.read_string()?;
 
-		let (key_both_first, key_algorithm) = if let Some(x) = Self::select(pref.key, key_string) {
+		let (key_both_first, key_algorithm) = if let Some(x) =
+			Self::select(pref.key, key_string)
+		{
 			x
 		} else {
 			debug!(
@@ -215,41 +219,47 @@ pub trait Select {
 		r.read_string()?; // cipher server-to-client.
 		debug!("kex {}", line!());
 
-		let need_mac =
-			cipher.and_then(|x| CIPHERS.get(&x.1)).map(|x| x.needs_mac()).unwrap_or(false);
+		let need_mac = cipher
+			.and_then(|x| CIPHERS.get(&x.1))
+			.map(|x| x.needs_mac())
+			.unwrap_or(false);
 
-		let client_mac = if let Some((_, m)) = Self::select(pref.mac, r.read_string()?) {
-			m
-		} else if need_mac {
-			return Err(Error::NoCommonMac);
-		} else {
-			mac::NONE
-		};
+		let client_mac =
+			if let Some((_, m)) = Self::select(pref.mac, r.read_string()?) {
+				m
+			} else if need_mac {
+				return Err(Error::NoCommonMac);
+			} else {
+				mac::NONE
+			};
 
-		let server_mac = if let Some((_, m)) = Self::select(pref.mac, r.read_string()?) {
-			m
-		} else if need_mac {
-			return Err(Error::NoCommonMac);
-		} else {
-			mac::NONE
-		};
+		let server_mac =
+			if let Some((_, m)) = Self::select(pref.mac, r.read_string()?) {
+				m
+			} else if need_mac {
+				return Err(Error::NoCommonMac);
+			} else {
+				mac::NONE
+			};
 
 		debug!("kex {}", line!());
 		// client-to-server compression.
-		let client_compression =
-			if let Some((_, c)) = Self::select(pref.compression, r.read_string()?) {
-				Compression::from_string(c)
-			} else {
-				return Err(Error::NoCommonCompression);
-			};
+		let client_compression = if let Some((_, c)) =
+			Self::select(pref.compression, r.read_string()?)
+		{
+			Compression::from_string(c)
+		} else {
+			return Err(Error::NoCommonCompression);
+		};
 		debug!("kex {}", line!());
 		// server-to-client compression.
-		let server_compression =
-			if let Some((_, c)) = Self::select(pref.compression, r.read_string()?) {
-				Compression::from_string(c)
-			} else {
-				return Err(Error::NoCommonCompression);
-			};
+		let server_compression = if let Some((_, c)) =
+			Self::select(pref.compression, r.read_string()?)
+		{
+			Compression::from_string(c)
+		} else {
+			return Err(Error::NoCommonCompression);
+		};
 		debug!("client_compression = {:?}", client_compression);
 		r.read_string()?; // languages client-to-server
 		r.read_string()?; // languages server-to-client
@@ -268,7 +278,7 @@ pub trait Select {
 					// Ignore the next packet if (1) it follows and (2) it's not the correct guess.
 					ignore_guessed: fol && !(kex_both_first && key_both_first),
 				})
-			}
+			},
 			_ => Err(Error::KexInit),
 		}
 	}
@@ -278,7 +288,10 @@ pub struct Server;
 pub struct Client;
 
 impl Select for Server {
-	fn select<S: AsRef<str> + Copy>(server_list: &[S], client_list: &[u8]) -> Option<(bool, S)> {
+	fn select<S: AsRef<str> + Copy>(
+		server_list: &[S],
+		client_list: &[u8],
+	) -> Option<(bool, S)> {
 		let mut both_first_choice = true;
 		for c in client_list.split(|&x| x == b',') {
 			for &s in server_list {
@@ -293,7 +306,10 @@ impl Select for Server {
 }
 
 impl Select for Client {
-	fn select<S: AsRef<str> + Copy>(client_list: &[S], server_list: &[u8]) -> Option<(bool, S)> {
+	fn select<S: AsRef<str> + Copy>(
+		client_list: &[S],
+		server_list: &[u8],
+	) -> Option<(bool, S)> {
 		let mut both_first_choice = true;
 		for &c in client_list {
 			for s in server_list.split(|&x| x == b',') {
@@ -307,7 +323,11 @@ impl Select for Client {
 	}
 }
 
-pub fn write_kex(prefs: &Preferred, buf: &mut CryptoVec, as_server: bool) -> Result<(), Error> {
+pub fn write_kex(
+	prefs: &Preferred,
+	buf: &mut CryptoVec,
+	as_server: bool,
+) -> Result<(), Error> {
 	// buf.clear();
 	buf.push(msg::KEXINIT);
 

@@ -79,7 +79,10 @@ impl server::Handler for Server {
 		data: &[u8],
 		mut session: Session,
 	) -> Result<(Self, Session), Self::Error> {
-		let data = CryptoVec::from(format!("Got data: {}\r\n", String::from_utf8_lossy(data)));
+		let data = CryptoVec::from(format!(
+			"Got data: {}\r\n",
+			String::from_utf8_lossy(data)
+		));
 		self.post(data.clone()).await;
 		session.data(channel, data);
 		Ok((self, session))
@@ -97,8 +100,10 @@ impl server::Handler for Server {
 
 		let port = *port;
 		tokio::spawn(async move {
-			let mut channel =
-				handle.channel_open_forwarded_tcpip(address, port, "1.2.3.4", 1234).await.unwrap();
+			let mut channel = handle
+				.channel_open_forwarded_tcpip(address, port, "1.2.3.4", 1234)
+				.await
+				.unwrap();
 			let _ = channel.data(&b"Hello from a forwarded port"[..]).await;
 			let _ = channel.eof().await;
 		});
@@ -113,5 +118,9 @@ fn generate_keypair() -> russh_keys::key::KeyPair {
 
 #[cfg(not(feature = "rs-crypto"))]
 fn generate_keypair() -> russh_keys::key::KeyPair {
-	russh_keys::key::KeyPair::generate_rsa(1024, russh_keys::key::SignatureHash::SHA2_512).unwrap()
+	russh_keys::key::KeyPair::generate_rsa(
+		1024,
+		russh_keys::key::SignatureHash::SHA2_512,
+	)
+	.unwrap()
 }

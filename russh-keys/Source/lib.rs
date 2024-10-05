@@ -1,5 +1,10 @@
 #![deny(trivial_casts, unstable_features, unused_import_braces)]
-#![deny(clippy::unwrap_used, clippy::expect_used, clippy::indexing_slicing, clippy::panic)]
+#![deny(
+	clippy::unwrap_used,
+	clippy::expect_used,
+	clippy::indexing_slicing,
+	clippy::panic
+)]
 //! This crate contains methods to deal with SSH keys, as defined in
 //! crate Russh. This includes in particular various functions for
 //! opening key files, deciphering encrypted keys, and dealing with
@@ -158,7 +163,9 @@ const KEYTYPE_RSA: &[u8] = b"ssh-rsa";
 /// ```
 /// russh_keys::load_public_key("../files/id_ed25519.pub").unwrap();
 /// ```
-pub fn load_public_key<P: AsRef<Path>>(path: P) -> Result<key::PublicKey, Error> {
+pub fn load_public_key<P: AsRef<Path>>(
+	path: P,
+) -> Result<key::PublicKey, Error> {
 	let mut pubkey = String::new();
 	let mut file = File::open(path.as_ref())?;
 	file.read_to_string(&mut pubkey)?;
@@ -209,9 +216,10 @@ impl PublicKeyBase64 for key::PublicKey {
 				s.write_u32::<BigEndian>(name.len() as u32).unwrap();
 				s.extend_from_slice(name);
 				#[allow(clippy::unwrap_used)] // Vec<>.write can't fail
-				s.write_u32::<BigEndian>(publickey.as_bytes().len() as u32).unwrap();
+				s.write_u32::<BigEndian>(publickey.as_bytes().len() as u32)
+					.unwrap();
 				s.extend_from_slice(publickey.as_bytes());
-			}
+			},
 			#[cfg(feature = "openssl")]
 			key::PublicKey::RSA { ref key, .. } => {
 				use encoding::Encoding;
@@ -223,7 +231,7 @@ impl PublicKeyBase64 for key::PublicKey {
 				s.extend_ssh_mpint(&key.0.rsa().unwrap().e().to_vec());
 				#[allow(clippy::unwrap_used)] // TODO check
 				s.extend_ssh_mpint(&key.0.rsa().unwrap().n().to_vec());
-			}
+			},
 		}
 		s
 	}
@@ -244,13 +252,13 @@ impl PublicKeyBase64 for key::KeyPair {
 				#[allow(clippy::unwrap_used)] // Vec<>.write can't fail
 				s.write_u32::<BigEndian>(public.len() as u32).unwrap();
 				s.extend_from_slice(public);
-			}
+			},
 			#[cfg(feature = "openssl")]
 			key::KeyPair::RSA { ref key, .. } => {
 				use encoding::Encoding;
 				s.extend_ssh_mpint(&key.e().to_vec());
 				s.extend_ssh_mpint(&key.n().to_vec());
-			}
+			},
 		}
 		s
 	}
@@ -296,7 +304,8 @@ pub fn learn_known_hosts_path<P: AsRef<Path>>(
 	if let Some(parent) = path.as_ref().parent() {
 		std::fs::create_dir_all(parent)?
 	}
-	let mut file = OpenOptions::new().read(true).append(true).create(true).open(path)?;
+	let mut file =
+		OpenOptions::new().read(true).append(true).create(true).open(path)?;
 
 	// Test whether the known_hosts file ends with a \n
 	let mut buf = [0; 1];
@@ -336,8 +345,11 @@ pub fn check_known_hosts_path<P: AsRef<Path>>(
 	};
 	let mut buffer = String::new();
 
-	let host_port =
-		if port == 22 { Cow::Borrowed(host) } else { Cow::Owned(format!("[{}]:{}", host, port)) };
+	let host_port = if port == 22 {
+		Cow::Borrowed(host)
+	} else {
+		Cow::Owned(format!("[{}]:{}", host, port))
+	};
 	debug!("host_port = {:?}", host_port);
 	let mut line = 1;
 	while f.read_line(&mut buffer)? > 0 {
@@ -358,7 +370,10 @@ pub fn check_known_hosts_path<P: AsRef<Path>>(
 					match parse_public_key_base64(k) {
 						Ok(k) if &k == pubkey => return Ok(true),
 						Ok(_) => return Err(Error::KeyChanged { line }),
-						Err(e) => info!("host file line '{}' failed to parse: {}", k, e),
+						Err(e) => info!(
+							"host file line '{}' failed to parse: {}",
+							k, e
+						),
 					}
 				}
 			}
@@ -371,7 +386,11 @@ pub fn check_known_hosts_path<P: AsRef<Path>>(
 
 /// Record a host's public key into the user's known_hosts file.
 #[cfg(target_os = "windows")]
-pub fn learn_known_hosts(host: &str, port: u16, pubkey: &key::PublicKey) -> Result<(), Error> {
+pub fn learn_known_hosts(
+	host: &str,
+	port: u16,
+	pubkey: &key::PublicKey,
+) -> Result<(), Error> {
 	if let Some(mut known_host_file) = dirs::home_dir() {
 		known_host_file.push("ssh");
 		known_host_file.push("known_hosts");
@@ -383,7 +402,11 @@ pub fn learn_known_hosts(host: &str, port: u16, pubkey: &key::PublicKey) -> Resu
 
 /// Record a host's public key into the user's known_hosts file.
 #[cfg(not(target_os = "windows"))]
-pub fn learn_known_hosts(host: &str, port: u16, pubkey: &key::PublicKey) -> Result<(), Error> {
+pub fn learn_known_hosts(
+	host: &str,
+	port: u16,
+	pubkey: &key::PublicKey,
+) -> Result<(), Error> {
 	if let Some(mut known_host_file) = dirs::home_dir() {
 		known_host_file.push(".ssh");
 		known_host_file.push("known_hosts");
@@ -395,7 +418,11 @@ pub fn learn_known_hosts(host: &str, port: u16, pubkey: &key::PublicKey) -> Resu
 
 /// Check whether the host is known, from its standard location.
 #[cfg(target_os = "windows")]
-pub fn check_known_hosts(host: &str, port: u16, pubkey: &key::PublicKey) -> Result<bool, Error> {
+pub fn check_known_hosts(
+	host: &str,
+	port: u16,
+	pubkey: &key::PublicKey,
+) -> Result<bool, Error> {
 	if let Some(mut known_host_file) = dirs::home_dir() {
 		known_host_file.push("ssh");
 		known_host_file.push("known_hosts");
@@ -407,7 +434,11 @@ pub fn check_known_hosts(host: &str, port: u16, pubkey: &key::PublicKey) -> Resu
 
 /// Check whether the host is known, from its standard location.
 #[cfg(not(target_os = "windows"))]
-pub fn check_known_hosts(host: &str, port: u16, pubkey: &key::PublicKey) -> Result<bool, Error> {
+pub fn check_known_hosts(
+	host: &str,
+	port: u16,
+	pubkey: &key::PublicKey,
+) -> Result<bool, Error> {
 	if let Some(mut known_host_file) = dirs::home_dir() {
 		known_host_file.push(".ssh");
 		known_host_file.push("known_hosts");
@@ -502,7 +533,10 @@ QR+u0AypRPmzHnOPAAAAEXJvb3RAMTQwOTExNTQ5NDBkAQ==
 			"AAAAC3NzaC1lZDI1NTE5AAAAILagOJFgwaMNhBWQINinKOXmqS4Gh5NgxgriXwdOoINJ",
 		)
 		.unwrap();
-		assert_eq!(key.fingerprint(), "ldyiXa1JQakitNU5tErauu8DvWQ1dZ7aXu+rm7KQuog");
+		assert_eq!(
+			key.fingerprint(),
+			"ldyiXa1JQakitNU5tErauu8DvWQ1dZ7aXu+rm7KQuog"
+		);
 	}
 
 	#[test]
@@ -512,7 +546,10 @@ QR+u0AypRPmzHnOPAAAAEXJvb3RAMTQwOTExNTQ5NDBkAQ==
             "AAAAB3NzaC1yc2EAAAADAQABAAAAgQC5eB1ws6hP7GYUyz89DPqrAFf7VW3GCOQsT/m2v1BhlzSxmBb9gSs9BxRyOUN3HtDcD0B+zqRKa/RqLIkemkdhitfrPiCqeWMzdKC+GIiKwxAgeUpNq1FmyJlwetHDlKi92MrnGwaTXvKDyIoV2xDJS2OAhmRIRM3nhrXUXZeiJQ==",
         )
         .unwrap();
-		assert_eq!(key.fingerprint(), "cmZL3+aAKXnUlEb02r847o2zlHLBLkiY5I0qbG21zZo");
+		assert_eq!(
+			key.fingerprint(),
+			"cmZL3+aAKXnUlEb02r847o2zlHLBLkiY5I0qbG21zZo"
+		);
 	}
 
 	#[test]
@@ -536,7 +573,9 @@ QR+u0AypRPmzHnOPAAAAEXJvb3RAMTQwOTExNTQ5NDBkAQ==
                 "AAAAB3NzaC1yc2EAAAADAQABAAAAgQC5eB1ws6hP7GYUyz89DPqrAFf7VW3GCOQsT/m2v1BhlzSxmBb9gSs9BxRyOUN3HtDcD0B+zqRKa/RqLIkemkdhitfrPiCqeWMzdKC+GIiKwxAgeUpNq1FmyJlwetHDlKi92MrnGwaTXvKDyIoV2xDJS2OAhmRIRM3nhrXUXZeiJQ==",
             )
             .unwrap();
-			assert!(check_known_hosts_path(host, port, &hostkey, &path).unwrap());
+			assert!(
+				check_known_hosts_path(host, port, &hostkey, &path).unwrap()
+			);
 
 			// Invalid key
 			let host = "pijul.org";
@@ -545,7 +584,9 @@ QR+u0AypRPmzHnOPAAAAEXJvb3RAMTQwOTExNTQ5NDBkAQ==
                 "AAAAB3NzaC1yc2EAAAADAQABAAAAgQD4p+jQjU/ZO2i444sGs//zjcg1P4T6XyExOXWT7RZ/XmITo5aAQICYgyFKF/NTU8WrWewNbxw/OHzmHGyL6BJEvqtCRT4a4ufgf+hpAchnYNK+3Ee9dWBOHIo93jGdC/I5q+3WbzBK4gtCLkQJQWWH/2whBym7zyR2JMA0s396dQ==",
             )
             .unwrap();
-			assert!(check_known_hosts_path(host, port, &hostkey, &path).is_err());
+			assert!(
+				check_known_hosts_path(host, port, &hostkey, &path).is_err()
+			);
 		}
 
 		#[cfg(feature = "rs-crypto")]
@@ -557,7 +598,9 @@ QR+u0AypRPmzHnOPAAAAEXJvb3RAMTQwOTExNTQ5NDBkAQ==
 				"AAAAC3NzaC1lZDI1NTE5AAAAIJdD7y3aLq454yWBdwLWbieU1ebz9/cu7/QEXn9OIeZJ",
 			)
 			.unwrap();
-			assert!(check_known_hosts_path(host, port, &hostkey, &path).unwrap());
+			assert!(
+				check_known_hosts_path(host, port, &hostkey, &path).unwrap()
+			);
 
 			// Valid key, several hosts, port 22
 			let host = "pijul.org";
@@ -566,7 +609,9 @@ QR+u0AypRPmzHnOPAAAAEXJvb3RAMTQwOTExNTQ5NDBkAQ==
 				"AAAAC3NzaC1lZDI1NTE5AAAAIA6rWI3G1sz07DnfFlrouTcysQlj2P+jpNSOEWD9OJ3X",
 			)
 			.unwrap();
-			assert!(check_known_hosts_path(host, port, &hostkey, &path).unwrap());
+			assert!(
+				check_known_hosts_path(host, port, &hostkey, &path).unwrap()
+			);
 
 			// Now with the key in a comment above, check that it's not recognized
 			let host = "pijul.org";
@@ -575,7 +620,9 @@ QR+u0AypRPmzHnOPAAAAEXJvb3RAMTQwOTExNTQ5NDBkAQ==
 				"AAAAC3NzaC1lZDI1NTE5AAAAIA6rWI3G2sz07DnfFlrouTcysQlj2P+jpNSOEWD9OJ3X",
 			)
 			.unwrap();
-			assert!(check_known_hosts_path(host, port, &hostkey, &path).is_err());
+			assert!(
+				check_known_hosts_path(host, port, &hostkey, &path).is_err()
+			);
 		}
 	}
 
@@ -789,28 +836,34 @@ Cog3JMeTrb3LiPHgN6gU2P30MRp6L1j1J/MtlOAr5rux
 		let algo = [115, 115, 104, 45, 114, 115, 97];
 
 		let key = [
-			0, 0, 0, 7, 115, 115, 104, 45, 114, 115, 97, 0, 0, 0, 3, 1, 0, 1, 0, 0, 1, 129, 0, 163,
-			72, 59, 242, 4, 248, 139, 217, 57, 126, 18, 195, 170, 3, 94, 154, 9, 150, 89, 171, 236,
-			192, 178, 185, 149, 73, 210, 121, 95, 126, 225, 209, 199, 208, 89, 130, 175, 229, 163,
-			102, 176, 155, 69, 199, 155, 71, 214, 170, 61, 202, 2, 207, 66, 198, 147, 65, 10, 176,
-			20, 105, 197, 133, 101, 126, 193, 252, 245, 254, 182, 14, 250, 118, 113, 18, 220, 38,
-			220, 75, 247, 50, 163, 39, 2, 61, 62, 28, 79, 199, 238, 189, 33, 194, 190, 22, 87, 91,
-			1, 215, 115, 99, 138, 124, 197, 127, 237, 228, 170, 42, 25, 117, 1, 106, 36, 54, 163,
-			163, 207, 129, 133, 133, 28, 185, 170, 217, 12, 37, 113, 181, 182, 180, 178, 23, 198,
-			233, 31, 214, 226, 114, 146, 74, 205, 177, 82, 232, 238, 165, 44, 5, 250, 150, 236, 45,
-			30, 189, 254, 118, 55, 154, 21, 20, 184, 235, 223, 5, 20, 132, 249, 147, 179, 88, 146,
-			6, 100, 229, 200, 221, 157, 135, 203, 57, 204, 43, 27, 58, 85, 54, 219, 138, 18, 37,
-			80, 106, 182, 95, 124, 140, 90, 29, 48, 193, 112, 19, 53, 84, 201, 153, 52, 249, 15,
-			41, 5, 11, 147, 18, 8, 27, 31, 114, 45, 224, 118, 111, 176, 86, 88, 23, 150, 184, 252,
-			128, 52, 228, 90, 30, 34, 135, 234, 123, 28, 239, 90, 202, 239, 188, 175, 8, 141, 80,
-			59, 194, 80, 43, 205, 34, 137, 45, 140, 244, 181, 182, 229, 247, 94, 216, 115, 173,
-			107, 184, 170, 102, 78, 249, 4, 186, 234, 169, 148, 98, 128, 33, 115, 232, 126, 84, 76,
-			222, 145, 90, 58, 1, 4, 163, 243, 93, 215, 154, 205, 152, 178, 109, 241, 197, 82, 148,
-			222, 78, 44, 193, 248, 212, 157, 118, 217, 75, 211, 23, 229, 121, 28, 180, 208, 173,
-			204, 14, 111, 226, 25, 163, 220, 95, 78, 175, 189, 168, 67, 159, 179, 176, 200, 150,
-			202, 248, 174, 109, 25, 89, 176, 220, 226, 208, 187, 84, 169, 157, 14, 88, 217, 221,
-			117, 254, 51, 45, 93, 184, 80, 225, 158, 29, 76, 38, 69, 72, 71, 76, 50, 191, 210, 95,
-			152, 175, 26, 207, 91, 7,
+			0, 0, 0, 7, 115, 115, 104, 45, 114, 115, 97, 0, 0, 0, 3, 1, 0, 1,
+			0, 0, 1, 129, 0, 163, 72, 59, 242, 4, 248, 139, 217, 57, 126, 18,
+			195, 170, 3, 94, 154, 9, 150, 89, 171, 236, 192, 178, 185, 149, 73,
+			210, 121, 95, 126, 225, 209, 199, 208, 89, 130, 175, 229, 163, 102,
+			176, 155, 69, 199, 155, 71, 214, 170, 61, 202, 2, 207, 66, 198,
+			147, 65, 10, 176, 20, 105, 197, 133, 101, 126, 193, 252, 245, 254,
+			182, 14, 250, 118, 113, 18, 220, 38, 220, 75, 247, 50, 163, 39, 2,
+			61, 62, 28, 79, 199, 238, 189, 33, 194, 190, 22, 87, 91, 1, 215,
+			115, 99, 138, 124, 197, 127, 237, 228, 170, 42, 25, 117, 1, 106,
+			36, 54, 163, 163, 207, 129, 133, 133, 28, 185, 170, 217, 12, 37,
+			113, 181, 182, 180, 178, 23, 198, 233, 31, 214, 226, 114, 146, 74,
+			205, 177, 82, 232, 238, 165, 44, 5, 250, 150, 236, 45, 30, 189,
+			254, 118, 55, 154, 21, 20, 184, 235, 223, 5, 20, 132, 249, 147,
+			179, 88, 146, 6, 100, 229, 200, 221, 157, 135, 203, 57, 204, 43,
+			27, 58, 85, 54, 219, 138, 18, 37, 80, 106, 182, 95, 124, 140, 90,
+			29, 48, 193, 112, 19, 53, 84, 201, 153, 52, 249, 15, 41, 5, 11,
+			147, 18, 8, 27, 31, 114, 45, 224, 118, 111, 176, 86, 88, 23, 150,
+			184, 252, 128, 52, 228, 90, 30, 34, 135, 234, 123, 28, 239, 90,
+			202, 239, 188, 175, 8, 141, 80, 59, 194, 80, 43, 205, 34, 137, 45,
+			140, 244, 181, 182, 229, 247, 94, 216, 115, 173, 107, 184, 170,
+			102, 78, 249, 4, 186, 234, 169, 148, 98, 128, 33, 115, 232, 126,
+			84, 76, 222, 145, 90, 58, 1, 4, 163, 243, 93, 215, 154, 205, 152,
+			178, 109, 241, 197, 82, 148, 222, 78, 44, 193, 248, 212, 157, 118,
+			217, 75, 211, 23, 229, 121, 28, 180, 208, 173, 204, 14, 111, 226,
+			25, 163, 220, 95, 78, 175, 189, 168, 67, 159, 179, 176, 200, 150,
+			202, 248, 174, 109, 25, 89, 176, 220, 226, 208, 187, 84, 169, 157,
+			14, 88, 217, 221, 117, 254, 51, 45, 93, 184, 80, 225, 158, 29, 76,
+			38, 69, 72, 71, 76, 50, 191, 210, 95, 152, 175, 26, 207, 91, 7,
 		];
 		debug!("algo = {:?}", std::str::from_utf8(&algo));
 		key::PublicKey::parse(&algo, &key).unwrap();
@@ -919,9 +972,11 @@ Cog3JMeTrb3LiPHgN6gU2P30MRp6L1j1J/MtlOAr5rux
 		}
 		let agent_path_ = agent_path.clone();
 		core.spawn(async move {
-			let mut listener = tokio::net::UnixListener::bind(&agent_path_).unwrap();
+			let mut listener =
+				tokio::net::UnixListener::bind(&agent_path_).unwrap();
 
-			agent::server::serve(Incoming { listener: &mut listener }, X {}).await
+			agent::server::serve(Incoming { listener: &mut listener }, X {})
+				.await
 		});
 
 		let key = decode_secret_key(PKCS8_ENCRYPTED, Some("blabla")).unwrap();
@@ -929,7 +984,12 @@ Cog3JMeTrb3LiPHgN6gU2P30MRp6L1j1J/MtlOAr5rux
 			let public = key.clone_public_key()?;
 			let stream = tokio::net::UnixStream::connect(&agent_path).await?;
 			let mut client = agent::client::AgentClient::connect(stream);
-			client.add_identity(&key, &[agent::Constraint::KeyLifetime { seconds: 60 }]).await?;
+			client
+				.add_identity(
+					&key,
+					&[agent::Constraint::KeyLifetime { seconds: 60 }],
+				)
+				.await?;
 			client.request_identities().await?;
 			let buf = russh_cryptovec::CryptoVec::from_slice(b"blabla");
 			let _len = buf.len();
@@ -961,7 +1021,8 @@ Cog3JMeTrb3LiPHgN6gU2P30MRp6L1j1J/MtlOAr5rux
 			self: std::pin::Pin<&mut Self>,
 			cx: &mut std::task::Context<'_>,
 		) -> std::task::Poll<Option<Self::Item>> {
-			let (sock, _addr) = futures::ready!(self.get_mut().listener.poll_accept(cx))?;
+			let (sock, _addr) =
+				futures::ready!(self.get_mut().listener.poll_accept(cx))?;
 			std::task::Poll::Ready(Some(Ok(sock)))
 		}
 	}

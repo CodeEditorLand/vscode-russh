@@ -1,4 +1,9 @@
-#![deny(clippy::unwrap_used, clippy::expect_used, clippy::indexing_slicing, clippy::panic)]
+#![deny(
+	clippy::unwrap_used,
+	clippy::expect_used,
+	clippy::indexing_slicing,
+	clippy::panic
+)]
 // Copyright 2016 Pierre-Étienne Meunier
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -13,7 +18,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 //
-use std::ops::{Deref, DerefMut, Index, IndexMut, Range, RangeFrom, RangeFull, RangeTo};
+use std::ops::{
+	Deref, DerefMut, Index, IndexMut, Range, RangeFrom, RangeFull, RangeTo,
+};
 
 use libc::c_void;
 #[cfg(not(windows))]
@@ -134,7 +141,11 @@ impl std::io::Write for CryptoVec {
 
 impl Default for CryptoVec {
 	fn default() -> Self {
-		CryptoVec { p: std::ptr::NonNull::dangling().as_ptr(), size: 0, capacity: 0 }
+		CryptoVec {
+			p: std::ptr::NonNull::dangling().as_ptr(),
+			size: 0,
+			capacity: 0,
+		}
 	}
 }
 
@@ -180,7 +191,8 @@ impl CryptoVec {
 	pub fn new_zeroed(size: usize) -> CryptoVec {
 		unsafe {
 			let capacity = size.next_power_of_two();
-			let layout = std::alloc::Layout::from_size_align_unchecked(capacity, 1);
+			let layout =
+				std::alloc::Layout::from_size_align_unchecked(capacity, 1);
 			let p = std::alloc::alloc_zeroed(layout);
 			mlock(p, capacity);
 			CryptoVec { p, capacity, size }
@@ -191,7 +203,8 @@ impl CryptoVec {
 	pub fn with_capacity(capacity: usize) -> CryptoVec {
 		unsafe {
 			let capacity = capacity.next_power_of_two();
-			let layout = std::alloc::Layout::from_size_align_unchecked(capacity, 1);
+			let layout =
+				std::alloc::Layout::from_size_align_unchecked(capacity, 1);
 			let p = std::alloc::alloc_zeroed(layout);
 			mlock(p, capacity);
 			CryptoVec { p, capacity, size: 0 }
@@ -226,7 +239,11 @@ impl CryptoVec {
 		} else if size <= self.size {
 			// If this is a truncation, resize and erase the extra memory.
 			unsafe {
-				libc::memset(self.p.add(size) as *mut c_void, 0, self.size - size);
+				libc::memset(
+					self.p.add(size) as *mut c_void,
+					0,
+					self.size - size,
+				);
 			}
 			self.size = size;
 		} else {
@@ -234,7 +251,10 @@ impl CryptoVec {
 			unsafe {
 				let next_capacity = size.next_power_of_two();
 				let old_ptr = self.p;
-				let next_layout = std::alloc::Layout::from_size_align_unchecked(next_capacity, 1);
+				let next_layout = std::alloc::Layout::from_size_align_unchecked(
+					next_capacity,
+					1,
+				);
 				self.p = std::alloc::alloc_zeroed(next_layout);
 				mlock(self.p, next_capacity);
 
@@ -244,14 +264,20 @@ impl CryptoVec {
 						std::ptr::write_volatile(old_ptr.add(i), 0)
 					}
 					munlock(old_ptr, self.capacity);
-					let layout = std::alloc::Layout::from_size_align_unchecked(self.capacity, 1);
+					let layout = std::alloc::Layout::from_size_align_unchecked(
+						self.capacity,
+						1,
+					);
 					std::alloc::dealloc(old_ptr, layout);
 				}
 
 				if self.p.is_null() {
 					#[allow(clippy::panic)]
 					{
-						panic!("Realloc failed, pointer = {:?} {:?}", self, size)
+						panic!(
+							"Realloc failed, pointer = {:?} {:?}",
+							self, size
+						)
 					}
 				} else {
 					self.capacity = next_capacity;
@@ -309,7 +335,11 @@ impl CryptoVec {
 
 		let mut x: u32 = 0;
 		unsafe {
-			libc::memcpy((&mut x) as *mut u32 as *mut c_void, self.p.add(i) as *const c_void, 4);
+			libc::memcpy(
+				(&mut x) as *mut u32 as *mut c_void,
+				self.p.add(i) as *const c_void,
+				4,
+			);
 		}
 		u32::from_be(x)
 	}
@@ -324,17 +354,19 @@ impl CryptoVec {
 		let cur_size = self.size;
 		self.resize(cur_size + n_bytes);
 
-		let s = unsafe { std::slice::from_raw_parts_mut(self.p.add(cur_size), n_bytes) };
+		let s = unsafe {
+			std::slice::from_raw_parts_mut(self.p.add(cur_size), n_bytes)
+		};
 		// Resize the buffer to its appropriate size.
 		match r.read(s) {
 			Ok(n) => {
 				self.resize(cur_size + n);
 				Ok(n)
-			}
+			},
 			Err(e) => {
 				self.resize(cur_size);
 				Err(e)
-			}
+			},
 		}
 	}
 
@@ -355,7 +387,10 @@ impl CryptoVec {
 		assert!(offset < self.size);
 		// if we're past this point, self.p cannot be null.
 		unsafe {
-			let s = std::slice::from_raw_parts(self.p.add(offset), self.size - offset);
+			let s = std::slice::from_raw_parts(
+				self.p.add(offset),
+				self.size - offset,
+			);
 			w.write(s)
 		}
 	}
@@ -382,7 +417,11 @@ impl CryptoVec {
 		let size = self.size;
 		self.resize(size + s.len());
 		unsafe {
-			std::ptr::copy_nonoverlapping(s.as_ptr(), self.p.add(size), s.len());
+			std::ptr::copy_nonoverlapping(
+				s.as_ptr(),
+				self.p.add(size),
+				s.len(),
+			);
 		}
 	}
 
@@ -409,7 +448,10 @@ impl Drop for CryptoVec {
 					std::ptr::write_volatile(self.p.add(i), 0)
 				}
 				munlock(self.p, self.capacity);
-				let layout = std::alloc::Layout::from_size_align_unchecked(self.capacity, 1);
+				let layout = std::alloc::Layout::from_size_align_unchecked(
+					self.capacity,
+					1,
+				);
 				std::alloc::dealloc(self.p, layout);
 			}
 		}

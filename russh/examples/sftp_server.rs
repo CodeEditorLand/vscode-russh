@@ -5,7 +5,9 @@ use russh::{
 	Channel, ChannelId,
 };
 use russh_keys::key::KeyPair;
-use russh_sftp::protocol::{File, FileAttributes, Handle, Name, Status, StatusCode, Version};
+use russh_sftp::protocol::{
+	File, FileAttributes, Handle, Name, Status, StatusCode, Version,
+};
 use std::{collections::HashMap, net::SocketAddr, sync::Arc, time::Duration};
 use tokio::sync::Mutex;
 
@@ -41,7 +43,11 @@ impl SshSession {
 impl russh::server::Handler for SshSession {
 	type Error = anyhow::Error;
 
-	async fn auth_password(self, user: &str, password: &str) -> Result<(Self, Auth), Self::Error> {
+	async fn auth_password(
+		self,
+		user: &str,
+		password: &str,
+	) -> Result<(Self, Auth), Self::Error> {
 		info!("credentials: {}, {}", user, password);
 		Ok((self, Auth::Accept))
 	}
@@ -117,7 +123,11 @@ impl russh_sftp::server::Handler for SftpSession {
 		Ok(Version::new())
 	}
 
-	async fn close(&mut self, id: u32, _handle: String) -> Result<Status, Self::Error> {
+	async fn close(
+		&mut self,
+		id: u32,
+		_handle: String,
+	) -> Result<Status, Self::Error> {
 		Ok(Status {
 			id,
 			status_code: StatusCode::Ok,
@@ -126,32 +136,53 @@ impl russh_sftp::server::Handler for SftpSession {
 		})
 	}
 
-	async fn opendir(&mut self, id: u32, path: String) -> Result<Handle, Self::Error> {
+	async fn opendir(
+		&mut self,
+		id: u32,
+		path: String,
+	) -> Result<Handle, Self::Error> {
 		info!("opendir: {}", path);
 		self.root_dir_read_done = false;
 		Ok(Handle { id, handle: path })
 	}
 
-	async fn readdir(&mut self, id: u32, handle: String) -> Result<Name, Self::Error> {
+	async fn readdir(
+		&mut self,
+		id: u32,
+		handle: String,
+	) -> Result<Name, Self::Error> {
 		info!("readdir handle: {}", handle);
 		if handle == "/" && !self.root_dir_read_done {
 			self.root_dir_read_done = true;
 			return Ok(Name {
 				id,
 				files: vec![
-					File { filename: "foo".to_string(), attrs: FileAttributes::default() },
-					File { filename: "bar".to_string(), attrs: FileAttributes::default() },
+					File {
+						filename: "foo".to_string(),
+						attrs: FileAttributes::default(),
+					},
+					File {
+						filename: "bar".to_string(),
+						attrs: FileAttributes::default(),
+					},
 				],
 			});
 		}
 		Ok(Name { id, files: vec![] })
 	}
 
-	async fn realpath(&mut self, id: u32, path: String) -> Result<Name, Self::Error> {
+	async fn realpath(
+		&mut self,
+		id: u32,
+		path: String,
+	) -> Result<Name, Self::Error> {
 		info!("realpath: {}", path);
 		Ok(Name {
 			id,
-			files: vec![File { filename: "/".to_string(), attrs: FileAttributes::default() }],
+			files: vec![File {
+				filename: "/".to_string(),
+				attrs: FileAttributes::default(),
+			}],
 		})
 	}
 }
@@ -172,7 +203,10 @@ async fn main() {
 
 	russh::server::run(
 		Arc::new(config),
-		("0.0.0.0", std::env::var("PORT").unwrap_or("22".to_string()).parse().unwrap()),
+		(
+			"0.0.0.0",
+			std::env::var("PORT").unwrap_or("22".to_string()).parse().unwrap(),
+		),
 		server,
 	)
 	.await
@@ -186,5 +220,6 @@ fn generate_keypair() -> KeyPair {
 
 #[cfg(not(feature = "rs-crypto"))]
 fn generate_keypair() -> KeyPair {
-	KeyPair::generate_rsa(1024, russh_keys::key::SignatureHash::SHA2_512).unwrap()
+	KeyPair::generate_rsa(1024, russh_keys::key::SignatureHash::SHA2_512)
+		.unwrap()
 }

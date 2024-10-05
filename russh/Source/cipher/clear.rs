@@ -48,7 +48,11 @@ impl super::Cipher for Clear {
 }
 
 impl super::OpeningKey for Key {
-	fn decrypt_packet_length(&self, _seqn: u32, packet_length: [u8; 4]) -> Result<[u8; 4], Error> {
+	fn decrypt_packet_length(
+		&self,
+		_seqn: u32,
+		packet_length: [u8; 4],
+	) -> Result<[u8; 4], Error> {
 		Ok(packet_length)
 	}
 
@@ -95,7 +99,12 @@ impl super::SealingKey for Key {
 		0
 	}
 
-	fn seal(&mut self, _seqn: u32, _plaintext_in_ciphertext_out: &mut [u8], tag_out: &mut [u8]) {
+	fn seal(
+		&mut self,
+		_seqn: u32,
+		_plaintext_in_ciphertext_out: &mut [u8],
+		tag_out: &mut [u8],
+	) {
 		debug_assert_eq!(tag_out.len(), self.tag_len());
 	}
 }

@@ -33,7 +33,10 @@ impl KexAlgorithm for NoneKexAlgorithm {
 		Ok(())
 	}
 
-	fn compute_shared_secret(&mut self, _remote_pubkey: &[u8]) -> Result<(), crate::Error> {
+	fn compute_shared_secret(
+		&mut self,
+		_remote_pubkey: &[u8],
+	) -> Result<(), crate::Error> {
 		Ok(())
 	}
 

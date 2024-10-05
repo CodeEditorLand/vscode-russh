@@ -118,7 +118,8 @@ impl super::OpeningKey for OpeningKey {
 	) -> Result<&'a [u8], Error> {
 		let nonce = make_counter(sequence_number);
 
-		let expected_tag = compute_poly1305(&nonce, &self.k2, ciphertext_in_plaintext_out);
+		let expected_tag =
+			compute_poly1305(&nonce, &self.k2, ciphertext_in_plaintext_out);
 
 		if !bool::from(expected_tag.ct_eq(tag)) {
 			return Err(Error::DecryptionError);
@@ -126,8 +127,11 @@ impl super::OpeningKey for OpeningKey {
 
 		let mut cipher = ChaCha20Legacy::new(&self.k2, &nonce);
 
-		cipher.seek(<ChaCha20LegacyCore as BlockSizeUser>::BlockSize::to_usize());
-		cipher.apply_keystream(&mut ciphertext_in_plaintext_out[PACKET_LENGTH_LEN..]);
+		cipher
+			.seek(<ChaCha20LegacyCore as BlockSizeUser>::BlockSize::to_usize());
+		cipher.apply_keystream(
+			&mut ciphertext_in_plaintext_out[PACKET_LENGTH_LEN..],
+		);
 
 		Ok(&ciphertext_in_plaintext_out[PACKET_LENGTH_LEN..])
 	}
@@ -139,11 +143,14 @@ impl super::SealingKey for SealingKey {
 
 		let extra_len = super::PACKET_LENGTH_LEN + super::PADDING_LENGTH_LEN;
 
-		let padding_len = if payload.len() + extra_len <= super::MINIMUM_PACKET_LEN {
-			super::MINIMUM_PACKET_LEN - payload.len() - super::PADDING_LENGTH_LEN
-		} else {
-			block_size - ((super::PADDING_LENGTH_LEN + payload.len()) % block_size)
-		};
+		let padding_len =
+			if payload.len() + extra_len <= super::MINIMUM_PACKET_LEN {
+				super::MINIMUM_PACKET_LEN
+					- payload.len() - super::PADDING_LENGTH_LEN
+			} else {
+				block_size
+					- ((super::PADDING_LENGTH_LEN + payload.len()) % block_size)
+			};
 		if padding_len < super::PACKET_LENGTH_LEN {
 			padding_len + block_size
 		} else {
@@ -175,19 +182,25 @@ impl super::SealingKey for SealingKey {
 
 		let mut cipher = ChaCha20Legacy::new(&self.k1, &nonce);
 		#[allow(clippy::indexing_slicing)] // length checked
-		cipher.apply_keystream(&mut plaintext_in_ciphertext_out[..PACKET_LENGTH_LEN]);
+		cipher.apply_keystream(
+			&mut plaintext_in_ciphertext_out[..PACKET_LENGTH_LEN],
+		);
 
 		// --
 		let mut cipher = ChaCha20Legacy::new(&self.k2, &nonce);
 
-		cipher.seek(<ChaCha20LegacyCore as BlockSizeUser>::BlockSize::to_usize());
+		cipher
+			.seek(<ChaCha20LegacyCore as BlockSizeUser>::BlockSize::to_usize());
 		#[allow(clippy::indexing_slicing, clippy::unwrap_used)]
-		cipher.apply_keystream(&mut plaintext_in_ciphertext_out[PACKET_LENGTH_LEN..]);
+		cipher.apply_keystream(
+			&mut plaintext_in_ciphertext_out[PACKET_LENGTH_LEN..],
+		);
 
 		// --
 
 		tag.copy_from_slice(
-			compute_poly1305(&nonce, &self.k2, plaintext_in_ciphertext_out).as_slice(),
+			compute_poly1305(&nonce, &self.k2, plaintext_in_ciphertext_out)
+				.as_slice(),
 		);
 	}
 }

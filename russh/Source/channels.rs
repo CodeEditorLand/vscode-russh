@@ -157,7 +157,10 @@ impl<S: From<(ChannelId, ChannelMsg)> + Send + 'static> Channel<S> {
 	}
 
 	/// Request a remote shell.
-	pub async fn request_shell(&mut self, want_reply: bool) -> Result<(), Error> {
+	pub async fn request_shell(
+		&mut self,
+		want_reply: bool,
+	) -> Result<(), Error> {
 		self.send_msg(ChannelMsg::RequestShell { want_reply }).await?;
 		Ok(())
 	}
@@ -170,7 +173,8 @@ impl<S: From<(ChannelId, ChannelMsg)> + Send + 'static> Channel<S> {
 		want_reply: bool,
 		command: A,
 	) -> Result<(), Error> {
-		self.send_msg(ChannelMsg::Exec { want_reply, command: command.into() }).await?;
+		self.send_msg(ChannelMsg::Exec { want_reply, command: command.into() })
+			.await?;
 		Ok(())
 	}
 
@@ -186,7 +190,11 @@ impl<S: From<(ChannelId, ChannelMsg)> + Send + 'static> Channel<S> {
 		want_reply: bool,
 		name: A,
 	) -> Result<(), Error> {
-		self.send_msg(ChannelMsg::RequestSubsystem { want_reply, name: name.into() }).await?;
+		self.send_msg(ChannelMsg::RequestSubsystem {
+			want_reply,
+			name: name.into(),
+		})
+		.await?;
 		Ok(())
 	}
 
@@ -237,19 +245,30 @@ impl<S: From<(ChannelId, ChannelMsg)> + Send + 'static> Channel<S> {
 		pix_width: u32,
 		pix_height: u32,
 	) -> Result<(), Error> {
-		self.send_msg(ChannelMsg::WindowChange { col_width, row_height, pix_width, pix_height })
-			.await?;
+		self.send_msg(ChannelMsg::WindowChange {
+			col_width,
+			row_height,
+			pix_width,
+			pix_height,
+		})
+		.await?;
 		Ok(())
 	}
 
 	/// Inform the server that we will accept agent forwarding channels
-	pub async fn agent_forward(&mut self, want_reply: bool) -> Result<(), Error> {
+	pub async fn agent_forward(
+		&mut self,
+		want_reply: bool,
+	) -> Result<(), Error> {
 		self.send_msg(ChannelMsg::AgentForward { want_reply }).await?;
 		Ok(())
 	}
 
 	/// Send data to a channel.
-	pub async fn data<R: tokio::io::AsyncReadExt + Unpin>(&mut self, data: R) -> Result<(), Error> {
+	pub async fn data<R: tokio::io::AsyncReadExt + Unpin>(
+		&mut self,
+		data: R,
+	) -> Result<(), Error> {
 		self.send_data(None, data).await
 	}
 
@@ -278,10 +297,10 @@ impl<S: From<(ChannelId, ChannelMsg)> + Send + 'static> Channel<S> {
 						debug!("window adjusted: {:?}", new_size);
 						self.window_size = new_size;
 						break;
-					}
+					},
 					Some(msg) => {
 						debug!("unexpected channel msg: {:?}", msg);
-					}
+					},
 					None => break,
 				}
 			}
@@ -314,7 +333,11 @@ impl<S: From<(ChannelId, ChannelMsg)> + Send + 'static> Channel<S> {
 		Ok(())
 	}
 
-	async fn send_data_packet(&mut self, ext: Option<u32>, data: CryptoVec) -> Result<(), Error> {
+	async fn send_data_packet(
+		&mut self,
+		ext: Option<u32>,
+		data: CryptoVec,
+	) -> Result<(), Error> {
 		self.send_msg(if let Some(ext) = ext {
 			ChannelMsg::ExtendedData { ext, data }
 		} else {
@@ -335,14 +358,17 @@ impl<S: From<(ChannelId, ChannelMsg)> + Send + 'static> Channel<S> {
 			Some(ChannelMsg::WindowAdjusted { new_size }) => {
 				self.window_size = new_size;
 				Some(ChannelMsg::WindowAdjusted { new_size })
-			}
+			},
 			Some(msg) => Some(msg),
 			None => None,
 		}
 	}
 
 	async fn send_msg(&self, msg: ChannelMsg) -> Result<(), Error> {
-		self.sender.send((self.id, msg).into()).await.map_err(|_| Error::SendError)
+		self.sender
+			.send((self.id, msg).into())
+			.await
+			.map_err(|_| Error::SendError)
 	}
 
 	/// Request that the channel be closed.

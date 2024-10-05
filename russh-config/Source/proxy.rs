@@ -18,13 +18,22 @@ pub enum Stream {
 
 impl Stream {
 	/// Connect a direct TCP stream (as opposed to a proxied one).
-	pub async fn tcp_connect(addr: &SocketAddr) -> Result<Stream, std::io::Error> {
+	pub async fn tcp_connect(
+		addr: &SocketAddr,
+	) -> Result<Stream, std::io::Error> {
 		Ok(Stream::Tcp(tokio::net::TcpStream::connect(addr).await?))
 	}
 	/// Connect through a proxy command.
-	pub async fn proxy_command(cmd: &str, args: &[&str]) -> Result<Stream, std::io::Error> {
+	pub async fn proxy_command(
+		cmd: &str,
+		args: &[&str],
+	) -> Result<Stream, std::io::Error> {
 		Ok(Stream::Child(
-			Command::new(cmd).stdin(Stdio::piped()).stdout(Stdio::piped()).args(args).spawn()?,
+			Command::new(cmd)
+				.stdin(Stdio::piped())
+				.stdout(Stdio::piped())
+				.args(args)
+				.spawn()?,
 		))
 	}
 }
@@ -60,7 +69,10 @@ impl tokio::io::AsyncWrite for Stream {
 		}
 	}
 
-	fn poll_flush(mut self: Pin<&mut Self>, cx: &mut Context) -> Poll<Result<(), std::io::Error>> {
+	fn poll_flush(
+		mut self: Pin<&mut Self>,
+		cx: &mut Context,
+	) -> Poll<Result<(), std::io::Error>> {
 		match *self {
 			Stream::Child(ref mut c) => match c.stdin.as_mut() {
 				Some(ref mut stdin) => Pin::new(stdin).poll_flush(cx),
@@ -81,7 +93,7 @@ impl tokio::io::AsyncWrite for Stream {
 				}
 				drop(c.stdin.take());
 				Poll::Ready(Ok(()))
-			}
+			},
 			Stream::Tcp(ref mut t) => Pin::new(t).poll_shutdown(cx),
 		}
 	}

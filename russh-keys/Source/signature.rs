@@ -29,10 +29,14 @@ impl Signature {
 			Signature::Ed25519(ref bytes) => {
 				let t = b"ssh-ed25519";
 				#[allow(clippy::unwrap_used)] // Vec<>.write_all can't fail
-				bytes_.write_u32::<BigEndian>((t.len() + bytes.0.len() + 8) as u32).unwrap();
+				bytes_
+					.write_u32::<BigEndian>(
+						(t.len() + bytes.0.len() + 8) as u32,
+					)
+					.unwrap();
 				bytes_.extend_ssh_string(t);
 				bytes_.extend_ssh_string(&bytes.0[..]);
-			}
+			},
 			Signature::RSA { ref hash, ref bytes } => {
 				let t = match hash {
 					SignatureHash::SHA2_256 => &b"rsa-sha2-256"[..],
@@ -40,10 +44,12 @@ impl Signature {
 					SignatureHash::SHA1 => &b"ssh-rsa"[..],
 				};
 				#[allow(clippy::unwrap_used)] // Vec<>.write_all can't fail
-				bytes_.write_u32::<BigEndian>((t.len() + bytes.len() + 8) as u32).unwrap();
+				bytes_
+					.write_u32::<BigEndian>((t.len() + bytes.len() + 8) as u32)
+					.unwrap();
 				bytes_.extend_ssh_string(t);
 				bytes_.extend_ssh_string(&bytes[..]);
-			}
+			},
 		}
 		data_encoding::BASE64_NOPAD.encode(&bytes_[..])
 	}
@@ -66,14 +72,19 @@ impl Signature {
 				let mut bytes_ = [0; 64];
 				bytes_.clone_from_slice(bytes);
 				Ok(Signature::Ed25519(SignatureBytes(bytes_)))
-			}
-			b"rsa-sha2-256" => {
-				Ok(Signature::RSA { hash: SignatureHash::SHA2_256, bytes: bytes.to_vec() })
-			}
-			b"rsa-sha2-512" => {
-				Ok(Signature::RSA { hash: SignatureHash::SHA2_512, bytes: bytes.to_vec() })
-			}
-			b"ssh-rsa" => Ok(Signature::RSA { hash: SignatureHash::SHA1, bytes: bytes.to_vec() }),
+			},
+			b"rsa-sha2-256" => Ok(Signature::RSA {
+				hash: SignatureHash::SHA2_256,
+				bytes: bytes.to_vec(),
+			}),
+			b"rsa-sha2-512" => Ok(Signature::RSA {
+				hash: SignatureHash::SHA2_512,
+				bytes: bytes.to_vec(),
+			}),
+			b"ssh-rsa" => Ok(Signature::RSA {
+				hash: SignatureHash::SHA1,
+				bytes: bytes.to_vec(),
+			}),
 			_ => Err(Error::UnknownSignatureType {
 				sig_type: std::str::from_utf8(typ).unwrap_or("").to_string(),
 			}),
@@ -107,13 +118,18 @@ impl<'de> Deserialize<'de> for SignatureBytes {
 			fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
 				formatter.write_str("64 bytes")
 			}
-			fn visit_seq<A: SeqAccess<'de>>(self, mut seq: A) -> Result<Self::Value, A::Error> {
+			fn visit_seq<A: SeqAccess<'de>>(
+				self,
+				mut seq: A,
+			) -> Result<Self::Value, A::Error> {
 				let mut result = [0; 64];
 				for x in result.iter_mut() {
 					if let Some(y) = seq.next_element()? {
 						*x = y
 					} else {
-						return Err(serde::de::Error::invalid_length(64, &self));
+						return Err(serde::de::Error::invalid_length(
+							64, &self,
+						));
 					}
 				}
 				Ok(SignatureBytes(result))

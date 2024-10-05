@@ -33,7 +33,9 @@ impl KexInit {
 			}
 			let mut key = 0;
 			#[allow(clippy::indexing_slicing)] // length checked
-			while key < config.keys.len() && config.keys[key].name() != algo.key.as_ref() {
+			while key < config.keys.len()
+				&& config.keys[key].name() != algo.key.as_ref()
+			{
 				key += 1
 			}
 			let next_kex = if key < config.keys.len() {
@@ -60,7 +62,11 @@ impl KexInit {
 		write_buffer: &mut SSHBuffer,
 	) -> Result<(), Error> {
 		self.exchange.server_kex_init.clear();
-		negotiation::write_kex(&config.preferred, &mut self.exchange.server_kex_init, true)?;
+		negotiation::write_kex(
+			&config.preferred,
+			&mut self.exchange.server_kex_init,
+			true,
+		)?;
 		debug!("server kex init: {:?}", &self.exchange.server_kex_init[..]);
 		self.sent = true;
 		cipher.write(&self.exchange.server_kex_init, write_buffer);
@@ -86,7 +92,8 @@ impl KexDh {
 			let mut r = buf.reader(1);
 			self.exchange.client_ephemeral.extend(r.read_string()?);
 
-			let mut kex = KEXES.get(&self.names.kex).ok_or(Error::UnknownAlgo)?.make();
+			let mut kex =
+				KEXES.get(&self.names.kex).ok_or(Error::UnknownAlgo)?.make();
 
 			kex.server_dh(&mut self.exchange, buf)?;
 
