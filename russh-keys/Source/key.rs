@@ -17,30 +17,30 @@ use openssl::pkey::{Private, Public};
 use russh_cryptovec::CryptoVec;
 use serde::{Deserialize, Serialize};
 
-use crate::encoding::{Encoding, Reader};
 pub use crate::signature::*;
-use crate::Error;
+use crate::{
+	encoding::{Encoding, Reader},
+	Error,
+};
 
 #[derive(Debug, PartialEq, Eq, Copy, Clone)]
 /// Name of a public key algorithm.
 pub struct Name(pub &'static str);
 
 impl AsRef<str> for Name {
-	fn as_ref(&self) -> &str {
-		self.0
-	}
+	fn as_ref(&self) -> &str { self.0 }
 }
 
 /// The name of the Ed25519 algorithm for SSH.
-pub const ED25519: Name = Name("ssh-ed25519");
+pub const ED25519:Name = Name("ssh-ed25519");
 /// The name of the ssh-sha2-512 algorithm for SSH.
-pub const RSA_SHA2_512: Name = Name("rsa-sha2-512");
+pub const RSA_SHA2_512:Name = Name("rsa-sha2-512");
 /// The name of the ssh-sha2-256 algorithm for SSH.
-pub const RSA_SHA2_256: Name = Name("rsa-sha2-256");
+pub const RSA_SHA2_256:Name = Name("rsa-sha2-256");
 
-pub const NONE: Name = Name("none");
+pub const NONE:Name = Name("none");
 
-pub const SSH_RSA: Name = Name("ssh-rsa");
+pub const SSH_RSA:Name = Name("ssh-rsa");
 
 impl Name {
 	/// Base name of the private key file for a key name.
@@ -56,8 +56,8 @@ impl Name {
 
 #[doc(hidden)]
 pub trait Verify {
-	fn verify_client_auth(&self, buffer: &[u8], sig: &[u8]) -> bool;
-	fn verify_server_auth(&self, buffer: &[u8], sig: &[u8]) -> bool;
+	fn verify_client_auth(&self, buffer:&[u8], sig:&[u8]) -> bool;
+	fn verify_server_auth(&self, buffer:&[u8], sig:&[u8]) -> bool;
 }
 
 /// The hash function used for signing with RSA keys.
@@ -91,7 +91,7 @@ impl SignatureHash {
 		}
 	}
 
-	pub fn from_rsa_hostkey_algo(algo: &[u8]) -> Option<Self> {
+	pub fn from_rsa_hostkey_algo(algo:&[u8]) -> Option<Self> {
 		if algo == b"rsa-sha2-256" {
 			Some(Self::SHA2_256)
 		} else if algo == b"rsa-sha2-512" {
@@ -110,11 +110,11 @@ pub enum PublicKey {
 	Ed25519(ed25519_dalek::PublicKey),
 	#[doc(hidden)]
 	#[cfg(feature = "openssl")]
-	RSA { key: OpenSSLPKey, hash: SignatureHash },
+	RSA { key:OpenSSLPKey, hash:SignatureHash },
 }
 
 impl PartialEq for PublicKey {
-	fn eq(&self, other: &Self) -> bool {
+	fn eq(&self, other:&Self) -> bool {
 		match (self, other) {
 			#[cfg(feature = "openssl")]
 			(Self::RSA { key: a, .. }, Self::RSA { key: b, .. }) => a == b,
@@ -135,30 +135,27 @@ pub struct OpenSSLPKey(pub openssl::pkey::PKey<Public>);
 use std::cmp::{Eq, PartialEq};
 #[cfg(feature = "openssl")]
 impl PartialEq for OpenSSLPKey {
-	fn eq(&self, b: &OpenSSLPKey) -> bool {
-		self.0.public_eq(&b.0)
-	}
+	fn eq(&self, b:&OpenSSLPKey) -> bool { self.0.public_eq(&b.0) }
 }
 #[cfg(feature = "openssl")]
 impl Eq for OpenSSLPKey {}
 #[cfg(feature = "openssl")]
 impl std::fmt::Debug for OpenSSLPKey {
-	fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+	fn fmt(&self, f:&mut std::fmt::Formatter) -> std::fmt::Result {
 		write!(f, "OpenSSLPKey {{ (hidden) }}")
 	}
 }
 
 impl PublicKey {
 	/// Parse a public key in SSH format.
-	pub fn parse(algo: &[u8], pubkey: &[u8]) -> Result<Self, Error> {
+	pub fn parse(algo:&[u8], pubkey:&[u8]) -> Result<Self, Error> {
 		match algo {
 			#[cfg(feature = "rs-crypto")]
 			b"ssh-ed25519" => {
 				let mut p = pubkey.reader(0);
 				let key_algo = p.read_string()?;
 				let key_bytes = p.read_string()?;
-				if key_algo != b"ssh-ed25519"
-					|| key_bytes.len() != ed25519_dalek::PUBLIC_KEY_LENGTH
+				if key_algo != b"ssh-ed25519" || key_bytes.len() != ed25519_dalek::PUBLIC_KEY_LENGTH
 				{
 					return Err(Error::CouldNotReadKey);
 				}
@@ -166,9 +163,7 @@ impl PublicKey {
 					.map(PublicKey::Ed25519)
 					.map_err(Error::from)
 			},
-			b"ssh-rsa" | b"rsa-sha2-256" | b"rsa-sha2-512"
-				if cfg!(feature = "openssl") =>
-			{
+			b"ssh-rsa" | b"rsa-sha2-256" | b"rsa-sha2-512" if cfg!(feature = "openssl") => {
 				#[cfg(feature = "openssl")]
 				{
 					use log::debug;
@@ -183,17 +178,13 @@ impl PublicKey {
 					}
 					let key_e = p.read_string()?;
 					let key_n = p.read_string()?;
-					use openssl::bn::BigNum;
-					use openssl::pkey::PKey;
-					use openssl::rsa::Rsa;
+					use openssl::{bn::BigNum, pkey::PKey, rsa::Rsa};
 					Ok(PublicKey::RSA {
-						key: OpenSSLPKey(PKey::from_rsa(
-							Rsa::from_public_components(
-								BigNum::from_slice(key_n)?,
-								BigNum::from_slice(key_e)?,
-							)?,
-						)?),
-						hash: SignatureHash::from_rsa_hostkey_algo(algo)
+						key:OpenSSLPKey(PKey::from_rsa(Rsa::from_public_components(
+							BigNum::from_slice(key_n)?,
+							BigNum::from_slice(key_e)?,
+						)?)?),
+						hash:SignatureHash::from_rsa_hostkey_algo(algo)
 							.unwrap_or(SignatureHash::SHA1),
 					})
 				}
@@ -217,7 +208,7 @@ impl PublicKey {
 	}
 
 	/// Verify a signature.
-	pub fn verify_detached(&self, buffer: &[u8], sig: &[u8]) -> bool {
+	pub fn verify_detached(&self, buffer:&[u8], sig:&[u8]) -> bool {
 		match self {
 			#[cfg(feature = "rs-crypto")]
 			PublicKey::Ed25519(ref public) => {
@@ -232,8 +223,7 @@ impl PublicKey {
 			PublicKey::RSA { ref key, ref hash } => {
 				use openssl::sign::*;
 				let verify = || {
-					let mut verifier =
-						Verifier::new(hash.message_digest(), &key.0)?;
+					let mut verifier = Verifier::new(hash.message_digest(), &key.0)?;
 					verifier.update(buffer)?;
 					verifier.verify(sig)
 				};
@@ -255,7 +245,7 @@ impl PublicKey {
 	}
 
 	#[cfg(feature = "openssl")]
-	pub fn set_algorithm(&mut self, algorithm: &[u8]) {
+	pub fn set_algorithm(&mut self, algorithm:&[u8]) {
 		#[allow(irrefutable_let_patterns)]
 		// depending on the build flag, it may be refutable
 		if let PublicKey::RSA { ref mut hash, .. } = self {
@@ -270,14 +260,15 @@ impl PublicKey {
 	}
 
 	#[cfg(not(feature = "openssl"))]
-	pub fn set_algorithm(&mut self, _: &[u8]) {}
+	pub fn set_algorithm(&mut self, _:&[u8]) {}
 }
 
 impl Verify for PublicKey {
-	fn verify_client_auth(&self, buffer: &[u8], sig: &[u8]) -> bool {
+	fn verify_client_auth(&self, buffer:&[u8], sig:&[u8]) -> bool {
 		self.verify_detached(buffer, sig)
 	}
-	fn verify_server_auth(&self, buffer: &[u8], sig: &[u8]) -> bool {
+
+	fn verify_server_auth(&self, buffer:&[u8], sig:&[u8]) -> bool {
 		self.verify_detached(buffer, sig)
 	}
 }
@@ -288,7 +279,7 @@ pub enum KeyPair {
 	#[cfg(feature = "rs-crypto")]
 	Ed25519(ed25519_dalek::Keypair),
 	#[cfg(feature = "openssl")]
-	RSA { key: openssl::rsa::Rsa<Private>, hash: SignatureHash },
+	RSA { key:openssl::rsa::Rsa<Private>, hash:SignatureHash },
 }
 
 impl Clone for KeyPair {
@@ -296,26 +287,24 @@ impl Clone for KeyPair {
 		match self {
 			#[allow(clippy::expect_used)]
 			#[cfg(feature = "rs-crypto")]
-			Self::Ed25519(kp) => Self::Ed25519(
-				ed25519_dalek::Keypair::from_bytes(&kp.to_bytes())
-					.expect("expected to clone keypair"),
-			),
+			Self::Ed25519(kp) => {
+				Self::Ed25519(
+					ed25519_dalek::Keypair::from_bytes(&kp.to_bytes())
+						.expect("expected to clone keypair"),
+				)
+			},
 			#[cfg(feature = "openssl")]
-			Self::RSA { key, hash } => Self::RSA { key: key.clone(), hash: *hash },
+			Self::RSA { key, hash } => Self::RSA { key:key.clone(), hash:*hash },
 		}
 	}
 }
 
 impl std::fmt::Debug for KeyPair {
-	fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+	fn fmt(&self, f:&mut std::fmt::Formatter) -> std::fmt::Result {
 		match *self {
 			#[cfg(feature = "rs-crypto")]
 			KeyPair::Ed25519(ref key) => {
-				write!(
-					f,
-					"Ed25519 {{ public: {:?}, secret: (hidden) }}",
-					key.public.as_bytes()
-				)
+				write!(f, "Ed25519 {{ public: {:?}, secret: (hidden) }}", key.public.as_bytes())
 			},
 			#[cfg(feature = "openssl")]
 			KeyPair::RSA { .. } => write!(f, "RSA {{ (hidden) }}"),
@@ -324,9 +313,7 @@ impl std::fmt::Debug for KeyPair {
 }
 
 impl<'b> crate::encoding::Bytes for &'b KeyPair {
-	fn bytes(&self) -> &[u8] {
-		self.name().as_bytes()
-	}
+	fn bytes(&self) -> &[u8] { self.name().as_bytes() }
 }
 
 impl KeyPair {
@@ -337,16 +324,9 @@ impl KeyPair {
 			KeyPair::Ed25519(ref key) => PublicKey::Ed25519(key.public),
 			#[cfg(feature = "openssl")]
 			KeyPair::RSA { ref key, ref hash } => {
-				use openssl::pkey::PKey;
-				use openssl::rsa::Rsa;
-				let key = Rsa::from_public_components(
-					key.n().to_owned()?,
-					key.e().to_owned()?,
-				)?;
-				PublicKey::RSA {
-					key: OpenSSLPKey(PKey::from_rsa(key)?),
-					hash: *hash,
-				}
+				use openssl::{pkey::PKey, rsa::Rsa};
+				let key = Rsa::from_public_components(key.n().to_owned()?, key.e().to_owned()?)?;
+				PublicKey::RSA { key:OpenSSLPKey(PKey::from_rsa(key)?), hash:*hash }
 			},
 		})
 	}
@@ -375,32 +355,30 @@ impl KeyPair {
 	}
 
 	#[cfg(feature = "openssl")]
-	pub fn generate_rsa(bits: usize, hash: SignatureHash) -> Option<Self> {
+	pub fn generate_rsa(bits:usize, hash:SignatureHash) -> Option<Self> {
 		let key = openssl::rsa::Rsa::generate(bits as u32).ok()?;
 		Some(KeyPair::RSA { key, hash })
 	}
 
 	/// Sign a slice using this algorithm.
-	pub fn sign_detached(&self, to_sign: &[u8]) -> Result<Signature, Error> {
+	pub fn sign_detached(&self, to_sign:&[u8]) -> Result<Signature, Error> {
 		match self {
 			#[allow(clippy::unwrap_used)]
 			#[cfg(feature = "rs-crypto")]
 			KeyPair::Ed25519(ref secret) => {
-				use ed25519_dalek::Signer;
 				use std::convert::TryInto;
+
+				use ed25519_dalek::Signer;
 				Ok(Signature::Ed25519(SignatureBytes(
-					ed25519_dalek::ed25519::signature::Signature::as_bytes(
-						&secret.sign(to_sign),
-					)
-					.try_into()
-					.unwrap(),
+					ed25519_dalek::ed25519::signature::Signature::as_bytes(&secret.sign(to_sign))
+						.try_into()
+						.unwrap(),
 				)))
 			},
 			#[cfg(feature = "openssl")]
-			KeyPair::RSA { ref key, ref hash } => Ok(Signature::RSA {
-				bytes: rsa_signature(hash, key, to_sign)?,
-				hash: *hash,
-			}),
+			KeyPair::RSA { ref key, ref hash } => {
+				Ok(Signature::RSA { bytes:rsa_signature(hash, key, to_sign)?, hash:*hash })
+			},
 		}
 	}
 
@@ -408,22 +386,19 @@ impl KeyPair {
 	/// This is used by the server to sign the initial DH kex
 	/// message. Note: we are not signing the same kind of thing as in
 	/// the function below, `add_self_signature`.
-	pub fn add_signature<H: AsRef<[u8]>>(
+	pub fn add_signature<H:AsRef<[u8]>>(
 		&self,
-		buffer: &mut CryptoVec,
-		to_sign: H,
+		buffer:&mut CryptoVec,
+		to_sign:H,
 	) -> Result<(), Error> {
 		match self {
 			#[cfg(feature = "rs-crypto")]
 			KeyPair::Ed25519(ref secret) => {
-				use ed25519_dalek::ed25519::signature::Signature as EdSignature;
-				use ed25519_dalek::Signer;
+				use ed25519_dalek::{ed25519::signature::Signature as EdSignature, Signer};
 				let signature = secret.sign(to_sign.as_ref());
 
 				buffer.push_u32_be(
-					(ED25519.0.len()
-						+ EdSignature::as_bytes(&signature).len()
-						+ 8) as u32,
+					(ED25519.0.len() + EdSignature::as_bytes(&signature).len() + 8) as u32,
 				);
 				buffer.extend_ssh_string(ED25519.0.as_bytes());
 				buffer.extend_ssh_string(signature.as_bytes());
@@ -445,20 +420,14 @@ impl KeyPair {
 	/// This is used by the client for authentication. Note: we are
 	/// not signing the same kind of thing as in the above function,
 	/// `add_signature`.
-	pub fn add_self_signature(
-		&self,
-		buffer: &mut CryptoVec,
-	) -> Result<(), Error> {
+	pub fn add_self_signature(&self, buffer:&mut CryptoVec) -> Result<(), Error> {
 		match self {
 			#[cfg(feature = "rs-crypto")]
 			KeyPair::Ed25519(ref secret) => {
-				use ed25519_dalek::ed25519::signature::Signature;
-				use ed25519_dalek::Signer;
+				use ed25519_dalek::{ed25519::signature::Signature, Signer};
 
 				let signature = secret.sign(buffer);
-				buffer.push_u32_be(
-					(ED25519.0.len() + signature.as_bytes().len() + 8) as u32,
-				);
+				buffer.push_u32_be((ED25519.0.len() + signature.as_bytes().len() + 8) as u32);
 				buffer.extend_ssh_string(ED25519.0.as_bytes());
 				buffer.extend_ssh_string(signature.as_bytes());
 			},
@@ -477,25 +446,23 @@ impl KeyPair {
 
 	/// Create a copy of an RSA key with a specified hash algorithm.
 	#[cfg(feature = "openssl")]
-	pub fn with_signature_hash(&self, hash: SignatureHash) -> Option<Self> {
+	pub fn with_signature_hash(&self, hash:SignatureHash) -> Option<Self> {
 		match self {
 			#[cfg(feature = "rs-crypto")]
 			KeyPair::Ed25519(_) => None,
 			#[cfg(feature = "openssl")]
-			KeyPair::RSA { key, .. } => Some(KeyPair::RSA { key: key.clone(), hash }),
+			KeyPair::RSA { key, .. } => Some(KeyPair::RSA { key:key.clone(), hash }),
 		}
 	}
 }
 
 #[cfg(feature = "openssl")]
 fn rsa_signature(
-	hash: &SignatureHash,
-	key: &openssl::rsa::Rsa<Private>,
-	b: &[u8],
+	hash:&SignatureHash,
+	key:&openssl::rsa::Rsa<Private>,
+	b:&[u8],
 ) -> Result<Vec<u8>, Error> {
-	use openssl::pkey::*;
-	use openssl::rsa::*;
-	use openssl::sign::Signer;
+	use openssl::{pkey::*, rsa::*, sign::Signer};
 	let pkey = PKey::from_rsa(Rsa::from_private_components(
 		key.n().to_owned()?,
 		key.e().to_owned()?,
@@ -513,16 +480,15 @@ fn rsa_signature(
 
 /// Parse a public key from a byte slice.
 pub fn parse_public_key(
-	p: &[u8],
-	#[cfg(feature = "openssl")] prefer_hash: Option<SignatureHash>,
+	p:&[u8],
+	#[cfg(feature = "openssl")] prefer_hash:Option<SignatureHash>,
 ) -> Result<PublicKey, Error> {
 	let mut pos = p.reader(0);
 	let t = pos.read_string()?;
 	#[cfg(feature = "rs-crypto")]
 	if t == b"ssh-ed25519" {
 		if let Ok(pubkey) = pos.read_string() {
-			let p = ed25519_dalek::PublicKey::from_bytes(pubkey)
-				.map_err(Error::from)?;
+			let p = ed25519_dalek::PublicKey::from_bytes(pubkey).map_err(Error::from)?;
 			return Ok(PublicKey::Ed25519(p));
 		}
 	}
@@ -531,15 +497,13 @@ pub fn parse_public_key(
 		{
 			let e = pos.read_string()?;
 			let n = pos.read_string()?;
-			use openssl::bn::*;
-			use openssl::pkey::*;
-			use openssl::rsa::*;
+			use openssl::{bn::*, pkey::*, rsa::*};
 			return Ok(PublicKey::RSA {
-				key: OpenSSLPKey(PKey::from_rsa(Rsa::from_public_components(
+				key:OpenSSLPKey(PKey::from_rsa(Rsa::from_public_components(
 					BigNum::from_slice(n)?,
 					BigNum::from_slice(e)?,
 				)?)?),
-				hash: prefer_hash.unwrap_or(SignatureHash::SHA2_256),
+				hash:prefer_hash.unwrap_or(SignatureHash::SHA2_256),
 			});
 		}
 	}

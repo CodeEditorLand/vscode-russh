@@ -9,90 +9,90 @@ use crate::{ChannelId, ChannelOpenFailure, ChannelStream, Error, Pty, Sig};
 /// Possible messages that [Channel::wait] can receive.
 pub enum ChannelMsg {
 	Open {
-		id: ChannelId,
-		max_packet_size: u32,
-		window_size: u32,
+		id:ChannelId,
+		max_packet_size:u32,
+		window_size:u32,
 	},
 	Data {
-		data: CryptoVec,
+		data:CryptoVec,
 	},
 	ExtendedData {
-		data: CryptoVec,
-		ext: u32,
+		data:CryptoVec,
+		ext:u32,
 	},
 	Eof,
 	/// (client only)
 	RequestPty {
-		want_reply: bool,
-		term: String,
-		col_width: u32,
-		row_height: u32,
-		pix_width: u32,
-		pix_height: u32,
-		terminal_modes: Vec<(Pty, u32)>,
+		want_reply:bool,
+		term:String,
+		col_width:u32,
+		row_height:u32,
+		pix_width:u32,
+		pix_height:u32,
+		terminal_modes:Vec<(Pty, u32)>,
 	},
 	/// (client only)
 	RequestShell {
-		want_reply: bool,
+		want_reply:bool,
 	},
 	/// (client only)
 	Exec {
-		want_reply: bool,
-		command: Vec<u8>,
+		want_reply:bool,
+		command:Vec<u8>,
 	},
 	/// (client only)
 	Signal {
-		signal: Sig,
+		signal:Sig,
 	},
 	/// (client only)
 	RequestSubsystem {
-		want_reply: bool,
-		name: String,
+		want_reply:bool,
+		name:String,
 	},
 	/// (client only)
 	RequestX11 {
-		want_reply: bool,
-		single_connection: bool,
-		x11_authentication_protocol: String,
-		x11_authentication_cookie: String,
-		x11_screen_number: u32,
+		want_reply:bool,
+		single_connection:bool,
+		x11_authentication_protocol:String,
+		x11_authentication_cookie:String,
+		x11_screen_number:u32,
 	},
 	/// (client only)
 	SetEnv {
-		want_reply: bool,
-		variable_name: String,
-		variable_value: String,
+		want_reply:bool,
+		variable_name:String,
+		variable_value:String,
 	},
 	/// (client only)
 	WindowChange {
-		col_width: u32,
-		row_height: u32,
-		pix_width: u32,
-		pix_height: u32,
+		col_width:u32,
+		row_height:u32,
+		pix_width:u32,
+		pix_height:u32,
 	},
 	/// (client only)
 	AgentForward {
-		want_reply: bool,
+		want_reply:bool,
 	},
 
 	/// (server only)
 	XonXoff {
-		client_can_do: bool,
+		client_can_do:bool,
 	},
 	/// (server only)
 	ExitStatus {
-		exit_status: u32,
+		exit_status:u32,
 	},
 	/// (server only)
 	ExitSignal {
-		signal_name: Sig,
-		core_dumped: bool,
-		error_message: String,
-		lang_tag: String,
+		signal_name:Sig,
+		core_dumped:bool,
+		error_message:String,
+		lang_tag:String,
 	},
 	/// (server only)
 	WindowAdjusted {
-		new_size: u32,
+		new_size:u32,
 	},
 	/// (server only)
 	Success,
@@ -106,24 +106,22 @@ pub enum ChannelMsg {
 /// A handle to a session channel.
 ///
 /// Allows you to read and write from a channel without borrowing the session
-pub struct Channel<Send: From<(ChannelId, ChannelMsg)>> {
-	pub(crate) id: ChannelId,
-	pub(crate) sender: Sender<Send>,
-	pub(crate) receiver: UnboundedReceiver<ChannelMsg>,
-	pub(crate) max_packet_size: u32,
-	pub(crate) window_size: u32,
+pub struct Channel<Send:From<(ChannelId, ChannelMsg)>> {
+	pub(crate) id:ChannelId,
+	pub(crate) sender:Sender<Send>,
+	pub(crate) receiver:UnboundedReceiver<ChannelMsg>,
+	pub(crate) max_packet_size:u32,
+	pub(crate) window_size:u32,
 }
 
-impl<T: From<(ChannelId, ChannelMsg)>> std::fmt::Debug for Channel<T> {
-	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl<T:From<(ChannelId, ChannelMsg)>> std::fmt::Debug for Channel<T> {
+	fn fmt(&self, f:&mut std::fmt::Formatter<'_>) -> std::fmt::Result {
 		f.debug_struct("Channel").field("id", &self.id).finish()
 	}
 }
 
-impl<S: From<(ChannelId, ChannelMsg)> + Send + 'static> Channel<S> {
-	pub fn id(&self) -> ChannelId {
-		self.id
-	}
+impl<S:From<(ChannelId, ChannelMsg)> + Send + 'static> Channel<S> {
+	pub fn id(&self) -> ChannelId { self.id }
 
 	/// Returns the min between the maximum packet size and the
 	/// remaining window size in the channel.
@@ -135,32 +133,29 @@ impl<S: From<(ChannelId, ChannelMsg)> + Send + 'static> Channel<S> {
 	#[allow(clippy::too_many_arguments)] // length checked
 	pub async fn request_pty(
 		&mut self,
-		want_reply: bool,
-		term: &str,
-		col_width: u32,
-		row_height: u32,
-		pix_width: u32,
-		pix_height: u32,
-		terminal_modes: &[(Pty, u32)],
+		want_reply:bool,
+		term:&str,
+		col_width:u32,
+		row_height:u32,
+		pix_width:u32,
+		pix_height:u32,
+		terminal_modes:&[(Pty, u32)],
 	) -> Result<(), Error> {
 		self.send_msg(ChannelMsg::RequestPty {
 			want_reply,
-			term: term.to_string(),
+			term:term.to_string(),
 			col_width,
 			row_height,
 			pix_width,
 			pix_height,
-			terminal_modes: terminal_modes.to_vec(),
+			terminal_modes:terminal_modes.to_vec(),
 		})
 		.await?;
 		Ok(())
 	}
 
 	/// Request a remote shell.
-	pub async fn request_shell(
-		&mut self,
-		want_reply: bool,
-	) -> Result<(), Error> {
+	pub async fn request_shell(&mut self, want_reply:bool) -> Result<(), Error> {
 		self.send_msg(ChannelMsg::RequestShell { want_reply }).await?;
 		Ok(())
 	}
@@ -168,33 +163,25 @@ impl<S: From<(ChannelId, ChannelMsg)> + Send + 'static> Channel<S> {
 	/// Execute a remote program (will be passed to a shell). This can
 	/// be used to implement scp (by calling a remote scp and
 	/// tunneling to its standard input).
-	pub async fn exec<A: Into<Vec<u8>>>(
-		&mut self,
-		want_reply: bool,
-		command: A,
-	) -> Result<(), Error> {
-		self.send_msg(ChannelMsg::Exec { want_reply, command: command.into() })
-			.await?;
+	pub async fn exec<A:Into<Vec<u8>>>(&mut self, want_reply:bool, command:A) -> Result<(), Error> {
+		self.send_msg(ChannelMsg::Exec { want_reply, command:command.into() }).await?;
 		Ok(())
 	}
 
 	/// Signal a remote process.
-	pub async fn signal(&mut self, signal: Sig) -> Result<(), Error> {
+	pub async fn signal(&mut self, signal:Sig) -> Result<(), Error> {
 		self.send_msg(ChannelMsg::Signal { signal }).await?;
 		Ok(())
 	}
 
 	/// Request the start of a subsystem with the given name.
-	pub async fn request_subsystem<A: Into<String>>(
+	pub async fn request_subsystem<A:Into<String>>(
 		&mut self,
-		want_reply: bool,
-		name: A,
+		want_reply:bool,
+		name:A,
 	) -> Result<(), Error> {
-		self.send_msg(ChannelMsg::RequestSubsystem {
-			want_reply,
-			name: name.into(),
-		})
-		.await?;
+		self.send_msg(ChannelMsg::RequestSubsystem { want_reply, name:name.into() })
+			.await?;
 		Ok(())
 	}
 
@@ -202,19 +189,19 @@ impl<S: From<(ChannelId, ChannelMsg)> + Send + 'static> Channel<S> {
 	/// channel. See
 	/// [RFC4254](https://tools.ietf.org/html/rfc4254#section-6.3.1)
 	/// for security issues related to cookies.
-	pub async fn request_x11<A: Into<String>, B: Into<String>>(
+	pub async fn request_x11<A:Into<String>, B:Into<String>>(
 		&mut self,
-		want_reply: bool,
-		single_connection: bool,
-		x11_authentication_protocol: A,
-		x11_authentication_cookie: B,
-		x11_screen_number: u32,
+		want_reply:bool,
+		single_connection:bool,
+		x11_authentication_protocol:A,
+		x11_authentication_cookie:B,
+		x11_screen_number:u32,
 	) -> Result<(), Error> {
 		self.send_msg(ChannelMsg::RequestX11 {
 			want_reply,
 			single_connection,
-			x11_authentication_protocol: x11_authentication_protocol.into(),
-			x11_authentication_cookie: x11_authentication_cookie.into(),
+			x11_authentication_protocol:x11_authentication_protocol.into(),
+			x11_authentication_cookie:x11_authentication_cookie.into(),
 			x11_screen_number,
 		})
 		.await?;
@@ -222,16 +209,16 @@ impl<S: From<(ChannelId, ChannelMsg)> + Send + 'static> Channel<S> {
 	}
 
 	/// Set a remote environment variable.
-	pub async fn set_env<A: Into<String>, B: Into<String>>(
+	pub async fn set_env<A:Into<String>, B:Into<String>>(
 		&mut self,
-		want_reply: bool,
-		variable_name: A,
-		variable_value: B,
+		want_reply:bool,
+		variable_name:A,
+		variable_value:B,
 	) -> Result<(), Error> {
 		self.send_msg(ChannelMsg::SetEnv {
 			want_reply,
-			variable_name: variable_name.into(),
-			variable_value: variable_value.into(),
+			variable_name:variable_name.into(),
+			variable_value:variable_value.into(),
 		})
 		.await?;
 		Ok(())
@@ -240,53 +227,42 @@ impl<S: From<(ChannelId, ChannelMsg)> + Send + 'static> Channel<S> {
 	/// Inform the server that our window size has changed.
 	pub async fn window_change(
 		&mut self,
-		col_width: u32,
-		row_height: u32,
-		pix_width: u32,
-		pix_height: u32,
+		col_width:u32,
+		row_height:u32,
+		pix_width:u32,
+		pix_height:u32,
 	) -> Result<(), Error> {
-		self.send_msg(ChannelMsg::WindowChange {
-			col_width,
-			row_height,
-			pix_width,
-			pix_height,
-		})
-		.await?;
+		self.send_msg(ChannelMsg::WindowChange { col_width, row_height, pix_width, pix_height })
+			.await?;
 		Ok(())
 	}
 
 	/// Inform the server that we will accept agent forwarding channels
-	pub async fn agent_forward(
-		&mut self,
-		want_reply: bool,
-	) -> Result<(), Error> {
+	pub async fn agent_forward(&mut self, want_reply:bool) -> Result<(), Error> {
 		self.send_msg(ChannelMsg::AgentForward { want_reply }).await?;
 		Ok(())
 	}
 
 	/// Send data to a channel.
-	pub async fn data<R: tokio::io::AsyncReadExt + Unpin>(
-		&mut self,
-		data: R,
-	) -> Result<(), Error> {
+	pub async fn data<R:tokio::io::AsyncReadExt + Unpin>(&mut self, data:R) -> Result<(), Error> {
 		self.send_data(None, data).await
 	}
 
 	/// Send data to a channel. The number of bytes added to the
 	/// "sending pipeline" (to be processed by the event loop) is
 	/// returned.
-	pub async fn extended_data<R: tokio::io::AsyncReadExt + Unpin>(
+	pub async fn extended_data<R:tokio::io::AsyncReadExt + Unpin>(
 		&mut self,
-		ext: u32,
-		data: R,
+		ext:u32,
+		data:R,
 	) -> Result<(), Error> {
 		self.send_data(Some(ext), data).await
 	}
 
-	async fn send_data<R: tokio::io::AsyncReadExt + Unpin>(
+	async fn send_data<R:tokio::io::AsyncReadExt + Unpin>(
 		&mut self,
-		ext: Option<u32>,
-		mut data: R,
+		ext:Option<u32>,
+		mut data:R,
 	) -> Result<(), Error> {
 		let mut total = 0;
 		loop {
@@ -333,11 +309,7 @@ impl<S: From<(ChannelId, ChannelMsg)> + Send + 'static> Channel<S> {
 		Ok(())
 	}
 
-	async fn send_data_packet(
-		&mut self,
-		ext: Option<u32>,
-		data: CryptoVec,
-	) -> Result<(), Error> {
+	async fn send_data_packet(&mut self, ext:Option<u32>, data:CryptoVec) -> Result<(), Error> {
 		self.send_msg(if let Some(ext) = ext {
 			ChannelMsg::ExtendedData { ext, data }
 		} else {
@@ -364,11 +336,8 @@ impl<S: From<(ChannelId, ChannelMsg)> + Send + 'static> Channel<S> {
 		}
 	}
 
-	async fn send_msg(&self, msg: ChannelMsg) -> Result<(), Error> {
-		self.sender
-			.send((self.id, msg).into())
-			.await
-			.map_err(|_| Error::SendError)
+	async fn send_msg(&self, msg:ChannelMsg) -> Result<(), Error> {
+		self.sender.send((self.id, msg).into()).await.map_err(|_| Error::SendError)
 	}
 
 	/// Request that the channel be closed.

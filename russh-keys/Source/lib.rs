@@ -16,57 +16,100 @@
 //! (the password is `b"blabla"`), send it to the agent, and ask the
 //! agent to sign a piece of data (`b"Please sign this", below).
 //!
-//!```
-//! use russh_keys::*;
+//! ```
 //! use futures::Future;
+//! use russh_keys::*;
 //!
 //! #[derive(Clone)]
-//! struct X{}
+//! struct X {}
 //! impl agent::server::Agent for X {
-//!     fn confirm(self, _: std::sync::Arc<key::KeyPair>) -> Box<dyn Future<Output = (Self, bool)> + Send + Unpin> {
-//!         Box::new(futures::future::ready((self, true)))
-//!     }
+//! 	fn confirm(
+//! 		self,
+//! 		_:std::sync::Arc<key::KeyPair>,
+//! 	) -> Box<dyn Future<Output = (Self, bool)> + Send + Unpin> {
+//! 		Box::new(futures::future::ready((self, true)))
+//! 	}
 //! }
 //!
-//! const PKCS8_ENCRYPTED: &'static str = "-----BEGIN ENCRYPTED PRIVATE KEY-----\nMIIFLTBXBgkqhkiG9w0BBQ0wSjApBgkqhkiG9w0BBQwwHAQITo1O0b8YrS0CAggA\nMAwGCCqGSIb3DQIJBQAwHQYJYIZIAWUDBAEqBBBtLH4T1KOfo1GGr7salhR8BIIE\n0KN9ednYwcTGSX3hg7fROhTw7JAJ1D4IdT1fsoGeNu2BFuIgF3cthGHe6S5zceI2\nMpkfwvHbsOlDFWMUIAb/VY8/iYxhNmd5J6NStMYRC9NC0fVzOmrJqE1wITqxtORx\nIkzqkgFUbaaiFFQPepsh5CvQfAgGEWV329SsTOKIgyTj97RxfZIKA+TR5J5g2dJY\nj346SvHhSxJ4Jc0asccgMb0HGh9UUDzDSql0OIdbnZW5KzYJPOx+aDqnpbz7UzY/\nP8N0w/pEiGmkdkNyvGsdttcjFpOWlLnLDhtLx8dDwi/sbEYHtpMzsYC9jPn3hnds\nTcotqjoSZ31O6rJD4z18FOQb4iZs3MohwEdDd9XKblTfYKM62aQJWH6cVQcg+1C7\njX9l2wmyK26Tkkl5Qg/qSfzrCveke5muZgZkFwL0GCcgPJ8RixSB4GOdSMa/hAMU\nkvFAtoV2GluIgmSe1pG5cNMhurxM1dPPf4WnD+9hkFFSsMkTAuxDZIdDk3FA8zof\nYhv0ZTfvT6V+vgH3Hv7Tqcxomy5Qr3tj5vvAqqDU6k7fC4FvkxDh2mG5ovWvc4Nb\nXv8sed0LGpYitIOMldu6650LoZAqJVv5N4cAA2Edqldf7S2Iz1QnA/usXkQd4tLa\nZ80+sDNv9eCVkfaJ6kOVLk/ghLdXWJYRLenfQZtVUXrPkaPpNXgD0dlaTN8KuvML\nUw/UGa+4ybnPsdVflI0YkJKbxouhp4iB4S5ACAwqHVmsH5GRnujf10qLoS7RjDAl\no/wSHxdT9BECp7TT8ID65u2mlJvH13iJbktPczGXt07nBiBse6OxsClfBtHkRLzE\nQF6UMEXsJnIIMRfrZQnduC8FUOkfPOSXc8r9SeZ3GhfbV/DmWZvFPCpjzKYPsM5+\nN8Bw/iZ7NIH4xzNOgwdp5BzjH9hRtCt4sUKVVlWfEDtTnkHNOusQGKu7HkBF87YZ\nRN/Nd3gvHob668JOcGchcOzcsqsgzhGMD8+G9T9oZkFCYtwUXQU2XjMN0R4VtQgZ\nrAxWyQau9xXMGyDC67gQ5xSn+oqMK0HmoW8jh2LG/cUowHFAkUxdzGadnjGhMOI2\nzwNJPIjF93eDF/+zW5E1l0iGdiYyHkJbWSvcCuvTwma9FIDB45vOh5mSR+YjjSM5\nnq3THSWNi7Cxqz12Q1+i9pz92T2myYKBBtu1WDh+2KOn5DUkfEadY5SsIu/Rb7ub\n5FBihk2RN3y/iZk+36I69HgGg1OElYjps3D+A9AjVby10zxxLAz8U28YqJZm4wA/\nT0HLxBiVw+rsHmLP79KvsT2+b4Diqih+VTXouPWC/W+lELYKSlqnJCat77IxgM9e\nYIhzD47OgWl33GJ/R10+RDoDvY4koYE+V5NLglEhbwjloo9Ryv5ywBJNS7mfXMsK\n/uf+l2AscZTZ1mhtL38efTQCIRjyFHc3V31DI0UdETADi+/Omz+bXu0D5VvX+7c6\nb1iVZKpJw8KUjzeUV8yOZhvGu3LrQbhkTPVYL555iP1KN0Eya88ra+FUKMwLgjYr\nJkUx4iad4dTsGPodwEP/Y9oX/Qk3ZQr+REZ8lg6IBoKKqqrQeBJ9gkm1jfKE6Xkc\nCog3JMeTrb3LiPHgN6gU2P30MRp6L1j1J/MtlOAr5rux\n-----END ENCRYPTED PRIVATE KEY-----\n";
+//! const PKCS8_ENCRYPTED:&'static str =
+//! 	"-----BEGIN ENCRYPTED PRIVATE \
+//! 	 KEY-----\nMIIFLTBXBgkqhkiG9w0BBQ0wSjApBgkqhkiG9w0BBQwwHAQITo1O0b8YrS0CAggA\\
+//! 	 nMAwGCCqGSIb3DQIJBQAwHQYJYIZIAWUDBAEqBBBtLH4T1KOfo1GGr7salhR8BIIE\\
+//! 	 n0KN9ednYwcTGSX3hg7fROhTw7JAJ1D4IdT1fsoGeNu2BFuIgF3cthGHe6S5zceI2\\
+//! 	 nMpkfwvHbsOlDFWMUIAb/VY8/iYxhNmd5J6NStMYRC9NC0fVzOmrJqE1wITqxtORx\\
+//! 	 nIkzqkgFUbaaiFFQPepsh5CvQfAgGEWV329SsTOKIgyTj97RxfZIKA+TR5J5g2dJY\\
+//! 	 nj346SvHhSxJ4Jc0asccgMb0HGh9UUDzDSql0OIdbnZW5KzYJPOx+aDqnpbz7UzY/\\
+//! 	 nP8N0w/pEiGmkdkNyvGsdttcjFpOWlLnLDhtLx8dDwi/sbEYHtpMzsYC9jPn3hnds\\
+//! 	 nTcotqjoSZ31O6rJD4z18FOQb4iZs3MohwEdDd9XKblTfYKM62aQJWH6cVQcg+1C7\\
+//! 	 njX9l2wmyK26Tkkl5Qg/qSfzrCveke5muZgZkFwL0GCcgPJ8RixSB4GOdSMa/hAMU\\
+//! 	 nkvFAtoV2GluIgmSe1pG5cNMhurxM1dPPf4WnD+9hkFFSsMkTAuxDZIdDk3FA8zof\\
+//! 	 nYhv0ZTfvT6V+vgH3Hv7Tqcxomy5Qr3tj5vvAqqDU6k7fC4FvkxDh2mG5ovWvc4Nb\\
+//! 	 nXv8sed0LGpYitIOMldu6650LoZAqJVv5N4cAA2Edqldf7S2Iz1QnA/usXkQd4tLa\\
+//! 	 nZ80+sDNv9eCVkfaJ6kOVLk/ghLdXWJYRLenfQZtVUXrPkaPpNXgD0dlaTN8KuvML\\
+//! 	 nUw/UGa+4ybnPsdVflI0YkJKbxouhp4iB4S5ACAwqHVmsH5GRnujf10qLoS7RjDAl\no/\
+//! 	 wSHxdT9BECp7TT8ID65u2mlJvH13iJbktPczGXt07nBiBse6OxsClfBtHkRLzE\\
+//! 	 nQF6UMEXsJnIIMRfrZQnduC8FUOkfPOSXc8r9SeZ3GhfbV/DmWZvFPCpjzKYPsM5+\\
+//! 	 nN8Bw/iZ7NIH4xzNOgwdp5BzjH9hRtCt4sUKVVlWfEDtTnkHNOusQGKu7HkBF87YZ\\
+//! 	 nRN/Nd3gvHob668JOcGchcOzcsqsgzhGMD8+G9T9oZkFCYtwUXQU2XjMN0R4VtQgZ\\
+//! 	 nrAxWyQau9xXMGyDC67gQ5xSn+oqMK0HmoW8jh2LG/cUowHFAkUxdzGadnjGhMOI2\\
+//! 	 nzwNJPIjF93eDF/+zW5E1l0iGdiYyHkJbWSvcCuvTwma9FIDB45vOh5mSR+YjjSM5\\
+//! 	 nnq3THSWNi7Cxqz12Q1+i9pz92T2myYKBBtu1WDh+2KOn5DUkfEadY5SsIu/Rb7ub\\
+//! 	 n5FBihk2RN3y/iZk+36I69HgGg1OElYjps3D+A9AjVby10zxxLAz8U28YqJZm4wA/\\
+//! 	 nT0HLxBiVw+rsHmLP79KvsT2+b4Diqih+VTXouPWC/W+lELYKSlqnJCat77IxgM9e\\
+//! 	 nYIhzD47OgWl33GJ/R10+RDoDvY4koYE+V5NLglEhbwjloo9Ryv5ywBJNS7mfXMsK\n/\
+//! 	 uf+l2AscZTZ1mhtL38efTQCIRjyFHc3V31DI0UdETADi+/Omz+bXu0D5VvX+7c6\\
+//! 	 nb1iVZKpJw8KUjzeUV8yOZhvGu3LrQbhkTPVYL555iP1KN0Eya88ra+FUKMwLgjYr\\
+//! 	 nJkUx4iad4dTsGPodwEP/Y9oX/Qk3ZQr+REZ8lg6IBoKKqqrQeBJ9gkm1jfKE6Xkc\\
+//! 	 nCog3JMeTrb3LiPHgN6gU2P30MRp6L1j1J/MtlOAr5rux\n-----END ENCRYPTED PRIVATE KEY-----\n";
 //!
 //! #[cfg(all(unix, feature = "openssl"))]
 //! fn main() {
-//!    env_logger::try_init().unwrap_or(());
-//!    let dir = tempdir::TempDir::new("russh").unwrap();
-//!    let agent_path = dir.path().join("agent");
+//! 	env_logger::try_init().unwrap_or(());
+//! 	let dir = tempdir::TempDir::new("russh").unwrap();
+//! 	let agent_path = dir.path().join("agent");
 //!
-//!    let mut core = tokio::runtime::Runtime::new().unwrap();
-//!    let agent_path_ = agent_path.clone();
-//!    // Starting a server
-//!    core.spawn(async move {
-//!        let mut listener = tokio::net::UnixListener::bind(&agent_path_)
-//!            .unwrap();
-//!        russh_keys::agent::server::serve(tokio_stream::wrappers::UnixListenerStream::new(listener), X {}).await
-//!    });
-//!    let key = decode_secret_key(PKCS8_ENCRYPTED, Some("blabla")).unwrap();
-//!    let public = key.clone_public_key().unwrap();
-//!    core.block_on(async move {
-//!        let stream = tokio::net::UnixStream::connect(&agent_path).await?;
-//!        let mut client = agent::client::AgentClient::connect(stream);
-//!        client.add_identity(&key, &[agent::Constraint::KeyLifetime { seconds: 60 }]).await?;
-//!        client.request_identities().await?;
-//!        let buf = b"signed message";
-//!        let sig = client.sign_request(&public, russh_cryptovec::CryptoVec::from_slice(&buf[..])).await.1.unwrap();
-//!        // Here, `sig` is encoded in a format usable internally by the SSH protocol.
-//!        Ok::<(), Error>(())
-//!    }).unwrap()
+//! 	let mut core = tokio::runtime::Runtime::new().unwrap();
+//! 	let agent_path_ = agent_path.clone();
+//! 	// Starting a server
+//! 	core.spawn(async move {
+//! 		let mut listener = tokio::net::UnixListener::bind(&agent_path_).unwrap();
+//! 		russh_keys::agent::server::serve(
+//! 			tokio_stream::wrappers::UnixListenerStream::new(listener),
+//! 			X {},
+//! 		)
+//! 		.await
+//! 	});
+//! 	let key = decode_secret_key(PKCS8_ENCRYPTED, Some("blabla")).unwrap();
+//! 	let public = key.clone_public_key().unwrap();
+//! 	core.block_on(async move {
+//! 		let stream = tokio::net::UnixStream::connect(&agent_path).await?;
+//! 		let mut client = agent::client::AgentClient::connect(stream);
+//! 		client
+//! 			.add_identity(&key, &[agent::Constraint::KeyLifetime { seconds:60 }])
+//! 			.await?;
+//! 		client.request_identities().await?;
+//! 		let buf = b"signed message";
+//! 		let sig = client
+//! 			.sign_request(&public, russh_cryptovec::CryptoVec::from_slice(&buf[..]))
+//! 			.await
+//! 			.1
+//! 			.unwrap();
+//! 		// Here, `sig` is encoded in a format usable internally by the SSH protocol.
+//! 		Ok::<(), Error>(())
+//! 	})
+//! 	.unwrap()
 //! }
 //!
 //! #[cfg(any(not(unix), not(feature = "openssl")))]
 //! fn main() {}
-//!
 //! ```
 
-use std::borrow::Cow;
-use std::fs::{File, OpenOptions};
-use std::io::{BufRead, BufReader, Read, Seek, SeekFrom, Write};
-use std::path::Path;
+use std::{
+	borrow::Cow,
+	fs::{File, OpenOptions},
+	io::{BufRead, BufReader, Read, Seek, SeekFrom, Write},
+	path::Path,
+};
 
 use byteorder::{BigEndian, WriteBytesExt};
 use data_encoding::BASE64_MIME;
@@ -106,7 +149,7 @@ pub enum Error {
 	NoHomeDir,
 	/// The server key has changed
 	#[error("The server key changed at line {}", line)]
-	KeyChanged { line: usize },
+	KeyChanged { line:usize },
 	/// The key uses an unsupported algorithm
 	#[error("Unknown key algorithm")]
 	UnknownAlgorithm(yasna::models::ObjectIdentifier),
@@ -115,7 +158,7 @@ pub enum Error {
 	IndexOutOfBounds,
 	/// Unknown signature type
 	#[error("Unknown signature type: {}", sig_type)]
-	UnknownSignatureType { sig_type: String },
+	UnknownSignatureType { sig_type:String },
 	/// Agent protocol error
 	#[error("Agent protocol error")]
 	AgentProtocolError,
@@ -144,28 +187,24 @@ pub enum Error {
 	EnvVar(&'static str),
 	#[error(
 		"Unable to connect to ssh-agent. The environment variable `SSH_AUTH_SOCK` was set, but it \
-         points to a nonexistent file or directory."
+		 points to a nonexistent file or directory."
 	)]
 	BadAuthSock,
 }
 
 impl From<yasna::ASN1Error> for Error {
-	fn from(e: yasna::ASN1Error) -> Error {
-		Error::ASN1(e)
-	}
+	fn from(e:yasna::ASN1Error) -> Error { Error::ASN1(e) }
 }
 
-const KEYTYPE_ED25519: &[u8] = b"ssh-ed25519";
-const KEYTYPE_RSA: &[u8] = b"ssh-rsa";
+const KEYTYPE_ED25519:&[u8] = b"ssh-ed25519";
+const KEYTYPE_RSA:&[u8] = b"ssh-rsa";
 
 /// Load a public key from a file. Ed25519 and RSA keys are supported.
 ///
 /// ```
-/// russh_keys::load_public_key("../files/id_ed25519.pub").unwrap();
+/// russh_keys::load_public_key("../files/id_ed25519.pub").unwrap(); 
 /// ```
-pub fn load_public_key<P: AsRef<Path>>(
-	path: P,
-) -> Result<key::PublicKey, Error> {
+pub fn load_public_key<P:AsRef<Path>>(path:P) -> Result<key::PublicKey, Error> {
 	let mut pubkey = String::new();
 	let mut file = File::open(path.as_ref())?;
 	file.read_to_string(&mut pubkey)?;
@@ -183,9 +222,12 @@ pub fn load_public_key<P: AsRef<Path>>(
 /// as `ssh-ed25519 AAAAC3N...`).
 ///
 /// ```
-/// russh_keys::parse_public_key_base64("AAAAC3NzaC1lZDI1NTE5AAAAIJdD7y3aLq454yWBdwLWbieU1ebz9/cu7/QEXn9OIeZJ").is_ok();
+/// russh_keys::parse_public_key_base64(
+/// 	"AAAAC3NzaC1lZDI1NTE5AAAAIJdD7y3aLq454yWBdwLWbieU1ebz9/cu7/QEXn9OIeZJ",
+/// )
+/// .is_ok();
 /// ```
-pub fn parse_public_key_base64(key: &str) -> Result<key::PublicKey, Error> {
+pub fn parse_public_key_base64(key:&str) -> Result<key::PublicKey, Error> {
 	let base = BASE64_MIME.decode(key.as_bytes())?;
 	key::parse_public_key(
 		&base,
@@ -216,8 +258,7 @@ impl PublicKeyBase64 for key::PublicKey {
 				s.write_u32::<BigEndian>(name.len() as u32).unwrap();
 				s.extend_from_slice(name);
 				#[allow(clippy::unwrap_used)] // Vec<>.write can't fail
-				s.write_u32::<BigEndian>(publickey.as_bytes().len() as u32)
-					.unwrap();
+				s.write_u32::<BigEndian>(publickey.as_bytes().len() as u32).unwrap();
 				s.extend_from_slice(publickey.as_bytes());
 			},
 			#[cfg(feature = "openssl")]
@@ -265,19 +306,16 @@ impl PublicKeyBase64 for key::KeyPair {
 }
 
 /// Write a public key onto the provided `Write`, encoded in base-64.
-pub fn write_public_key_base64<W: Write>(
-	mut w: W,
-	publickey: &key::PublicKey,
-) -> Result<(), Error> {
+pub fn write_public_key_base64<W:Write>(mut w:W, publickey:&key::PublicKey) -> Result<(), Error> {
 	let pk = publickey.public_key_base64();
 	writeln!(w, "{} {}", publickey.name(), pk)?;
 	Ok(())
 }
 
 /// Load a secret key, deciphering it with the supplied password if necessary.
-pub fn load_secret_key<P: AsRef<Path>>(
-	secret_: P,
-	password: Option<&str>,
+pub fn load_secret_key<P:AsRef<Path>>(
+	secret_:P,
+	password:Option<&str>,
 ) -> Result<key::KeyPair, Error> {
 	let mut secret_file = std::fs::File::open(secret_)?;
 	let mut secret = String::new();
@@ -285,7 +323,7 @@ pub fn load_secret_key<P: AsRef<Path>>(
 	decode_secret_key(&secret, password)
 }
 
-fn is_base64_char(c: char) -> bool {
+fn is_base64_char(c:char) -> bool {
 	c.is_ascii_lowercase()
 		|| c.is_ascii_uppercase()
 		|| c.is_ascii_digit()
@@ -295,17 +333,16 @@ fn is_base64_char(c: char) -> bool {
 }
 
 /// Record a host's public key into a nonstandard location.
-pub fn learn_known_hosts_path<P: AsRef<Path>>(
-	host: &str,
-	port: u16,
-	pubkey: &key::PublicKey,
-	path: P,
+pub fn learn_known_hosts_path<P:AsRef<Path>>(
+	host:&str,
+	port:u16,
+	pubkey:&key::PublicKey,
+	path:P,
 ) -> Result<(), Error> {
 	if let Some(parent) = path.as_ref().parent() {
 		std::fs::create_dir_all(parent)?
 	}
-	let mut file =
-		OpenOptions::new().read(true).append(true).create(true).open(path)?;
+	let mut file = OpenOptions::new().read(true).append(true).create(true).open(path)?;
 
 	// Test whether the known_hosts file ends with a \n
 	let mut buf = [0; 1];
@@ -332,11 +369,11 @@ pub fn learn_known_hosts_path<P: AsRef<Path>>(
 }
 
 /// Check that a server key matches the one recorded in file `path`.
-pub fn check_known_hosts_path<P: AsRef<Path>>(
-	host: &str,
-	port: u16,
-	pubkey: &key::PublicKey,
-	path: P,
+pub fn check_known_hosts_path<P:AsRef<Path>>(
+	host:&str,
+	port:u16,
+	pubkey:&key::PublicKey,
+	path:P,
 ) -> Result<bool, Error> {
 	let mut f = if let Ok(f) = File::open(path) {
 		BufReader::new(f)
@@ -370,10 +407,9 @@ pub fn check_known_hosts_path<P: AsRef<Path>>(
 					match parse_public_key_base64(k) {
 						Ok(k) if &k == pubkey => return Ok(true),
 						Ok(_) => return Err(Error::KeyChanged { line }),
-						Err(e) => info!(
-							"host file line '{}' failed to parse: {}",
-							k, e
-						),
+						Err(e) => {
+							info!("host file line '{}' failed to parse: {}", k, e)
+						},
 					}
 				}
 			}
@@ -386,11 +422,7 @@ pub fn check_known_hosts_path<P: AsRef<Path>>(
 
 /// Record a host's public key into the user's known_hosts file.
 #[cfg(target_os = "windows")]
-pub fn learn_known_hosts(
-	host: &str,
-	port: u16,
-	pubkey: &key::PublicKey,
-) -> Result<(), Error> {
+pub fn learn_known_hosts(host:&str, port:u16, pubkey:&key::PublicKey) -> Result<(), Error> {
 	if let Some(mut known_host_file) = dirs::home_dir() {
 		known_host_file.push("ssh");
 		known_host_file.push("known_hosts");
@@ -402,11 +434,7 @@ pub fn learn_known_hosts(
 
 /// Record a host's public key into the user's known_hosts file.
 #[cfg(not(target_os = "windows"))]
-pub fn learn_known_hosts(
-	host: &str,
-	port: u16,
-	pubkey: &key::PublicKey,
-) -> Result<(), Error> {
+pub fn learn_known_hosts(host:&str, port:u16, pubkey:&key::PublicKey) -> Result<(), Error> {
 	if let Some(mut known_host_file) = dirs::home_dir() {
 		known_host_file.push(".ssh");
 		known_host_file.push("known_hosts");
@@ -418,11 +446,7 @@ pub fn learn_known_hosts(
 
 /// Check whether the host is known, from its standard location.
 #[cfg(target_os = "windows")]
-pub fn check_known_hosts(
-	host: &str,
-	port: u16,
-	pubkey: &key::PublicKey,
-) -> Result<bool, Error> {
+pub fn check_known_hosts(host:&str, port:u16, pubkey:&key::PublicKey) -> Result<bool, Error> {
 	if let Some(mut known_host_file) = dirs::home_dir() {
 		known_host_file.push("ssh");
 		known_host_file.push("known_hosts");
@@ -434,11 +458,7 @@ pub fn check_known_hosts(
 
 /// Check whether the host is known, from its standard location.
 #[cfg(not(target_os = "windows"))]
-pub fn check_known_hosts(
-	host: &str,
-	port: u16,
-	pubkey: &key::PublicKey,
-) -> Result<bool, Error> {
+pub fn check_known_hosts(host:&str, port:u16, pubkey:&key::PublicKey) -> Result<bool, Error> {
 	if let Some(mut known_host_file) = dirs::home_dir() {
 		known_host_file.push(".ssh");
 		known_host_file.push("known_hosts");
@@ -450,13 +470,12 @@ pub fn check_known_hosts(
 
 #[cfg(test)]
 mod test {
-	use std::fs::File;
-	use std::io::Write;
+	use std::{fs::File, io::Write};
 
 	use super::*;
 
 	#[cfg(feature = "rs-crypto")]
-	const ED25519_KEY: &str = "-----BEGIN OPENSSH PRIVATE KEY-----
+	const ED25519_KEY:&str = "-----BEGIN OPENSSH PRIVATE KEY-----
 b3BlbnNzaC1rZXktdjEAAAAACmFlczI1Ni1jYmMAAAAGYmNyeXB0AAAAGAAAABDLGyfA39
 J2FcJygtYqi5ISAAAAEAAAAAEAAAAzAAAAC3NzaC1lZDI1NTE5AAAAIN+Wjn4+4Fcvl2Jl
 KpggT+wCRxpSvtqqpVrQrKN1/A22AAAAkOHDLnYZvYS6H9Q3S3Nk4ri3R2jAZlQlBbUos5
@@ -467,7 +486,7 @@ e+JpiSq66Z6GIt0801skPh20jxOO3F52SoX1IeO5D5PXfZrfSZlw6S8c7bwyp2FHxDewRx
 
 	// password is 'test'
 	#[cfg(feature = "rs-crypto")]
-	const ED25519_AESCTR_KEY: &str = "-----BEGIN OPENSSH PRIVATE KEY-----
+	const ED25519_AESCTR_KEY:&str = "-----BEGIN OPENSSH PRIVATE KEY-----
 b3BlbnNzaC1rZXktdjEAAAAACmFlczI1Ni1jdHIAAAAGYmNyeXB0AAAAGAAAABD1phlku5
 A2G7Q9iP+DcOc9AAAAEAAAAAEAAAAzAAAAC3NzaC1lZDI1NTE5AAAAIHeLC1lWiCYrXsf/
 85O/pkbUFZ6OGIt49PX3nw8iRoXEAAAAkKRF0st5ZI7xxo9g6A4m4l6NarkQre3mycqNXQ
@@ -477,7 +496,7 @@ sJWR7W+cGvJ/vLsw==
 -----END OPENSSH PRIVATE KEY-----";
 
 	#[cfg(feature = "openssl")]
-	const RSA_KEY: &str = "-----BEGIN OPENSSH PRIVATE KEY-----
+	const RSA_KEY:&str = "-----BEGIN OPENSSH PRIVATE KEY-----
 b3BlbnNzaC1rZXktdjEAAAAABG5vbmUAAAAEbm9uZQAAAAAAAAABAAABFwAAAAdzc2gtcn
 NhAAAAAwEAAQAAAQEAuSvQ9m76zhRB4m0BUKPf17lwccj7KQ1Qtse63AOqP/VYItqEH8un
 rxPogXNBgrcCEm/ccLZZsyE3qgp3DRQkkqvJhZ6O8VBPsXxjZesRCqoFNCczy+Mf0R/Qmv
@@ -533,10 +552,7 @@ QR+u0AypRPmzHnOPAAAAEXJvb3RAMTQwOTExNTQ5NDBkAQ==
 			"AAAAC3NzaC1lZDI1NTE5AAAAILagOJFgwaMNhBWQINinKOXmqS4Gh5NgxgriXwdOoINJ",
 		)
 		.unwrap();
-		assert_eq!(
-			key.fingerprint(),
-			"ldyiXa1JQakitNU5tErauu8DvWQ1dZ7aXu+rm7KQuog"
-		);
+		assert_eq!(key.fingerprint(), "ldyiXa1JQakitNU5tErauu8DvWQ1dZ7aXu+rm7KQuog");
 	}
 
 	#[test]
@@ -546,10 +562,7 @@ QR+u0AypRPmzHnOPAAAAEXJvb3RAMTQwOTExNTQ5NDBkAQ==
             "AAAAB3NzaC1yc2EAAAADAQABAAAAgQC5eB1ws6hP7GYUyz89DPqrAFf7VW3GCOQsT/m2v1BhlzSxmBb9gSs9BxRyOUN3HtDcD0B+zqRKa/RqLIkemkdhitfrPiCqeWMzdKC+GIiKwxAgeUpNq1FmyJlwetHDlKi92MrnGwaTXvKDyIoV2xDJS2OAhmRIRM3nhrXUXZeiJQ==",
         )
         .unwrap();
-		assert_eq!(
-			key.fingerprint(),
-			"cmZL3+aAKXnUlEb02r847o2zlHLBLkiY5I0qbG21zZo"
-		);
+		assert_eq!(key.fingerprint(), "cmZL3+aAKXnUlEb02r847o2zlHLBLkiY5I0qbG21zZo");
 	}
 
 	#[test]
@@ -573,20 +586,19 @@ QR+u0AypRPmzHnOPAAAAEXJvb3RAMTQwOTExNTQ5NDBkAQ==
                 "AAAAB3NzaC1yc2EAAAADAQABAAAAgQC5eB1ws6hP7GYUyz89DPqrAFf7VW3GCOQsT/m2v1BhlzSxmBb9gSs9BxRyOUN3HtDcD0B+zqRKa/RqLIkemkdhitfrPiCqeWMzdKC+GIiKwxAgeUpNq1FmyJlwetHDlKi92MrnGwaTXvKDyIoV2xDJS2OAhmRIRM3nhrXUXZeiJQ==",
             )
             .unwrap();
-			assert!(
-				check_known_hosts_path(host, port, &hostkey, &path).unwrap()
-			);
+			assert!(check_known_hosts_path(host, port, &hostkey, &path).unwrap());
 
 			// Invalid key
 			let host = "pijul.org";
 			let port = 22;
 			let hostkey = parse_public_key_base64(
-                "AAAAB3NzaC1yc2EAAAADAQABAAAAgQD4p+jQjU/ZO2i444sGs//zjcg1P4T6XyExOXWT7RZ/XmITo5aAQICYgyFKF/NTU8WrWewNbxw/OHzmHGyL6BJEvqtCRT4a4ufgf+hpAchnYNK+3Ee9dWBOHIo93jGdC/I5q+3WbzBK4gtCLkQJQWWH/2whBym7zyR2JMA0s396dQ==",
-            )
-            .unwrap();
-			assert!(
-				check_known_hosts_path(host, port, &hostkey, &path).is_err()
-			);
+				"AAAAB3NzaC1yc2EAAAADAQABAAAAgQD4p+jQjU/ZO2i444sGs//zjcg1P4T6XyExOXWT7RZ/\
+				 XmITo5aAQICYgyFKF/NTU8WrWewNbxw/\
+				 OHzmHGyL6BJEvqtCRT4a4ufgf+hpAchnYNK+3Ee9dWBOHIo93jGdC/I5q+3WbzBK4gtCLkQJQWWH/\
+				 2whBym7zyR2JMA0s396dQ==",
+			)
+			.unwrap();
+			assert!(check_known_hosts_path(host, port, &hostkey, &path).is_err());
 		}
 
 		#[cfg(feature = "rs-crypto")]
@@ -598,9 +610,7 @@ QR+u0AypRPmzHnOPAAAAEXJvb3RAMTQwOTExNTQ5NDBkAQ==
 				"AAAAC3NzaC1lZDI1NTE5AAAAIJdD7y3aLq454yWBdwLWbieU1ebz9/cu7/QEXn9OIeZJ",
 			)
 			.unwrap();
-			assert!(
-				check_known_hosts_path(host, port, &hostkey, &path).unwrap()
-			);
+			assert!(check_known_hosts_path(host, port, &hostkey, &path).unwrap());
 
 			// Valid key, several hosts, port 22
 			let host = "pijul.org";
@@ -609,20 +619,17 @@ QR+u0AypRPmzHnOPAAAAEXJvb3RAMTQwOTExNTQ5NDBkAQ==
 				"AAAAC3NzaC1lZDI1NTE5AAAAIA6rWI3G1sz07DnfFlrouTcysQlj2P+jpNSOEWD9OJ3X",
 			)
 			.unwrap();
-			assert!(
-				check_known_hosts_path(host, port, &hostkey, &path).unwrap()
-			);
+			assert!(check_known_hosts_path(host, port, &hostkey, &path).unwrap());
 
-			// Now with the key in a comment above, check that it's not recognized
+			// Now with the key in a comment above, check that it's not
+			// recognized
 			let host = "pijul.org";
 			let port = 22;
 			let hostkey = parse_public_key_base64(
 				"AAAAC3NzaC1lZDI1NTE5AAAAIA6rWI3G2sz07DnfFlrouTcysQlj2P+jpNSOEWD9OJ3X",
 			)
 			.unwrap();
-			assert!(
-				check_known_hosts_path(host, port, &hostkey, &path).is_err()
-			);
+			assert!(check_known_hosts_path(host, port, &hostkey, &path).is_err());
 		}
 	}
 
@@ -673,7 +680,7 @@ QaChXiDsryJZwsRnruvMRX9nedtqHrgnIsJLTXjppIhGhq5Kg4RQfOU=
 	}
 
 	#[cfg(feature = "openssl")]
-	pub const PKCS8_RSA: &str = "-----BEGIN RSA PRIVATE KEY-----
+	pub const PKCS8_RSA:&str = "-----BEGIN RSA PRIVATE KEY-----
 MIIEpAIBAAKCAQEAwBGetHjW+3bDQpVktdemnk7JXgu1NBWUM+ysifYLDBvJ9ttX
 GNZSyQKA4v/dNr0FhAJ8I9BuOTjYCy1YfKylhl5D/DiSSXFPsQzERMmGgAlYvU2U
 +FTxpBC11EZg69CPVMKKevfoUD+PZA5zB7Hc1dXFfwqFc5249SdbAwD39VTbrOUI
@@ -797,7 +804,7 @@ br8gXU8KyiY9sZVbmplRPF+ar462zcI2kt0a18mr0vbrdqp2eMjb37QDbVBJ+rPE
 	}
 
 	#[cfg(feature = "openssl")]
-	const PKCS8_ENCRYPTED: &str = "-----BEGIN ENCRYPTED PRIVATE KEY-----
+	const PKCS8_ENCRYPTED:&str = "-----BEGIN ENCRYPTED PRIVATE KEY-----
 MIIFLTBXBgkqhkiG9w0BBQ0wSjApBgkqhkiG9w0BBQwwHAQITo1O0b8YrS0CAggA
 MAwGCCqGSIb3DQIJBQAwHQYJYIZIAWUDBAEqBBBtLH4T1KOfo1GGr7salhR8BIIE
 0KN9ednYwcTGSX3hg7fROhTw7JAJ1D4IdT1fsoGeNu2BFuIgF3cthGHe6S5zceI2
@@ -836,34 +843,28 @@ Cog3JMeTrb3LiPHgN6gU2P30MRp6L1j1J/MtlOAr5rux
 		let algo = [115, 115, 104, 45, 114, 115, 97];
 
 		let key = [
-			0, 0, 0, 7, 115, 115, 104, 45, 114, 115, 97, 0, 0, 0, 3, 1, 0, 1,
-			0, 0, 1, 129, 0, 163, 72, 59, 242, 4, 248, 139, 217, 57, 126, 18,
-			195, 170, 3, 94, 154, 9, 150, 89, 171, 236, 192, 178, 185, 149, 73,
-			210, 121, 95, 126, 225, 209, 199, 208, 89, 130, 175, 229, 163, 102,
-			176, 155, 69, 199, 155, 71, 214, 170, 61, 202, 2, 207, 66, 198,
-			147, 65, 10, 176, 20, 105, 197, 133, 101, 126, 193, 252, 245, 254,
-			182, 14, 250, 118, 113, 18, 220, 38, 220, 75, 247, 50, 163, 39, 2,
-			61, 62, 28, 79, 199, 238, 189, 33, 194, 190, 22, 87, 91, 1, 215,
-			115, 99, 138, 124, 197, 127, 237, 228, 170, 42, 25, 117, 1, 106,
-			36, 54, 163, 163, 207, 129, 133, 133, 28, 185, 170, 217, 12, 37,
-			113, 181, 182, 180, 178, 23, 198, 233, 31, 214, 226, 114, 146, 74,
-			205, 177, 82, 232, 238, 165, 44, 5, 250, 150, 236, 45, 30, 189,
-			254, 118, 55, 154, 21, 20, 184, 235, 223, 5, 20, 132, 249, 147,
-			179, 88, 146, 6, 100, 229, 200, 221, 157, 135, 203, 57, 204, 43,
-			27, 58, 85, 54, 219, 138, 18, 37, 80, 106, 182, 95, 124, 140, 90,
-			29, 48, 193, 112, 19, 53, 84, 201, 153, 52, 249, 15, 41, 5, 11,
-			147, 18, 8, 27, 31, 114, 45, 224, 118, 111, 176, 86, 88, 23, 150,
-			184, 252, 128, 52, 228, 90, 30, 34, 135, 234, 123, 28, 239, 90,
-			202, 239, 188, 175, 8, 141, 80, 59, 194, 80, 43, 205, 34, 137, 45,
-			140, 244, 181, 182, 229, 247, 94, 216, 115, 173, 107, 184, 170,
-			102, 78, 249, 4, 186, 234, 169, 148, 98, 128, 33, 115, 232, 126,
-			84, 76, 222, 145, 90, 58, 1, 4, 163, 243, 93, 215, 154, 205, 152,
-			178, 109, 241, 197, 82, 148, 222, 78, 44, 193, 248, 212, 157, 118,
-			217, 75, 211, 23, 229, 121, 28, 180, 208, 173, 204, 14, 111, 226,
-			25, 163, 220, 95, 78, 175, 189, 168, 67, 159, 179, 176, 200, 150,
-			202, 248, 174, 109, 25, 89, 176, 220, 226, 208, 187, 84, 169, 157,
-			14, 88, 217, 221, 117, 254, 51, 45, 93, 184, 80, 225, 158, 29, 76,
-			38, 69, 72, 71, 76, 50, 191, 210, 95, 152, 175, 26, 207, 91, 7,
+			0, 0, 0, 7, 115, 115, 104, 45, 114, 115, 97, 0, 0, 0, 3, 1, 0, 1, 0, 0, 1, 129, 0, 163,
+			72, 59, 242, 4, 248, 139, 217, 57, 126, 18, 195, 170, 3, 94, 154, 9, 150, 89, 171, 236,
+			192, 178, 185, 149, 73, 210, 121, 95, 126, 225, 209, 199, 208, 89, 130, 175, 229, 163,
+			102, 176, 155, 69, 199, 155, 71, 214, 170, 61, 202, 2, 207, 66, 198, 147, 65, 10, 176,
+			20, 105, 197, 133, 101, 126, 193, 252, 245, 254, 182, 14, 250, 118, 113, 18, 220, 38,
+			220, 75, 247, 50, 163, 39, 2, 61, 62, 28, 79, 199, 238, 189, 33, 194, 190, 22, 87, 91,
+			1, 215, 115, 99, 138, 124, 197, 127, 237, 228, 170, 42, 25, 117, 1, 106, 36, 54, 163,
+			163, 207, 129, 133, 133, 28, 185, 170, 217, 12, 37, 113, 181, 182, 180, 178, 23, 198,
+			233, 31, 214, 226, 114, 146, 74, 205, 177, 82, 232, 238, 165, 44, 5, 250, 150, 236, 45,
+			30, 189, 254, 118, 55, 154, 21, 20, 184, 235, 223, 5, 20, 132, 249, 147, 179, 88, 146,
+			6, 100, 229, 200, 221, 157, 135, 203, 57, 204, 43, 27, 58, 85, 54, 219, 138, 18, 37,
+			80, 106, 182, 95, 124, 140, 90, 29, 48, 193, 112, 19, 53, 84, 201, 153, 52, 249, 15,
+			41, 5, 11, 147, 18, 8, 27, 31, 114, 45, 224, 118, 111, 176, 86, 88, 23, 150, 184, 252,
+			128, 52, 228, 90, 30, 34, 135, 234, 123, 28, 239, 90, 202, 239, 188, 175, 8, 141, 80,
+			59, 194, 80, 43, 205, 34, 137, 45, 140, 244, 181, 182, 229, 247, 94, 216, 115, 173,
+			107, 184, 170, 102, 78, 249, 4, 186, 234, 169, 148, 98, 128, 33, 115, 232, 126, 84, 76,
+			222, 145, 90, 58, 1, 4, 163, 243, 93, 215, 154, 205, 152, 178, 109, 241, 197, 82, 148,
+			222, 78, 44, 193, 248, 212, 157, 118, 217, 75, 211, 23, 229, 121, 28, 180, 208, 173,
+			204, 14, 111, 226, 25, 163, 220, 95, 78, 175, 189, 168, 67, 159, 179, 176, 200, 150,
+			202, 248, 174, 109, 25, 89, 176, 220, 226, 208, 187, 84, 169, 157, 14, 88, 217, 221,
+			117, 254, 51, 45, 93, 184, 80, 225, 158, 29, 76, 38, 69, 72, 71, 76, 50, 191, 210, 95,
+			152, 175, 26, 207, 91, 7,
 		];
 		debug!("algo = {:?}", std::str::from_utf8(&algo));
 		key::PublicKey::parse(&algo, &key).unwrap();
@@ -878,7 +879,7 @@ Cog3JMeTrb3LiPHgN6gU2P30MRp6L1j1J/MtlOAr5rux
 	}
 
 	#[cfg(unix)]
-	fn test_client_agent(key: key::KeyPair) {
+	fn test_client_agent(key:key::KeyPair) {
 		env_logger::try_init().unwrap_or(());
 		use std::process::{Command, Stdio};
 
@@ -965,18 +966,16 @@ Cog3JMeTrb3LiPHgN6gU2P30MRp6L1j1J/MtlOAr5rux
 		impl agent::server::Agent for X {
 			fn confirm(
 				self,
-				_: std::sync::Arc<key::KeyPair>,
+				_:std::sync::Arc<key::KeyPair>,
 			) -> Box<dyn Future<Output = (Self, bool)> + Send + Unpin> {
 				Box::new(futures::future::ready((self, true)))
 			}
 		}
 		let agent_path_ = agent_path.clone();
 		core.spawn(async move {
-			let mut listener =
-				tokio::net::UnixListener::bind(&agent_path_).unwrap();
+			let mut listener = tokio::net::UnixListener::bind(&agent_path_).unwrap();
 
-			agent::server::serve(Incoming { listener: &mut listener }, X {})
-				.await
+			agent::server::serve(Incoming { listener:&mut listener }, X {}).await
 		});
 
 		let key = decode_secret_key(PKCS8_ENCRYPTED, Some("blabla")).unwrap();
@@ -985,10 +984,7 @@ Cog3JMeTrb3LiPHgN6gU2P30MRp6L1j1J/MtlOAr5rux
 			let stream = tokio::net::UnixStream::connect(&agent_path).await?;
 			let mut client = agent::client::AgentClient::connect(stream);
 			client
-				.add_identity(
-					&key,
-					&[agent::Constraint::KeyLifetime { seconds: 60 }],
-				)
+				.add_identity(&key, &[agent::Constraint::KeyLifetime { seconds:60 }])
 				.await?;
 			client.request_identities().await?;
 			let buf = russh_cryptovec::CryptoVec::from_slice(b"blabla");
@@ -1010,7 +1006,7 @@ Cog3JMeTrb3LiPHgN6gU2P30MRp6L1j1J/MtlOAr5rux
 
 	#[cfg(unix)]
 	struct Incoming<'a> {
-		listener: &'a mut tokio::net::UnixListener,
+		listener:&'a mut tokio::net::UnixListener,
 	}
 
 	#[cfg(unix)]
@@ -1019,10 +1015,9 @@ Cog3JMeTrb3LiPHgN6gU2P30MRp6L1j1J/MtlOAr5rux
 
 		fn poll_next(
 			self: std::pin::Pin<&mut Self>,
-			cx: &mut std::task::Context<'_>,
+			cx:&mut std::task::Context<'_>,
 		) -> std::task::Poll<Option<Self::Item>> {
-			let (sock, _addr) =
-				futures::ready!(self.get_mut().listener.poll_accept(cx))?;
+			let (sock, _addr) = futures::ready!(self.get_mut().listener.poll_accept(cx))?;
 			std::task::Poll::Ready(Some(Ok(sock)))
 		}
 	}

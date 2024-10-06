@@ -13,22 +13,19 @@
 // limitations under the License.
 //
 use russh_cryptovec::CryptoVec;
-use russh_keys::encoding::*;
-use russh_keys::key::*;
+use russh_keys::{encoding::*, key::*};
 
 #[doc(hidden)]
 pub trait PubKey {
-	fn push_to(&self, buffer: &mut CryptoVec);
+	fn push_to(&self, buffer:&mut CryptoVec);
 }
 
 impl PubKey for PublicKey {
-	fn push_to(&self, buffer: &mut CryptoVec) {
+	fn push_to(&self, buffer:&mut CryptoVec) {
 		match self {
 			#[cfg(feature = "rs-crypto")]
 			PublicKey::Ed25519(ref public) => {
-				buffer.push_u32_be(
-					(ED25519.0.len() + public.as_bytes().len() + 8) as u32,
-				);
+				buffer.push_u32_be((ED25519.0.len() + public.as_bytes().len() + 8) as u32);
 				buffer.extend_ssh_string(ED25519.0.as_bytes());
 				buffer.extend_ssh_string(public.as_bytes());
 			},
@@ -38,10 +35,7 @@ impl PubKey for PublicKey {
 				let rsa = key.0.rsa().unwrap();
 				let e = rsa.e().to_vec();
 				let n = rsa.n().to_vec();
-				buffer.push_u32_be(
-					(4 + SSH_RSA.0.len() + mpint_len(&n) + mpint_len(&e))
-						as u32,
-				);
+				buffer.push_u32_be((4 + SSH_RSA.0.len() + mpint_len(&n) + mpint_len(&e)) as u32);
 				buffer.extend_ssh_string(SSH_RSA.0.as_bytes());
 				buffer.extend_ssh_mpint(&e);
 				buffer.extend_ssh_mpint(&n);
@@ -51,7 +45,7 @@ impl PubKey for PublicKey {
 }
 
 impl PubKey for KeyPair {
-	fn push_to(&self, buffer: &mut CryptoVec) {
+	fn push_to(&self, buffer:&mut CryptoVec) {
 		match self {
 			#[cfg(feature = "rs-crypto")]
 			KeyPair::Ed25519(ref key) => {
@@ -64,10 +58,7 @@ impl PubKey for KeyPair {
 			KeyPair::RSA { ref key, .. } => {
 				let e = key.e().to_vec();
 				let n = key.n().to_vec();
-				buffer.push_u32_be(
-					(4 + SSH_RSA.0.len() + mpint_len(&n) + mpint_len(&e))
-						as u32,
-				);
+				buffer.push_u32_be((4 + SSH_RSA.0.len() + mpint_len(&n) + mpint_len(&e)) as u32);
 				buffer.extend_ssh_string(SSH_RSA.0.as_bytes());
 				buffer.extend_ssh_mpint(&e);
 				buffer.extend_ssh_mpint(&n);

@@ -42,7 +42,7 @@ bitflags! {
 }
 
 macro_rules! iter {
-	( $y:expr, $x:expr ) => {{
+	($y:expr, $x:expr) => {{
 		if $y.contains($x) {
 			$y.remove($x);
 			return Some($x);
@@ -52,6 +52,7 @@ macro_rules! iter {
 
 impl Iterator for MethodSet {
 	type Item = MethodSet;
+
 	fn next(&mut self) -> Option<MethodSet> {
 		iter!(self, MethodSet::NONE);
 		iter!(self, MethodSet::PASSWORD);
@@ -64,14 +65,9 @@ impl Iterator for MethodSet {
 
 pub trait Signer: Sized {
 	type Error: From<crate::SendError>;
-	type Future: futures::Future<Output = (Self, Result<CryptoVec, Self::Error>)>
-		+ Send;
+	type Future: futures::Future<Output = (Self, Result<CryptoVec, Self::Error>)> + Send;
 
-	fn auth_publickey_sign(
-		self,
-		key: &key::PublicKey,
-		to_sign: CryptoVec,
-	) -> Self::Future;
+	fn auth_publickey_sign(self, key:&key::PublicKey, to_sign:CryptoVec) -> Self::Future;
 }
 
 #[derive(Debug, Error)]
@@ -82,22 +78,16 @@ pub enum AgentAuthError {
 	Key(#[from] russh_keys::Error),
 }
 
-impl<R: AsyncRead + AsyncWrite + Unpin + Send + 'static> Signer
+impl<R:AsyncRead + AsyncWrite + Unpin + Send + 'static> Signer
 	for russh_keys::agent::client::AgentClient<R>
 {
 	type Error = AgentAuthError;
 	#[allow(clippy::type_complexity)]
 	type Future = std::pin::Pin<
-		Box<
-			dyn futures::Future<Output = (Self, Result<CryptoVec, Self::Error>)>
-				+ Send,
-		>,
+		Box<dyn futures::Future<Output = (Self, Result<CryptoVec, Self::Error>)> + Send>,
 	>;
-	fn auth_publickey_sign(
-		self,
-		key: &key::PublicKey,
-		to_sign: CryptoVec,
-	) -> Self::Future {
+
+	fn auth_publickey_sign(self, key:&key::PublicKey, to_sign:CryptoVec) -> Self::Future {
 		let fut = self.sign_request(key, to_sign);
 		futures::FutureExt::boxed(async move {
 			let (a, b) = fut.await;
@@ -109,10 +99,10 @@ impl<R: AsyncRead + AsyncWrite + Unpin + Send + 'static> Signer
 #[derive(Debug)]
 pub enum Method {
 	None,
-	Password { password: String },
-	PublicKey { key: Arc<key::KeyPair> },
-	FuturePublicKey { key: key::PublicKey },
-	KeyboardInteractive { submethods: String },
+	Password { password:String },
+	PublicKey { key:Arc<key::KeyPair> },
+	FuturePublicKey { key:key::PublicKey },
+	KeyboardInteractive { submethods:String },
 	// Hostbased,
 }
 
@@ -130,7 +120,7 @@ impl encoding::Bytes for MethodSet {
 }
 
 impl MethodSet {
-	pub(crate) fn from_bytes(b: &[u8]) -> Option<MethodSet> {
+	pub(crate) fn from_bytes(b:&[u8]) -> Option<MethodSet> {
 		match b {
 			b"none" => Some(MethodSet::NONE),
 			b"password" => Some(MethodSet::PASSWORD),
@@ -145,15 +135,15 @@ impl MethodSet {
 #[doc(hidden)]
 #[derive(Debug)]
 pub struct AuthRequest {
-	pub methods: MethodSet,
-	pub partial_success: bool,
-	pub current: Option<CurrentRequest>,
-	pub rejection_count: usize,
+	pub methods:MethodSet,
+	pub partial_success:bool,
+	pub current:Option<CurrentRequest>,
+	pub rejection_count:usize,
 }
 
 #[doc(hidden)]
 #[derive(Debug)]
 pub enum CurrentRequest {
-	PublicKey { key: CryptoVec, algo: CryptoVec, sent_pk_ok: bool },
-	KeyboardInteractive { submethods: String },
+	PublicKey { key:CryptoVec, algo:CryptoVec, sent_pk_ok:bool },
+	KeyboardInteractive { submethods:String },
 }

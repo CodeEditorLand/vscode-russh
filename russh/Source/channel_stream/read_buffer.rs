@@ -11,16 +11,14 @@ pub(crate) struct ReadBuffer(Option<(Vec<u8>, usize)>);
 
 impl ReadBuffer {
 	/// Removes any data stored in the read buffer
-	pub fn take_data(&mut self) -> Option<(Vec<u8>, usize)> {
-		self.0.take()
-	}
+	pub fn take_data(&mut self) -> Option<(Vec<u8>, usize)> { self.0.take() }
 
 	/// Writes as many bytes as possible to the readbuf, stashing any extra.
 	pub fn put_data(
 		&mut self,
-		target: &mut tokio::io::ReadBuf<'_>,
-		bytes: Vec<u8>,
-		start: usize,
+		target:&mut tokio::io::ReadBuf<'_>,
+		bytes:Vec<u8>,
+		start:usize,
 	) -> Poll<std::io::Result<()>> {
 		if target.remaining() >= bytes.len() - start {
 			if start < bytes.len() {

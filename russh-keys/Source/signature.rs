@@ -1,13 +1,17 @@
 use std::fmt;
 
 use byteorder::{BigEndian, WriteBytesExt};
-use serde;
-use serde::de::{SeqAccess, Visitor};
-use serde::ser::SerializeTuple;
-use serde::{Deserialize, Deserializer, Serialize, Serializer};
+use serde::{
+	self,
+	de::{SeqAccess, Visitor},
+	ser::SerializeTuple,
+	Deserialize,
+	Deserializer,
+	Serialize,
+	Serializer,
+};
 
-use crate::key::SignatureHash;
-use crate::Error;
+use crate::{key::SignatureHash, Error};
 
 pub struct SignatureBytes(pub [u8; 64]);
 
@@ -17,7 +21,7 @@ pub enum Signature {
 	/// An Ed25519 signature
 	Ed25519(SignatureBytes),
 	/// An RSA signature
-	RSA { hash: SignatureHash, bytes: Vec<u8> },
+	RSA { hash:SignatureHash, bytes:Vec<u8> },
 }
 
 impl Signature {
@@ -29,11 +33,7 @@ impl Signature {
 			Signature::Ed25519(ref bytes) => {
 				let t = b"ssh-ed25519";
 				#[allow(clippy::unwrap_used)] // Vec<>.write_all can't fail
-				bytes_
-					.write_u32::<BigEndian>(
-						(t.len() + bytes.0.len() + 8) as u32,
-					)
-					.unwrap();
+				bytes_.write_u32::<BigEndian>((t.len() + bytes.0.len() + 8) as u32).unwrap();
 				bytes_.extend_ssh_string(t);
 				bytes_.extend_ssh_string(&bytes.0[..]);
 			},
@@ -44,9 +44,7 @@ impl Signature {
 					SignatureHash::SHA1 => &b"ssh-rsa"[..],
 				};
 				#[allow(clippy::unwrap_used)] // Vec<>.write_all can't fail
-				bytes_
-					.write_u32::<BigEndian>((t.len() + bytes.len() + 8) as u32)
-					.unwrap();
+				bytes_.write_u32::<BigEndian>((t.len() + bytes.len() + 8) as u32).unwrap();
 				bytes_.extend_ssh_string(t);
 				bytes_.extend_ssh_string(&bytes[..]);
 			},
@@ -54,7 +52,7 @@ impl Signature {
 		data_encoding::BASE64_NOPAD.encode(&bytes_[..])
 	}
 
-	pub fn from_base64(s: &[u8]) -> Result<Self, Error> {
+	pub fn from_base64(s:&[u8]) -> Result<Self, Error> {
 		let bytes_ = data_encoding::BASE64_NOPAD.decode(s)?;
 		use crate::encoding::Reader;
 
@@ -73,21 +71,18 @@ impl Signature {
 				bytes_.clone_from_slice(bytes);
 				Ok(Signature::Ed25519(SignatureBytes(bytes_)))
 			},
-			b"rsa-sha2-256" => Ok(Signature::RSA {
-				hash: SignatureHash::SHA2_256,
-				bytes: bytes.to_vec(),
-			}),
-			b"rsa-sha2-512" => Ok(Signature::RSA {
-				hash: SignatureHash::SHA2_512,
-				bytes: bytes.to_vec(),
-			}),
-			b"ssh-rsa" => Ok(Signature::RSA {
-				hash: SignatureHash::SHA1,
-				bytes: bytes.to_vec(),
-			}),
-			_ => Err(Error::UnknownSignatureType {
-				sig_type: std::str::from_utf8(typ).unwrap_or("").to_string(),
-			}),
+			b"rsa-sha2-256" => {
+				Ok(Signature::RSA { hash:SignatureHash::SHA2_256, bytes:bytes.to_vec() })
+			},
+			b"rsa-sha2-512" => {
+				Ok(Signature::RSA { hash:SignatureHash::SHA2_512, bytes:bytes.to_vec() })
+			},
+			b"ssh-rsa" => Ok(Signature::RSA { hash:SignatureHash::SHA1, bytes:bytes.to_vec() }),
+			_ => {
+				Err(Error::UnknownSignatureType {
+					sig_type:std::str::from_utf8(typ).unwrap_or("").to_string(),
+				})
+			},
 		}
 	}
 }
@@ -102,34 +97,28 @@ impl AsRef<[u8]> for Signature {
 }
 
 impl AsRef<[u8]> for SignatureBytes {
-	fn as_ref(&self) -> &[u8] {
-		&self.0
-	}
+	fn as_ref(&self) -> &[u8] { &self.0 }
 }
 
 impl<'de> Deserialize<'de> for SignatureBytes {
-	fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+	fn deserialize<D>(deserializer:D) -> Result<Self, D::Error>
 	where
-		D: Deserializer<'de>,
-	{
+		D: Deserializer<'de>, {
 		struct Vis;
 		impl<'de> Visitor<'de> for Vis {
 			type Value = SignatureBytes;
-			fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+
+			fn expecting(&self, formatter:&mut fmt::Formatter) -> fmt::Result {
 				formatter.write_str("64 bytes")
 			}
-			fn visit_seq<A: SeqAccess<'de>>(
-				self,
-				mut seq: A,
-			) -> Result<Self::Value, A::Error> {
+
+			fn visit_seq<A:SeqAccess<'de>>(self, mut seq:A) -> Result<Self::Value, A::Error> {
 				let mut result = [0; 64];
 				for x in result.iter_mut() {
 					if let Some(y) = seq.next_element()? {
 						*x = y
 					} else {
-						return Err(serde::de::Error::invalid_length(
-							64, &self,
-						));
+						return Err(serde::de::Error::invalid_length(64, &self));
 					}
 				}
 				Ok(SignatureBytes(result))
@@ -140,10 +129,9 @@ impl<'de> Deserialize<'de> for SignatureBytes {
 }
 
 impl Serialize for SignatureBytes {
-	fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+	fn serialize<S>(&self, serializer:S) -> Result<S::Ok, S::Error>
 	where
-		S: Serializer,
-	{
+		S: Serializer, {
 		let mut tup = serializer.serialize_tuple(64)?;
 		for byte in self.0.iter() {
 			tup.serialize_element(byte)?;
@@ -153,9 +141,7 @@ impl Serialize for SignatureBytes {
 }
 
 impl fmt::Debug for SignatureBytes {
-	fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
-		write!(fmt, "{:?}", &self.0[..])
-	}
+	fn fmt(&self, fmt:&mut fmt::Formatter) -> fmt::Result { write!(fmt, "{:?}", &self.0[..]) }
 }
 
 impl Clone for SignatureBytes {

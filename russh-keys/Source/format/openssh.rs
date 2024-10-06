@@ -1,15 +1,11 @@
 #[cfg(feature = "openssl")]
 use openssl::bn::BigNum;
 
-use crate::encoding::Reader;
-use crate::{key, Error, KEYTYPE_ED25519, KEYTYPE_RSA};
+use crate::{encoding::Reader, key, Error, KEYTYPE_ED25519, KEYTYPE_RSA};
 
 /// Decode a secret key given in the OpenSSH format, deciphering it if
 /// needed using the supplied password.
-pub fn decode_openssh(
-	secret: &[u8],
-	password: Option<&str>,
-) -> Result<key::KeyPair, Error> {
+pub fn decode_openssh(secret:&[u8], password:Option<&str>) -> Result<key::KeyPair, Error> {
 	if matches!(secret.get(0..15), Some(b"openssh-key-v1\0")) {
 		let mut position = secret.reader(15);
 
@@ -29,9 +25,7 @@ pub fn decode_openssh(
 		// Read all secret keys
 		let secret_ = position.read_string()?;
 
-		let secret = decrypt_secret_key(
-			ciphername, kdfname, kdfoptions, password, secret_,
-		)?;
+		let secret = decrypt_secret_key(ciphername, kdfname, kdfoptions, password, secret_)?;
 
 		let mut position = secret.reader(0);
 
@@ -55,10 +49,7 @@ pub fn decode_openssh(
 						seckey.get(..32).ok_or(Error::KeyIsCorrupt)?,
 					)?;
 					let public = (&secret).into();
-					return Ok(key::KeyPair::Ed25519(ed25519_dalek::Keypair {
-						secret,
-						public,
-					}));
+					return Ok(key::KeyPair::Ed25519(ed25519_dalek::Keypair { secret, public }));
 				}
 			} else if key_type == KEYTYPE_RSA && cfg!(feature = "openssl") {
 				#[cfg(feature = "openssl")]
@@ -86,10 +77,7 @@ pub fn decode_openssh(
 						.set_crt_params(dmp1, dmq1, iqmp)?
 						.build();
 					key.check_key()?;
-					return Ok(key::KeyPair::RSA {
-						key,
-						hash: key::SignatureHash::SHA2_512,
-					});
+					return Ok(key::KeyPair::RSA { key, hash:key::SignatureHash::SHA2_512 });
 				}
 			} else {
 				return Err(Error::UnsupportedKeyType(key_type.to_vec()));
@@ -102,11 +90,11 @@ pub fn decode_openssh(
 }
 
 fn decrypt_secret_key(
-	ciphername: &[u8],
-	kdfname: &[u8],
-	kdfoptions: &[u8],
-	password: Option<&str>,
-	secret_key: &[u8],
+	ciphername:&[u8],
+	kdfname:&[u8],
+	kdfoptions:&[u8],
+	password:Option<&str>,
+	secret_key:&[u8],
 ) -> Result<Vec<u8>, Error> {
 	if kdfname == b"none" {
 		if password.is_none() {
@@ -129,15 +117,11 @@ fn decrypt_secret_key(
 				let salt = kdfopts.read_string()?;
 				let rounds = kdfopts.read_u32()?;
 				#[allow(clippy::unwrap_used)] // parameters are static
-				#[allow(clippy::indexing_slicing)] // output length is static
-				match bcrypt_pbkdf::bcrypt_pbkdf(
-					password,
-					salt,
-					rounds,
-					&mut key[..n],
-				) {
+				#[allow(clippy::indexing_slicing)]
+				// output length is static
+				match bcrypt_pbkdf::bcrypt_pbkdf(password, salt, rounds, &mut key[..n]) {
 					Err(bcrypt_pbkdf::Error::InvalidParamLen) => {
-						return Err(Error::KeyIsEncrypted)
+						return Err(Error::KeyIsEncrypted);
 					},
 					e => e.unwrap(),
 				}
@@ -153,26 +137,23 @@ fn decrypt_secret_key(
 		dec.resize(dec.len() + 32, 0u8);
 		#[cfg(feature = "rs-crypto")]
 		{
-			use aes::cipher::block_padding::NoPadding;
-			use aes::cipher::{BlockDecryptMut, KeyIvInit, StreamCipher};
-			use aes::*;
+			use aes::{
+				cipher::{block_padding::NoPadding, BlockDecryptMut, KeyIvInit, StreamCipher},
+				*,
+			};
 			use ctr::Ctr64BE;
 
 			match ciphername {
 				b"aes128-cbc" => {
 					#[allow(clippy::unwrap_used)] // parameters are static
-					let cipher = cbc::Decryptor::<Aes128>::new_from_slices(key, iv)
-						.unwrap();
-					let n =
-						cipher.decrypt_padded_mut::<NoPadding>(&mut dec)?.len();
+					let cipher = cbc::Decryptor::<Aes128>::new_from_slices(key, iv).unwrap();
+					let n = cipher.decrypt_padded_mut::<NoPadding>(&mut dec)?.len();
 					dec.truncate(n)
 				},
 				b"aes256-cbc" => {
 					#[allow(clippy::unwrap_used)] // parameters are static
-					let cipher = cbc::Decryptor::<Aes256>::new_from_slices(key, iv)
-						.unwrap();
-					let n =
-						cipher.decrypt_padded_mut::<NoPadding>(&mut dec)?.len();
+					let cipher = cbc::Decryptor::<Aes256>::new_from_slices(key, iv).unwrap();
+					let n = cipher.decrypt_padded_mut::<NoPadding>(&mut dec)?.len();
 					dec.truncate(n)
 				},
 				b"aes128-ctr" => {
@@ -194,18 +175,10 @@ fn decrypt_secret_key(
 		{
 			use openssl::symm::{decrypt, Cipher};
 			dec = match ciphername {
-				b"aes128-cbc" => {
-					decrypt(Cipher::aes_128_cbc(), key, Some(iv), &dec)?
-				},
-				b"aes256-cbc" => {
-					decrypt(Cipher::aes_256_cbc(), key, Some(iv), &dec)?
-				},
-				b"aes128-ctr" => {
-					decrypt(Cipher::aes_128_ctr(), key, Some(iv), &dec)?
-				},
-				b"aes256-ctr" => {
-					decrypt(Cipher::aes_256_ctr(), key, Some(iv), &dec)?
-				},
+				b"aes128-cbc" => decrypt(Cipher::aes_128_cbc(), key, Some(iv), &dec)?,
+				b"aes256-cbc" => decrypt(Cipher::aes_256_cbc(), key, Some(iv), &dec)?,
+				b"aes128-ctr" => decrypt(Cipher::aes_128_ctr(), key, Some(iv), &dec)?,
+				b"aes256-ctr" => decrypt(Cipher::aes_256_ctr(), key, Some(iv), &dec)?,
 				_ => dec,
 			}
 		}

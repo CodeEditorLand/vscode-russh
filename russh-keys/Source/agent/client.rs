@@ -1,38 +1,39 @@
 use byteorder::{BigEndian, ByteOrder};
 use log::{debug, info};
 use russh_cryptovec::CryptoVec;
-use tokio;
-use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt};
+use tokio::{
+	self,
+	io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt},
+};
 
 use super::{msg, Constraint};
-use crate::encoding::{Encoding, Reader};
-use crate::key::{PublicKey, SignatureHash};
-use crate::{key, Error};
+use crate::{
+	encoding::{Encoding, Reader},
+	key,
+	key::{PublicKey, SignatureHash},
+	Error,
+};
 
 /// SSH agent client.
-pub struct AgentClient<S: AsyncRead + AsyncWrite> {
-	stream: S,
-	buf: CryptoVec,
+pub struct AgentClient<S:AsyncRead + AsyncWrite> {
+	stream:S,
+	buf:CryptoVec,
 }
 
 // https://tools.ietf.org/html/draft-miller-ssh-agent-00#section-4.1
-impl<S: AsyncRead + AsyncWrite + Unpin> AgentClient<S> {
+impl<S:AsyncRead + AsyncWrite + Unpin> AgentClient<S> {
 	/// Build a future that connects to an SSH agent via the provided
 	/// stream (on Unix, usually a Unix-domain socket).
-	pub fn connect(stream: S) -> Self {
-		AgentClient { stream, buf: CryptoVec::new() }
-	}
+	pub fn connect(stream:S) -> Self { AgentClient { stream, buf:CryptoVec::new() } }
 }
 
 #[cfg(unix)]
 impl AgentClient<tokio::net::UnixStream> {
 	/// Build a future that connects to an SSH agent via the provided
 	/// stream (on Unix, usually a Unix-domain socket).
-	pub async fn connect_uds<P: AsRef<std::path::Path>>(
-		path: P,
-	) -> Result<Self, Error> {
+	pub async fn connect_uds<P:AsRef<std::path::Path>>(path:P) -> Result<Self, Error> {
 		let stream = tokio::net::UnixStream::connect(path).await?;
-		Ok(AgentClient { stream, buf: CryptoVec::new() })
+		Ok(AgentClient { stream, buf:CryptoVec::new() })
 	}
 
 	/// Build a future that connects to an SSH agent via the provided
@@ -44,9 +45,7 @@ impl AgentClient<tokio::net::UnixStream> {
 			return Err(Error::EnvVar("SSH_AUTH_SOCK"));
 		};
 		match Self::connect_uds(var).await {
-			Err(Error::IO(io_err))
-				if io_err.kind() == std::io::ErrorKind::NotFound =>
-			{
+			Err(Error::IO(io_err)) if io_err.kind() == std::io::ErrorKind::NotFound => {
 				Err(Error::BadAuthSock)
 			},
 			owise => owise,
@@ -58,12 +57,10 @@ impl AgentClient<tokio::net::UnixStream> {
 impl AgentClient<tokio::net::TcpStream> {
 	/// Build a future that connects to an SSH agent via the provided
 	/// stream (on Unix, usually a Unix-domain socket).
-	pub async fn connect_env() -> Result<Self, Error> {
-		Err(Error::AgentFailure)
-	}
+	pub async fn connect_env() -> Result<Self, Error> { Err(Error::AgentFailure) }
 }
 
-impl<S: AsyncRead + AsyncWrite + Unpin> AgentClient<S> {
+impl<S:AsyncRead + AsyncWrite + Unpin> AgentClient<S> {
 	async fn read_response(&mut self) -> Result<(), Error> {
 		// Writing the message
 		self.stream.write_all(&self.buf).await?;
@@ -87,8 +84,8 @@ impl<S: AsyncRead + AsyncWrite + Unpin> AgentClient<S> {
 	/// constraints to apply when using the key to sign.
 	pub async fn add_identity(
 		&mut self,
-		key: &key::KeyPair,
-		constraints: &[Constraint],
+		key:&key::KeyPair,
+		constraints:&[Constraint],
 	) -> Result<(), Error> {
 		self.buf.clear();
 		self.buf.resize(4);
@@ -119,11 +116,7 @@ impl<S: AsyncRead + AsyncWrite + Unpin> AgentClient<S> {
 				} else {
 					let mut ctx = openssl::bn::BigNumContext::new()?;
 					let mut iqmp = openssl::bn::BigNum::new()?;
-					iqmp.mod_inverse(
-						key.p().unwrap(),
-						key.q().unwrap(),
-						&mut ctx,
-					)?;
+					iqmp.mod_inverse(key.p().unwrap(), key.q().unwrap(), &mut ctx)?;
 					self.buf.extend_ssh_mpint(&iqmp.to_vec());
 				}
 				self.buf.extend_ssh_mpint(&key.p().unwrap().to_vec());
@@ -139,9 +132,7 @@ impl<S: AsyncRead + AsyncWrite + Unpin> AgentClient<S> {
 						self.buf.push(msg::CONSTRAIN_LIFETIME);
 						self.buf.push_u32_be(seconds)
 					},
-					Constraint::Confirm => {
-						self.buf.push(msg::CONSTRAIN_CONFIRM)
-					},
+					Constraint::Confirm => self.buf.push(msg::CONSTRAIN_CONFIRM),
 					Constraint::Extensions { ref name, ref details } => {
 						self.buf.push(msg::CONSTRAIN_EXTENSION);
 						self.buf.extend_ssh_string(name);
@@ -161,9 +152,9 @@ impl<S: AsyncRead + AsyncWrite + Unpin> AgentClient<S> {
 	/// constraints to apply when signing.
 	pub async fn add_smartcard_key(
 		&mut self,
-		id: &str,
-		pin: &[u8],
-		constraints: &[Constraint],
+		id:&str,
+		pin:&[u8],
+		constraints:&[Constraint],
 	) -> Result<(), Error> {
 		self.buf.clear();
 		self.buf.resize(4);
@@ -182,9 +173,7 @@ impl<S: AsyncRead + AsyncWrite + Unpin> AgentClient<S> {
 						self.buf.push(msg::CONSTRAIN_LIFETIME);
 						self.buf.push_u32_be(seconds)
 					},
-					Constraint::Confirm => {
-						self.buf.push(msg::CONSTRAIN_CONFIRM)
-					},
+					Constraint::Confirm => self.buf.push(msg::CONSTRAIN_CONFIRM),
 					Constraint::Extensions { ref name, ref details } => {
 						self.buf.push(msg::CONSTRAIN_EXTENSION);
 						self.buf.extend_ssh_string(name);
@@ -200,7 +189,7 @@ impl<S: AsyncRead + AsyncWrite + Unpin> AgentClient<S> {
 	}
 
 	/// Lock the agent, making it refuse to sign until unlocked.
-	pub async fn lock(&mut self, passphrase: &[u8]) -> Result<(), Error> {
+	pub async fn lock(&mut self, passphrase:&[u8]) -> Result<(), Error> {
 		self.buf.clear();
 		self.buf.resize(4);
 		self.buf.push(msg::LOCK);
@@ -213,7 +202,7 @@ impl<S: AsyncRead + AsyncWrite + Unpin> AgentClient<S> {
 	}
 
 	/// Unlock the agent, allowing it to sign again.
-	pub async fn unlock(&mut self, passphrase: &[u8]) -> Result<(), Error> {
+	pub async fn unlock(&mut self, passphrase:&[u8]) -> Result<(), Error> {
 		self.buf.clear();
 		self.buf.resize(4);
 		self.buf.push(msg::UNLOCK);
@@ -228,9 +217,7 @@ impl<S: AsyncRead + AsyncWrite + Unpin> AgentClient<S> {
 
 	/// Ask the agent for a list of the currently registered secret
 	/// keys.
-	pub async fn request_identities(
-		&mut self,
-	) -> Result<Vec<PublicKey>, Error> {
+	pub async fn request_identities(&mut self) -> Result<Vec<PublicKey>, Error> {
 		self.buf.clear();
 		self.buf.resize(4);
 		self.buf.push(msg::REQUEST_IDENTITIES);
@@ -258,28 +245,23 @@ impl<S: AsyncRead + AsyncWrite + Unpin> AgentClient<S> {
 					b"ssh-rsa" => {
 						let e = r.read_mpint()?;
 						let n = r.read_mpint()?;
-						use openssl::bn::BigNum;
-						use openssl::pkey::PKey;
-						use openssl::rsa::Rsa;
+						use openssl::{bn::BigNum, pkey::PKey, rsa::Rsa};
 						keys.push(PublicKey::RSA {
-							key: key::OpenSSLPKey(PKey::from_rsa(
-								Rsa::from_public_components(
-									BigNum::from_slice(n)?,
-									BigNum::from_slice(e)?,
-								)?,
-							)?),
-							hash: SignatureHash::SHA2_512,
+							key:key::OpenSSLPKey(PKey::from_rsa(Rsa::from_public_components(
+								BigNum::from_slice(n)?,
+								BigNum::from_slice(e)?,
+							)?)?),
+							hash:SignatureHash::SHA2_512,
 						})
 					},
 					#[cfg(feature = "rs-crypto")]
-					b"ssh-ed25519" => keys.push(PublicKey::Ed25519(
-						ed25519_dalek::PublicKey::from_bytes(r.read_string()?)?,
-					)),
+					b"ssh-ed25519" => {
+						keys.push(PublicKey::Ed25519(ed25519_dalek::PublicKey::from_bytes(
+							r.read_string()?,
+						)?))
+					},
 					t => {
-						info!(
-							"Unsupported key type: {:?}",
-							std::str::from_utf8(t)
-						)
+						info!("Unsupported key type: {:?}", std::str::from_utf8(t))
 					},
 				}
 			}
@@ -291,8 +273,8 @@ impl<S: AsyncRead + AsyncWrite + Unpin> AgentClient<S> {
 	/// Ask the agent to sign the supplied piece of data.
 	pub fn sign_request(
 		mut self,
-		public: &key::PublicKey,
-		mut data: CryptoVec,
+		public:&key::PublicKey,
+		mut data:CryptoVec,
 	) -> impl futures::Future<Output = (Self, Result<CryptoVec, Error>)> {
 		debug!("sign_request: {:?}", data);
 
@@ -326,11 +308,7 @@ impl<S: AsyncRead + AsyncWrite + Unpin> AgentClient<S> {
 		}
 	}
 
-	fn prepare_sign_request(
-		&mut self,
-		public: &key::PublicKey,
-		data: &[u8],
-	) -> Result<u32, Error> {
+	fn prepare_sign_request(&mut self, public:&key::PublicKey, data:&[u8]) -> Result<u32, Error> {
 		self.buf.clear();
 		self.buf.resize(4);
 		self.buf.push(msg::SIGN_REQUEST);
@@ -341,10 +319,12 @@ impl<S: AsyncRead + AsyncWrite + Unpin> AgentClient<S> {
 		// may not be unreachable depending on build flags
 		let hash = match public {
 			#[cfg(feature = "openssl")]
-			PublicKey::RSA { hash, .. } => match hash {
-				SignatureHash::SHA2_256 => 2,
-				SignatureHash::SHA2_512 => 4,
-				SignatureHash::SHA1 => 0,
+			PublicKey::RSA { hash, .. } => {
+				match hash {
+					SignatureHash::SHA2_256 => 2,
+					SignatureHash::SHA2_512 => 4,
+					SignatureHash::SHA1 => 0,
+				}
 			},
 			_ => 0,
 		};
@@ -355,20 +335,13 @@ impl<S: AsyncRead + AsyncWrite + Unpin> AgentClient<S> {
 		Ok(hash)
 	}
 
-	fn write_signature(
-		&self,
-		hash: u32,
-		data: &mut CryptoVec,
-	) -> Result<(), Error> {
+	fn write_signature(&self, hash:u32, data:&mut CryptoVec) -> Result<(), Error> {
 		let mut r = self.buf.reader(1);
 
 		let mut resp = r.read_string()?.reader(0);
 
 		let t = resp.read_string()?;
-		if (hash == 2 && t == b"rsa-sha2-256")
-			|| (hash == 4 && t == b"rsa-sha2-512")
-			|| hash == 0
-		{
+		if (hash == 2 && t == b"rsa-sha2-256") || (hash == 4 && t == b"rsa-sha2-512") || hash == 0 {
 			let sig = resp.read_string()?;
 			data.push_u32_be((t.len() + sig.len() + 8) as u32);
 			data.extend_ssh_string(t);
@@ -380,8 +353,8 @@ impl<S: AsyncRead + AsyncWrite + Unpin> AgentClient<S> {
 	/// Ask the agent to sign the supplied piece of data.
 	pub fn sign_request_base64(
 		mut self,
-		public: &key::PublicKey,
-		data: &[u8],
+		public:&key::PublicKey,
+		data:&[u8],
 	) -> impl futures::Future<Output = (Self, Result<String, Error>)> {
 		debug!("sign_request: {:?}", data);
 
@@ -406,14 +379,13 @@ impl<S: AsyncRead + AsyncWrite + Unpin> AgentClient<S> {
 		}
 	}
 
-	/// Ask the agent to sign the supplied piece of data, and return a `Signature`.
+	/// Ask the agent to sign the supplied piece of data, and return a
+	/// `Signature`.
 	pub fn sign_request_signature(
 		mut self,
-		public: &key::PublicKey,
-		data: &[u8],
-	) -> impl futures::Future<
-		Output = (Self, Result<crate::signature::Signature, Error>),
-	> {
+		public:&key::PublicKey,
+		data:&[u8],
+	) -> impl futures::Future<Output = (Self, Result<crate::signature::Signature, Error>)> {
 		debug!("sign_request: {:?}", data);
 
 		let r = self.prepare_sign_request(public, data);
@@ -429,7 +401,7 @@ impl<S: AsyncRead + AsyncWrite + Unpin> AgentClient<S> {
 
 			#[allow(clippy::indexing_slicing)] // length is checked
 			if !self.buf.is_empty() && self.buf[0] == msg::SIGN_RESPONSE {
-				let as_sig = |buf: &CryptoVec| -> Result<crate::signature::Signature, Error> {
+				let as_sig = |buf:&CryptoVec| -> Result<crate::signature::Signature, Error> {
 					let mut r = buf.reader(1);
 					let mut resp = r.read_string()?.reader(0);
 					let typ = resp.read_string()?;
@@ -437,24 +409,24 @@ impl<S: AsyncRead + AsyncWrite + Unpin> AgentClient<S> {
 					use crate::signature::Signature;
 					match typ {
 						b"ssh-rsa" => {
-							Ok(Signature::RSA { bytes: sig.to_vec(), hash: SignatureHash::SHA1 })
-						}
-						b"rsa-sha2-256" => Ok(Signature::RSA {
-							bytes: sig.to_vec(),
-							hash: SignatureHash::SHA2_256,
-						}),
-						b"rsa-sha2-512" => Ok(Signature::RSA {
-							bytes: sig.to_vec(),
-							hash: SignatureHash::SHA2_512,
-						}),
+							Ok(Signature::RSA { bytes:sig.to_vec(), hash:SignatureHash::SHA1 })
+						},
+						b"rsa-sha2-256" => {
+							Ok(Signature::RSA { bytes:sig.to_vec(), hash:SignatureHash::SHA2_256 })
+						},
+						b"rsa-sha2-512" => {
+							Ok(Signature::RSA { bytes:sig.to_vec(), hash:SignatureHash::SHA2_512 })
+						},
 						b"ssh-ed25519" => {
 							let mut sig_bytes = [0; 64];
 							sig_bytes.clone_from_slice(sig);
 							Ok(Signature::Ed25519(crate::signature::SignatureBytes(sig_bytes)))
-						}
-						_ => Err(Error::UnknownSignatureType {
-							sig_type: std::str::from_utf8(typ).unwrap_or("").to_string(),
-						}),
+						},
+						_ => {
+							Err(Error::UnknownSignatureType {
+								sig_type:std::str::from_utf8(typ).unwrap_or("").to_string(),
+							})
+						},
 					}
 				};
 				let sig = as_sig(&self.buf);
@@ -466,10 +438,7 @@ impl<S: AsyncRead + AsyncWrite + Unpin> AgentClient<S> {
 	}
 
 	/// Ask the agent to remove a key from its memory.
-	pub async fn remove_identity(
-		&mut self,
-		public: &key::PublicKey,
-	) -> Result<(), Error> {
+	pub async fn remove_identity(&mut self, public:&key::PublicKey) -> Result<(), Error> {
 		self.buf.clear();
 		self.buf.resize(4);
 		self.buf.push(msg::REMOVE_IDENTITY);
@@ -482,11 +451,7 @@ impl<S: AsyncRead + AsyncWrite + Unpin> AgentClient<S> {
 	}
 
 	/// Ask the agent to remove a smartcard from its memory.
-	pub async fn remove_smartcard_key(
-		&mut self,
-		id: &str,
-		pin: &[u8],
-	) -> Result<(), Error> {
+	pub async fn remove_smartcard_key(&mut self, id:&str, pin:&[u8]) -> Result<(), Error> {
 		self.buf.clear();
 		self.buf.resize(4);
 		self.buf.push(msg::REMOVE_SMARTCARD_KEY);
@@ -510,11 +475,7 @@ impl<S: AsyncRead + AsyncWrite + Unpin> AgentClient<S> {
 	}
 
 	/// Send a custom message to the agent.
-	pub async fn extension(
-		&mut self,
-		typ: &[u8],
-		ext: &[u8],
-	) -> Result<(), Error> {
+	pub async fn extension(&mut self, typ:&[u8], ext:&[u8]) -> Result<(), Error> {
 		self.buf.clear();
 		self.buf.resize(4);
 		self.buf.push(msg::EXTENSION);
@@ -528,11 +489,7 @@ impl<S: AsyncRead + AsyncWrite + Unpin> AgentClient<S> {
 	}
 
 	/// Ask the agent what extensions about supported extensions.
-	pub async fn query_extension(
-		&mut self,
-		typ: &[u8],
-		mut ext: CryptoVec,
-	) -> Result<bool, Error> {
+	pub async fn query_extension(&mut self, typ:&[u8], mut ext:CryptoVec) -> Result<bool, Error> {
 		self.buf.clear();
 		self.buf.resize(4);
 		self.buf.push(msg::EXTENSION);
@@ -550,7 +507,7 @@ impl<S: AsyncRead + AsyncWrite + Unpin> AgentClient<S> {
 	}
 }
 
-fn key_blob(public: &key::PublicKey, buf: &mut CryptoVec) -> Result<(), Error> {
+fn key_blob(public:&key::PublicKey, buf:&mut CryptoVec) -> Result<(), Error> {
 	match *public {
 		#[cfg(feature = "openssl")]
 		PublicKey::RSA { ref key, .. } => {

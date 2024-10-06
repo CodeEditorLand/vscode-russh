@@ -17,42 +17,43 @@ use std::str::from_utf8;
 use log::debug;
 use rand::RngCore;
 use russh_cryptovec::CryptoVec;
-use russh_keys::encoding::{Encoding, Reader};
-use russh_keys::key;
-use russh_keys::key::{KeyPair, PublicKey};
+use russh_keys::{
+	encoding::{Encoding, Reader},
+	key,
+	key::{KeyPair, PublicKey},
+};
 
-use crate::cipher::CIPHERS;
-use crate::compression::*;
-use crate::{cipher, kex, mac, msg, Error};
+use crate::{cipher, cipher::CIPHERS, compression::*, kex, mac, msg, Error};
 
 #[derive(Debug)]
 pub struct Names {
-	pub kex: kex::Name,
-	pub key: key::Name,
-	pub cipher: cipher::Name,
-	pub client_mac: mac::Name,
-	pub server_mac: mac::Name,
-	pub server_compression: Compression,
-	pub client_compression: Compression,
-	pub ignore_guessed: bool,
+	pub kex:kex::Name,
+	pub key:key::Name,
+	pub cipher:cipher::Name,
+	pub client_mac:mac::Name,
+	pub server_mac:mac::Name,
+	pub server_compression:Compression,
+	pub client_compression:Compression,
+	pub ignore_guessed:bool,
 }
 
-/// Lists of preferred algorithms. This is normally hard-coded into implementations.
+/// Lists of preferred algorithms. This is normally hard-coded into
+/// implementations.
 #[derive(Debug)]
 pub struct Preferred {
 	/// Preferred key exchange algorithms.
-	pub kex: &'static [kex::Name],
+	pub kex:&'static [kex::Name],
 	/// Preferred public key algorithms.
-	pub key: &'static [key::Name],
+	pub key:&'static [key::Name],
 	/// Preferred symmetric ciphers.
-	pub cipher: &'static [cipher::Name],
+	pub cipher:&'static [cipher::Name],
 	/// Preferred MAC algorithms.
-	pub mac: &'static [mac::Name],
+	pub mac:&'static [mac::Name],
 	/// Preferred compression algorithms.
-	pub compression: &'static [&'static str],
+	pub compression:&'static [&'static str],
 }
 
-const KEX_ORDER: &[kex::Name] = &[
+const KEX_ORDER:&[kex::Name] = &[
 	#[cfg(feature = "rs-crypto")]
 	kex::CURVE25519,
 	kex::DH_G14_SHA256,
@@ -62,7 +63,7 @@ const KEX_ORDER: &[kex::Name] = &[
 	kex::EXTENSION_SUPPORT_AS_SERVER,
 ];
 
-const CIPHER_ORDER: &[cipher::Name] = &[
+const CIPHER_ORDER:&[cipher::Name] = &[
 	#[cfg(feature = "rs-crypto")]
 	cipher::CHACHA20_POLY1305,
 	#[cfg(feature = "rs-crypto")]
@@ -72,7 +73,7 @@ const CIPHER_ORDER: &[cipher::Name] = &[
 	cipher::AES_128_CTR,
 ];
 
-const HMAC_ORDER: &[mac::Name] = &[
+const HMAC_ORDER:&[mac::Name] = &[
 	mac::HMAC_SHA512_ETM,
 	mac::HMAC_SHA256_ETM,
 	mac::HMAC_SHA512,
@@ -83,51 +84,47 @@ const HMAC_ORDER: &[mac::Name] = &[
 ];
 
 impl Preferred {
+	pub const COMPRESSED:Preferred = Preferred {
+		kex:KEX_ORDER,
+		key:&[
+			#[cfg(feature = "rs-crypto")]
+			key::ED25519,
+			key::RSA_SHA2_256,
+			key::RSA_SHA2_512,
+		],
+		cipher:CIPHER_ORDER,
+		mac:HMAC_ORDER,
+		compression:&["zlib", "zlib@openssh.com", "none"],
+	};
 	#[cfg(feature = "openssl")]
-	pub const DEFAULT: Preferred = Preferred {
-		kex: &[
+	pub const DEFAULT:Preferred = Preferred {
+		kex:&[
 			#[cfg(feature = "rs-crypto")]
 			kex::CURVE25519,
 			kex::DH_G14_SHA256,
 		],
-		key: &[
+		key:&[
 			#[cfg(feature = "rs-crypto")]
 			key::ED25519,
 			key::RSA_SHA2_256,
 			key::RSA_SHA2_512,
 		],
-		cipher: CIPHER_ORDER,
-		mac: HMAC_ORDER,
-		compression: &["none", "zlib", "zlib@openssh.com"],
+		cipher:CIPHER_ORDER,
+		mac:HMAC_ORDER,
+		compression:&["none", "zlib", "zlib@openssh.com"],
 	};
-
 	#[cfg(not(feature = "openssl"))]
-	pub const DEFAULT: Preferred = Preferred {
-		kex: KEX_ORDER,
-		key: &[key::ED25519],
-		cipher: CIPHER_ORDER,
-		mac: HMAC_ORDER,
-		compression: &["none", "zlib", "zlib@openssh.com"],
-	};
-
-	pub const COMPRESSED: Preferred = Preferred {
-		kex: KEX_ORDER,
-		key: &[
-			#[cfg(feature = "rs-crypto")]
-			key::ED25519,
-			key::RSA_SHA2_256,
-			key::RSA_SHA2_512,
-		],
-		cipher: CIPHER_ORDER,
-		mac: HMAC_ORDER,
-		compression: &["zlib", "zlib@openssh.com", "none"],
+	pub const DEFAULT:Preferred = Preferred {
+		kex:KEX_ORDER,
+		key:&[key::ED25519],
+		cipher:CIPHER_ORDER,
+		mac:HMAC_ORDER,
+		compression:&["none", "zlib", "zlib@openssh.com"],
 	};
 }
 
 impl Default for Preferred {
-	fn default() -> Preferred {
-		Preferred::DEFAULT
-	}
+	fn default() -> Preferred { Preferred::DEFAULT }
 }
 
 /// Named algorithms.
@@ -137,9 +134,7 @@ pub trait Named {
 }
 
 impl Named for () {
-	fn name(&self) -> &'static str {
-		""
-	}
+	fn name(&self) -> &'static str { "" }
 }
 
 #[cfg(feature = "rs-crypto")]
@@ -170,38 +165,36 @@ impl Named for KeyPair {
 }
 
 pub trait Select {
-	fn select<S: AsRef<str> + Copy>(a: &[S], b: &[u8]) -> Option<(bool, S)>;
+	fn select<S:AsRef<str> + Copy>(a:&[S], b:&[u8]) -> Option<(bool, S)>;
 
-	fn read_kex(buffer: &[u8], pref: &Preferred) -> Result<Names, Error> {
+	fn read_kex(buffer:&[u8], pref:&Preferred) -> Result<Names, Error> {
 		let mut r = buffer.reader(17);
 
 		let kex_string = r.read_string()?;
 
-		let (kex_both_first, kex_algorithm) = if let Some(x) =
-			Self::select(pref.kex, kex_string)
-		{
+		let (kex_both_first, kex_algorithm) = if let Some(x) = Self::select(pref.kex, kex_string) {
 			x
 		} else {
 			debug!(
-                "Could not find common kex algorithm, other side only supports {:?}, we only support {:?}",
-                from_utf8(kex_string),
-                pref.kex
-            );
+				"Could not find common kex algorithm, other side only supports {:?}, we only \
+				 support {:?}",
+				from_utf8(kex_string),
+				pref.kex
+			);
 			return Err(Error::NoCommonKexAlgo);
 		};
 
 		let key_string = r.read_string()?;
 
-		let (key_both_first, key_algorithm) = if let Some(x) =
-			Self::select(pref.key, key_string)
-		{
+		let (key_both_first, key_algorithm) = if let Some(x) = Self::select(pref.key, key_string) {
 			x
 		} else {
 			debug!(
-                "Could not find common key algorithm, other side only supports {:?}, we only support {:?}",
-                from_utf8(key_string),
-                pref.key
-            );
+				"Could not find common key algorithm, other side only supports {:?}, we only \
+				 support {:?}",
+				from_utf8(key_string),
+				pref.key
+			);
 			return Err(Error::NoCommonKeyAlgo);
 		};
 
@@ -219,47 +212,41 @@ pub trait Select {
 		r.read_string()?; // cipher server-to-client.
 		debug!("kex {}", line!());
 
-		let need_mac = cipher
-			.and_then(|x| CIPHERS.get(&x.1))
-			.map(|x| x.needs_mac())
-			.unwrap_or(false);
+		let need_mac =
+			cipher.and_then(|x| CIPHERS.get(&x.1)).map(|x| x.needs_mac()).unwrap_or(false);
 
-		let client_mac =
-			if let Some((_, m)) = Self::select(pref.mac, r.read_string()?) {
-				m
-			} else if need_mac {
-				return Err(Error::NoCommonMac);
-			} else {
-				mac::NONE
-			};
+		let client_mac = if let Some((_, m)) = Self::select(pref.mac, r.read_string()?) {
+			m
+		} else if need_mac {
+			return Err(Error::NoCommonMac);
+		} else {
+			mac::NONE
+		};
 
-		let server_mac =
-			if let Some((_, m)) = Self::select(pref.mac, r.read_string()?) {
-				m
-			} else if need_mac {
-				return Err(Error::NoCommonMac);
-			} else {
-				mac::NONE
-			};
+		let server_mac = if let Some((_, m)) = Self::select(pref.mac, r.read_string()?) {
+			m
+		} else if need_mac {
+			return Err(Error::NoCommonMac);
+		} else {
+			mac::NONE
+		};
 
 		debug!("kex {}", line!());
 		// client-to-server compression.
-		let client_compression = if let Some((_, c)) =
-			Self::select(pref.compression, r.read_string()?)
-		{
-			Compression::from_string(c)
-		} else {
-			return Err(Error::NoCommonCompression);
-		};
+		let client_compression =
+			if let Some((_, c)) = Self::select(pref.compression, r.read_string()?) {
+				Compression::from_string(c)
+			} else {
+				return Err(Error::NoCommonCompression);
+			};
 		debug!("kex {}", line!());
 		// server-to-client compression.
-		let server_compression = if let Some((_, c)) =
-			Self::select(pref.compression, r.read_string()?)
-		{
-			Compression::from_string(c)
-		} else {
-			return Err(Error::NoCommonCompression);
-		};
+		let server_compression =
+			if let Some((_, c)) = Self::select(pref.compression, r.read_string()?) {
+				Compression::from_string(c)
+			} else {
+				return Err(Error::NoCommonCompression);
+			};
 		debug!("client_compression = {:?}", client_compression);
 		r.read_string()?; // languages client-to-server
 		r.read_string()?; // languages server-to-client
@@ -268,15 +255,16 @@ pub trait Select {
 		match (cipher, follows) {
 			(Some((_, cipher)), fol) => {
 				Ok(Names {
-					kex: kex_algorithm,
-					key: key_algorithm,
+					kex:kex_algorithm,
+					key:key_algorithm,
 					cipher,
 					client_mac,
 					server_mac,
 					client_compression,
 					server_compression,
-					// Ignore the next packet if (1) it follows and (2) it's not the correct guess.
-					ignore_guessed: fol && !(kex_both_first && key_both_first),
+					// Ignore the next packet if (1) it follows and (2) it's not
+					// the correct guess.
+					ignore_guessed:fol && !(kex_both_first && key_both_first),
 				})
 			},
 			_ => Err(Error::KexInit),
@@ -288,10 +276,7 @@ pub struct Server;
 pub struct Client;
 
 impl Select for Server {
-	fn select<S: AsRef<str> + Copy>(
-		server_list: &[S],
-		client_list: &[u8],
-	) -> Option<(bool, S)> {
+	fn select<S:AsRef<str> + Copy>(server_list:&[S], client_list:&[u8]) -> Option<(bool, S)> {
 		let mut both_first_choice = true;
 		for c in client_list.split(|&x| x == b',') {
 			for &s in server_list {
@@ -306,10 +291,7 @@ impl Select for Server {
 }
 
 impl Select for Client {
-	fn select<S: AsRef<str> + Copy>(
-		client_list: &[S],
-		server_list: &[u8],
-	) -> Option<(bool, S)> {
+	fn select<S:AsRef<str> + Copy>(client_list:&[S], server_list:&[u8]) -> Option<(bool, S)> {
 		let mut both_first_choice = true;
 		for &c in client_list {
 			for s in server_list.split(|&x| x == b',') {
@@ -323,11 +305,7 @@ impl Select for Client {
 	}
 }
 
-pub fn write_kex(
-	prefs: &Preferred,
-	buf: &mut CryptoVec,
-	as_server: bool,
-) -> Result<(), Error> {
+pub fn write_kex(prefs:&Preferred, buf:&mut CryptoVec, as_server:bool) -> Result<(), Error> {
 	// buf.clear();
 	buf.push(msg::KEXINIT);
 

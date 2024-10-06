@@ -66,7 +66,7 @@ pub enum Pty {
 
 impl Pty {
 	#[doc(hidden)]
-	pub fn from_u8(x: u8) -> Option<Pty> {
+	pub fn from_u8(x:u8) -> Option<Pty> {
 		match x {
 			0 => None,
 			1 => Some(Pty::VINTR),

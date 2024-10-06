@@ -1,30 +1,34 @@
-use std::collections::HashMap;
-use std::sync::{Arc, RwLock};
-use std::time::{Duration, SystemTime};
+use std::{
+	self,
+	collections::HashMap,
+	sync::{Arc, RwLock},
+	time::{Duration, SystemTime},
+};
 
 use byteorder::{BigEndian, ByteOrder};
-use futures::future::Future;
-use futures::stream::{Stream, StreamExt};
+use futures::{
+	future::Future,
+	stream::{Stream, StreamExt},
+};
 use russh_cryptovec::CryptoVec;
-use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt};
-use tokio::time::sleep;
-use {std, tokio};
+use tokio::{
+	self,
+	io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt},
+	time::sleep,
+};
 
 use super::{msg, Constraint};
-use crate::encoding::{Encoding, Position, Reader};
 #[cfg(feature = "openssl")]
 use crate::key::SignatureHash;
-use crate::{key, Error};
+use crate::{
+	encoding::{Encoding, Position, Reader},
+	key,
+	Error,
+};
 
 #[derive(Clone)]
 #[allow(clippy::type_complexity)]
-struct KeyStore(
-	Arc<
-		RwLock<
-			HashMap<Vec<u8>, (Arc<key::KeyPair>, SystemTime, Vec<Constraint>)>,
-		>,
-	>,
-);
+struct KeyStore(Arc<RwLock<HashMap<Vec<u8>, (Arc<key::KeyPair>, SystemTime, Vec<Constraint>)>>>);
 
 #[derive(Clone)]
 struct Lock(Arc<RwLock<CryptoVec>>);
@@ -39,18 +43,17 @@ pub enum ServerError<E> {
 pub trait Agent: Clone + Send + 'static {
 	fn confirm(
 		self,
-		_pk: Arc<key::KeyPair>,
+		_pk:Arc<key::KeyPair>,
 	) -> Box<dyn Future<Output = (Self, bool)> + Unpin + Send> {
 		Box::new(futures::future::ready((self, true)))
 	}
 }
 
-pub async fn serve<S, L, A>(mut listener: L, agent: A) -> Result<(), Error>
+pub async fn serve<S, L, A>(mut listener:L, agent:A) -> Result<(), Error>
 where
 	S: AsyncRead + AsyncWrite + Send + Sync + Unpin + 'static,
 	L: Stream<Item = tokio::io::Result<S>> + Unpin,
-	A: Agent + Send + Sync + 'static,
-{
+	A: Agent + Send + Sync + 'static, {
 	let keys = KeyStore(Arc::new(RwLock::new(HashMap::new())));
 	let lock = Lock(Arc::new(RwLock::new(CryptoVec::new())));
 	while let Some(Ok(stream)) = listener.next().await {
@@ -58,11 +61,11 @@ where
 		buf.resize(4);
 		tokio::spawn(
 			(Connection {
-				lock: lock.clone(),
-				keys: keys.clone(),
-				agent: Some(agent.clone()),
-				s: stream,
-				buf: CryptoVec::new(),
+				lock:lock.clone(),
+				keys:keys.clone(),
+				agent:Some(agent.clone()),
+				s:stream,
+				buf:CryptoVec::new(),
 			})
 			.run(),
 		);
@@ -71,27 +74,20 @@ where
 }
 
 impl Agent for () {
-	fn confirm(
-		self,
-		_: Arc<key::KeyPair>,
-	) -> Box<dyn Future<Output = (Self, bool)> + Unpin + Send> {
+	fn confirm(self, _:Arc<key::KeyPair>) -> Box<dyn Future<Output = (Self, bool)> + Unpin + Send> {
 		Box::new(futures::future::ready((self, true)))
 	}
 }
 
-struct Connection<S: AsyncRead + AsyncWrite + Send + 'static, A: Agent> {
-	lock: Lock,
-	keys: KeyStore,
-	agent: Option<A>,
-	s: S,
-	buf: CryptoVec,
+struct Connection<S:AsyncRead + AsyncWrite + Send + 'static, A:Agent> {
+	lock:Lock,
+	keys:KeyStore,
+	agent:Option<A>,
+	s:S,
+	buf:CryptoVec,
 }
 
-impl<
-		S: AsyncRead + AsyncWrite + Send + Unpin + 'static,
-		A: Agent + Send + 'static,
-	> Connection<S, A>
-{
+impl<S:AsyncRead + AsyncWrite + Send + Unpin + 'static, A:Agent + Send + 'static> Connection<S, A> {
 	async fn run(mut self) -> Result<(), Error> {
 		let mut writebuf = CryptoVec::new();
 		loop {
@@ -112,14 +108,9 @@ impl<
 		}
 	}
 
-	async fn respond(&mut self, writebuf: &mut CryptoVec) -> Result<(), Error> {
-		let is_locked = {
-			if let Ok(password) = self.lock.0.read() {
-				!password.is_empty()
-			} else {
-				true
-			}
-		};
+	async fn respond(&mut self, writebuf:&mut CryptoVec) -> Result<(), Error> {
+		let is_locked =
+			{ if let Ok(password) = self.lock.0.read() { !password.is_empty() } else { true } };
 		writebuf.extend(&[0, 0, 0, 0]);
 
 		let mut r = self.buf.reader(0);
@@ -206,7 +197,7 @@ impl<
 		Ok(())
 	}
 
-	fn lock(&self, mut r: Position) -> Result<(), Error> {
+	fn lock(&self, mut r:Position) -> Result<(), Error> {
 		let password = r.read_string()?;
 
 		let mut lock = self.lock.0.write().or(Err(Error::AgentFailure))?;
@@ -214,7 +205,7 @@ impl<
 		Ok(())
 	}
 
-	fn unlock(&self, mut r: Position) -> Result<bool, Error> {
+	fn unlock(&self, mut r:Position) -> Result<bool, Error> {
 		let password = r.read_string()?;
 
 		let mut lock = self.lock.0.write().or(Err(Error::AgentFailure))?;
@@ -226,13 +217,9 @@ impl<
 		}
 	}
 
-	fn remove_identity(&self, mut r: Position) -> Result<bool, Error> {
+	fn remove_identity(&self, mut r:Position) -> Result<bool, Error> {
 		if let Ok(mut keys) = self.keys.0.write() {
-			if keys.remove(r.read_string()?).is_some() {
-				Ok(true)
-			} else {
-				Ok(false)
-			}
+			if keys.remove(r.read_string()?).is_some() { Ok(true) } else { Ok(false) }
 		} else {
 			Ok(false)
 		}
@@ -240,9 +227,9 @@ impl<
 
 	async fn add_key(
 		&self,
-		mut r: Position<'_>,
-		constrained: bool,
-		writebuf: &mut CryptoVec,
+		mut r:Position<'_>,
+		constrained:bool,
+		writebuf:&mut CryptoVec,
 	) -> Result<bool, Error> {
 		#[cfg(feature = "rs-crypto")]
 		let pos0 = r.position;
@@ -269,16 +256,15 @@ impl<
 				#[allow(clippy::indexing_slicing)] // positions checked before
 				(
 					self.buf[pos0..pos1].to_vec(),
-					key::KeyPair::Ed25519(ed25519_dalek::Keypair {
-						public,
-						secret,
-					}),
+					key::KeyPair::Ed25519(ed25519_dalek::Keypair { public, secret }),
 				)
 			},
 			#[cfg(feature = "openssl")]
 			b"ssh-rsa" => {
-				use openssl::bn::{BigNum, BigNumContext};
-				use openssl::rsa::Rsa;
+				use openssl::{
+					bn::{BigNum, BigNumContext},
+					rsa::Rsa,
+				};
 				let n = r.read_mpint()?;
 				let e = r.read_mpint()?;
 				let d = BigNum::from_slice(r.read_mpint()?)?;
@@ -317,7 +303,7 @@ impl<
 				let blob = writebuf[len0..].to_vec();
 				writebuf.resize(len0);
 				writebuf.push(msg::SUCCESS);
-				(blob, key::KeyPair::RSA { key, hash: SignatureHash::SHA2_256 })
+				(blob, key::KeyPair::RSA { key, hash:SignatureHash::SHA2_256 })
 			},
 			_ => return Ok(false),
 		};
@@ -338,12 +324,11 @@ impl<
 					tokio::spawn(async move {
 						sleep(Duration::from_secs(seconds as u64)).await;
 						if let Ok(mut keys) = keys.0.write() {
-							let delete =
-								if let Some(&(_, time, _)) = keys.get(&blob) {
-									time == now
-								} else {
-									false
-								};
+							let delete = if let Some(&(_, time, _)) = keys.get(&blob) {
+								time == now
+							} else {
+								false
+							};
 							if delete {
 								keys.remove(&blob);
 							}
@@ -364,9 +349,9 @@ impl<
 
 	async fn try_sign(
 		&self,
-		agent: A,
-		mut r: Position<'_>,
-		writebuf: &mut CryptoVec,
+		agent:A,
+		mut r:Position<'_>,
+		writebuf:&mut CryptoVec,
 	) -> Result<(A, bool), Error> {
 		let mut needs_confirm = false;
 

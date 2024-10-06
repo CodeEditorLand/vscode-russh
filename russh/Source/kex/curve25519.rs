@@ -1,37 +1,39 @@
 use byteorder::{BigEndian, ByteOrder};
-use curve25519_dalek::constants::ED25519_BASEPOINT_TABLE;
-use curve25519_dalek::montgomery::MontgomeryPoint;
-use curve25519_dalek::scalar::Scalar;
+use curve25519_dalek::{
+	constants::ED25519_BASEPOINT_TABLE,
+	montgomery::MontgomeryPoint,
+	scalar::Scalar,
+};
 use log::debug;
 use russh_cryptovec::CryptoVec;
 use russh_keys::encoding::Encoding;
 
 use super::{compute_keys, KexAlgorithm, KexType};
-use crate::mac::{self};
-use crate::session::Exchange;
-use crate::{cipher, msg};
+use crate::{
+	cipher,
+	mac::{self},
+	msg,
+	session::Exchange,
+};
 
 pub struct Curve25519KexType {}
 
 impl KexType for Curve25519KexType {
 	fn make(&self) -> Box<dyn KexAlgorithm + Send> {
-		Box::new(Curve25519Kex { local_secret: None, shared_secret: None })
+		Box::new(Curve25519Kex { local_secret:None, shared_secret:None })
 			as Box<dyn KexAlgorithm + Send>
 	}
 }
 
 #[doc(hidden)]
 pub struct Curve25519Kex {
-	local_secret: Option<Scalar>,
-	shared_secret: Option<MontgomeryPoint>,
+	local_secret:Option<Scalar>,
+	shared_secret:Option<MontgomeryPoint>,
 }
 
 impl std::fmt::Debug for Curve25519Kex {
-	fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-		write!(
-			f,
-			"Algorithm {{ local_secret: [hidden], shared_secret: [hidden] }}",
-		)
+	fn fmt(&self, f:&mut std::fmt::Formatter) -> std::fmt::Result {
+		write!(f, "Algorithm {{ local_secret: [hidden], shared_secret: [hidden] }}",)
 	}
 }
 
@@ -39,16 +41,10 @@ impl std::fmt::Debug for Curve25519Kex {
 // that curve is controversial, see
 // http://safecurves.cr.yp.to/rigid.html
 impl KexAlgorithm for Curve25519Kex {
-	fn skip_exchange(&self) -> bool {
-		false
-	}
+	fn skip_exchange(&self) -> bool { false }
 
 	#[doc(hidden)]
-	fn server_dh(
-		&mut self,
-		exchange: &mut Exchange,
-		payload: &[u8],
-	) -> Result<(), crate::Error> {
+	fn server_dh(&mut self, exchange:&mut Exchange, payload:&[u8]) -> Result<(), crate::Error> {
 		debug!("server_dh");
 
 		let client_pubkey = {
@@ -73,11 +69,9 @@ impl KexAlgorithm for Curve25519Kex {
 			pubkey
 		};
 
-		let server_secret =
-			Scalar::from_bytes_mod_order(rand::random::<[u8; 32]>());
+		let server_secret = Scalar::from_bytes_mod_order(rand::random::<[u8; 32]>());
 
-		let server_pubkey =
-			(&ED25519_BASEPOINT_TABLE * &server_secret).to_montgomery();
+		let server_pubkey = (&ED25519_BASEPOINT_TABLE * &server_secret).to_montgomery();
 
 		// fill exchange.
 		exchange.server_ephemeral.clear();
@@ -91,14 +85,12 @@ impl KexAlgorithm for Curve25519Kex {
 	#[doc(hidden)]
 	fn client_dh(
 		&mut self,
-		client_ephemeral: &mut CryptoVec,
-		buf: &mut CryptoVec,
+		client_ephemeral:&mut CryptoVec,
+		buf:&mut CryptoVec,
 	) -> Result<(), crate::Error> {
-		let client_secret =
-			Scalar::from_bytes_mod_order(rand::random::<[u8; 32]>());
+		let client_secret = Scalar::from_bytes_mod_order(rand::random::<[u8; 32]>());
 
-		let client_pubkey =
-			(&ED25519_BASEPOINT_TABLE * &client_secret).to_montgomery();
+		let client_pubkey = (&ED25519_BASEPOINT_TABLE * &client_secret).to_montgomery();
 
 		// fill exchange.
 		client_ephemeral.clear();
@@ -111,12 +103,9 @@ impl KexAlgorithm for Curve25519Kex {
 		Ok(())
 	}
 
-	fn compute_shared_secret(
-		&mut self,
-		remote_pubkey_: &[u8],
-	) -> Result<(), crate::Error> {
-		let local_secret = std::mem::replace(&mut self.local_secret, None)
-			.ok_or(crate::Error::KexInit)?;
+	fn compute_shared_secret(&mut self, remote_pubkey_:&[u8]) -> Result<(), crate::Error> {
+		let local_secret =
+			std::mem::replace(&mut self.local_secret, None).ok_or(crate::Error::KexInit)?;
 
 		let mut remote_pubkey = MontgomeryPoint([0; 32]);
 		remote_pubkey.0.clone_from_slice(remote_pubkey_);
@@ -128,9 +117,9 @@ impl KexAlgorithm for Curve25519Kex {
 
 	fn compute_exchange_hash(
 		&self,
-		key: &CryptoVec,
-		exchange: &Exchange,
-		buffer: &mut CryptoVec,
+		key:&CryptoVec,
+		exchange:&Exchange,
+		buffer:&mut CryptoVec,
 	) -> Result<CryptoVec, crate::Error> {
 		// Computing the exchange hash, see page 7 of RFC 5656.
 		buffer.clear();
@@ -159,12 +148,12 @@ impl KexAlgorithm for Curve25519Kex {
 
 	fn compute_keys(
 		&self,
-		session_id: &CryptoVec,
-		exchange_hash: &CryptoVec,
-		cipher: cipher::Name,
-		remote_to_local_mac: mac::Name,
-		local_to_remote_mac: mac::Name,
-		is_server: bool,
+		session_id:&CryptoVec,
+		exchange_hash:&CryptoVec,
+		cipher:cipher::Name,
+		remote_to_local_mac:mac::Name,
+		local_to_remote_mac:mac::Name,
+		is_server:bool,
 	) -> Result<super::cipher::CipherPair, crate::Error> {
 		compute_keys::<sha2::Sha256>(
 			self.shared_secret.as_ref().map(|x| x.0.as_slice()),

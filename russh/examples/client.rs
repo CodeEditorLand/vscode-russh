@@ -13,7 +13,7 @@ impl client::Handler for Client {
 
 	async fn check_server_key(
 		self,
-		server_public_key: &key::PublicKey,
+		server_public_key:&key::PublicKey,
 	) -> Result<(Self, bool), Self::Error> {
 		println!("check_server_key: {:?}", server_public_key);
 		Ok((self, true))
@@ -27,14 +27,10 @@ async fn main() {
 	let config = Arc::new(config);
 	let sh = Client {};
 
-	let mut agent =
-		russh_keys::agent::client::AgentClient::connect_env().await.unwrap();
+	let mut agent = russh_keys::agent::client::AgentClient::connect_env().await.unwrap();
 	let mut identities = agent.request_identities().await.unwrap();
-	let mut session =
-		russh::client::connect(config, ("127.0.0.1", 2200), sh).await.unwrap();
-	let (_, auth_res) = session
-		.authenticate_future("pe", identities.pop().unwrap(), agent)
-		.await;
+	let mut session = russh::client::connect(config, ("127.0.0.1", 2200), sh).await.unwrap();
+	let (_, auth_res) = session.authenticate_future("pe", identities.pop().unwrap(), agent).await;
 	let auth_res = auth_res.unwrap();
 	println!("=== auth: {}", auth_res);
 	let mut channel = session

@@ -13,15 +13,12 @@
 // limitations under the License.
 //
 
-//!
 //! This module exports kex algorithm names for use with [Preferred].
 #[cfg(feature = "rs-crypto")]
 mod curve25519;
 mod dh;
 mod none;
-use std::cell::RefCell;
-use std::collections::HashMap;
-use std::fmt::Debug;
+use std::{cell::RefCell, collections::HashMap, fmt::Debug};
 
 #[cfg(feature = "rs-crypto")]
 use curve25519::Curve25519KexType;
@@ -31,102 +28,91 @@ use once_cell::sync::Lazy;
 use russh_cryptovec::CryptoVec;
 use russh_keys::encoding::Encoding;
 
-use crate::cipher;
-use crate::cipher::CIPHERS;
-use crate::mac::{self, MACS};
-use crate::session::Exchange;
+use crate::{
+	cipher,
+	cipher::CIPHERS,
+	mac::{self, MACS},
+	session::Exchange,
+};
 
 pub(crate) trait KexType {
 	fn make(&self) -> Box<dyn KexAlgorithm + Send>;
 }
 
 impl Debug for dyn KexAlgorithm + Send {
-	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-		write!(f, "KexAlgorithm")
-	}
+	fn fmt(&self, f:&mut std::fmt::Formatter<'_>) -> std::fmt::Result { write!(f, "KexAlgorithm") }
 }
 
 pub(crate) trait KexAlgorithm {
 	fn skip_exchange(&self) -> bool;
 
-	fn server_dh(
-		&mut self,
-		exchange: &mut Exchange,
-		payload: &[u8],
-	) -> Result<(), crate::Error>;
+	fn server_dh(&mut self, exchange:&mut Exchange, payload:&[u8]) -> Result<(), crate::Error>;
 
 	fn client_dh(
 		&mut self,
-		client_ephemeral: &mut CryptoVec,
-		buf: &mut CryptoVec,
+		client_ephemeral:&mut CryptoVec,
+		buf:&mut CryptoVec,
 	) -> Result<(), crate::Error>;
 
-	fn compute_shared_secret(
-		&mut self,
-		remote_pubkey_: &[u8],
-	) -> Result<(), crate::Error>;
+	fn compute_shared_secret(&mut self, remote_pubkey_:&[u8]) -> Result<(), crate::Error>;
 
 	fn compute_exchange_hash(
 		&self,
-		key: &CryptoVec,
-		exchange: &Exchange,
-		buffer: &mut CryptoVec,
+		key:&CryptoVec,
+		exchange:&Exchange,
+		buffer:&mut CryptoVec,
 	) -> Result<CryptoVec, crate::Error>;
 
 	fn compute_keys(
 		&self,
-		session_id: &CryptoVec,
-		exchange_hash: &CryptoVec,
-		cipher: cipher::Name,
-		remote_to_local_mac: mac::Name,
-		local_to_remote_mac: mac::Name,
-		is_server: bool,
+		session_id:&CryptoVec,
+		exchange_hash:&CryptoVec,
+		cipher:cipher::Name,
+		remote_to_local_mac:mac::Name,
+		local_to_remote_mac:mac::Name,
+		is_server:bool,
 	) -> Result<super::cipher::CipherPair, crate::Error>;
 }
 
 #[derive(Debug, PartialEq, Eq, Copy, Clone, Hash)]
 pub struct Name(&'static str);
 impl AsRef<str> for Name {
-	fn as_ref(&self) -> &str {
-		self.0
-	}
+	fn as_ref(&self) -> &str { self.0 }
 }
 
 /// `curve25519-sha256@libssh.org`
-pub const CURVE25519: Name = Name("curve25519-sha256@libssh.org");
+pub const CURVE25519:Name = Name("curve25519-sha256@libssh.org");
 /// `diffie-hellman-group1-sha1`
-pub const DH_G1_SHA1: Name = Name("diffie-hellman-group1-sha1");
+pub const DH_G1_SHA1:Name = Name("diffie-hellman-group1-sha1");
 /// `diffie-hellman-group14-sha1`
-pub const DH_G14_SHA1: Name = Name("diffie-hellman-group14-sha1");
+pub const DH_G14_SHA1:Name = Name("diffie-hellman-group14-sha1");
 /// `diffie-hellman-group14-sha256`
-pub const DH_G14_SHA256: Name = Name("diffie-hellman-group14-sha256");
+pub const DH_G14_SHA256:Name = Name("diffie-hellman-group14-sha256");
 /// `none`
-pub const NONE: Name = Name("none");
+pub const NONE:Name = Name("none");
 /// `ext-info-c`
-pub const EXTENSION_SUPPORT_AS_CLIENT: Name = Name("ext-info-c");
+pub const EXTENSION_SUPPORT_AS_CLIENT:Name = Name("ext-info-c");
 /// `ext-info-s`
-pub const EXTENSION_SUPPORT_AS_SERVER: Name = Name("ext-info-s");
+pub const EXTENSION_SUPPORT_AS_SERVER:Name = Name("ext-info-s");
 
 #[cfg(feature = "rs-crypto")]
-const _CURVE25519: Curve25519KexType = Curve25519KexType {};
-const _DH_G1_SHA1: DhGroup1Sha1KexType = DhGroup1Sha1KexType {};
-const _DH_G14_SHA1: DhGroup14Sha1KexType = DhGroup14Sha1KexType {};
-const _DH_G14_SHA256: DhGroup14Sha256KexType = DhGroup14Sha256KexType {};
-const _NONE: none::NoneKexType = none::NoneKexType {};
+const _CURVE25519:Curve25519KexType = Curve25519KexType {};
+const _DH_G1_SHA1:DhGroup1Sha1KexType = DhGroup1Sha1KexType {};
+const _DH_G14_SHA1:DhGroup14Sha1KexType = DhGroup14Sha1KexType {};
+const _DH_G14_SHA256:DhGroup14Sha256KexType = DhGroup14Sha256KexType {};
+const _NONE:none::NoneKexType = none::NoneKexType {};
 
-pub(crate) static KEXES: Lazy<
-	HashMap<&'static Name, &(dyn KexType + Send + Sync)>,
-> = Lazy::new(|| {
-	let mut h: HashMap<&'static Name, &(dyn KexType + Send + Sync)> =
-		HashMap::new();
-	#[cfg(feature = "rs-crypto")]
-	h.insert(&CURVE25519, &_CURVE25519);
-	h.insert(&DH_G14_SHA256, &_DH_G14_SHA256);
-	h.insert(&DH_G14_SHA1, &_DH_G14_SHA1);
-	h.insert(&DH_G1_SHA1, &_DH_G1_SHA1);
-	h.insert(&NONE, &_NONE);
-	h
-});
+pub(crate) static KEXES:Lazy<HashMap<&'static Name, &(dyn KexType + Send + Sync)>> =
+	Lazy::new(|| {
+		let mut h:HashMap<&'static Name, &(dyn KexType + Send + Sync)> = HashMap::new();
+		#[cfg(feature = "rs-crypto")]
+		h.insert(&CURVE25519, &_CURVE25519);
+		h.insert(&DH_G14_SHA256, &_DH_G14_SHA256);
+		h.insert(&DH_G14_SHA1, &_DH_G14_SHA1);
+		h.insert(&DH_G1_SHA1, &_DH_G1_SHA1);
+		h.insert(&NONE, &_NONE);
+		h
+	});
 
 thread_local! {
 	static KEY_BUF: RefCell<CryptoVec> = RefCell::new(CryptoVec::new());
@@ -135,30 +121,25 @@ thread_local! {
 	static BUFFER: RefCell<CryptoVec> = RefCell::new(CryptoVec::new());
 }
 
-pub(crate) fn compute_keys<D: Digest>(
-	shared_secret: Option<&[u8]>,
-	session_id: &CryptoVec,
-	exchange_hash: &CryptoVec,
-	cipher: cipher::Name,
-	remote_to_local_mac: mac::Name,
-	local_to_remote_mac: mac::Name,
-	is_server: bool,
+pub(crate) fn compute_keys<D:Digest>(
+	shared_secret:Option<&[u8]>,
+	session_id:&CryptoVec,
+	exchange_hash:&CryptoVec,
+	cipher:cipher::Name,
+	remote_to_local_mac:mac::Name,
+	local_to_remote_mac:mac::Name,
+	is_server:bool,
 ) -> Result<super::cipher::CipherPair, crate::Error> {
 	let cipher = CIPHERS.get(&cipher).ok_or(crate::Error::UnknownAlgo)?;
-	let remote_to_local_mac =
-		MACS.get(&remote_to_local_mac).ok_or(crate::Error::UnknownAlgo)?;
-	let local_to_remote_mac =
-		MACS.get(&local_to_remote_mac).ok_or(crate::Error::UnknownAlgo)?;
+	let remote_to_local_mac = MACS.get(&remote_to_local_mac).ok_or(crate::Error::UnknownAlgo)?;
+	let local_to_remote_mac = MACS.get(&local_to_remote_mac).ok_or(crate::Error::UnknownAlgo)?;
 
 	// https://tools.ietf.org/html/rfc4253#section-7.2
 	BUFFER.with(|buffer| {
 		KEY_BUF.with(|key| {
 			NONCE_BUF.with(|nonce| {
 				MAC_BUF.with(|mac| {
-					let compute_key = |c,
-					                   key: &mut CryptoVec,
-					                   len|
-					 -> Result<(), crate::Error> {
+					let compute_key = |c, key:&mut CryptoVec, len| -> Result<(), crate::Error> {
 						let mut buffer = buffer.borrow_mut();
 						buffer.clear();
 						key.clear();
@@ -211,46 +192,19 @@ pub(crate) fn compute_keys<D: Digest>(
 					let mut mac = mac.borrow_mut();
 
 					compute_key(local_to_remote, &mut key, cipher.key_len())?;
-					compute_key(
-						local_to_remote_nonce,
-						&mut nonce,
-						cipher.nonce_len(),
-					)?;
-					compute_key(
-						local_to_remote_mac_key,
-						&mut mac,
-						local_to_remote_mac.key_len(),
-					)?;
+					compute_key(local_to_remote_nonce, &mut nonce, cipher.nonce_len())?;
+					compute_key(local_to_remote_mac_key, &mut mac, local_to_remote_mac.key_len())?;
 
-					let local_to_remote = cipher.make_sealing_key(
-						&key,
-						&nonce,
-						&mac,
-						*local_to_remote_mac,
-					)?;
+					let local_to_remote =
+						cipher.make_sealing_key(&key, &nonce, &mac, *local_to_remote_mac)?;
 
 					compute_key(remote_to_local, &mut key, cipher.key_len())?;
-					compute_key(
-						remote_to_local_nonce,
-						&mut nonce,
-						cipher.nonce_len(),
-					)?;
-					compute_key(
-						remote_to_local_mac_key,
-						&mut mac,
-						remote_to_local_mac.key_len(),
-					)?;
-					let remote_to_local = cipher.make_opening_key(
-						&key,
-						&nonce,
-						&mac,
-						*remote_to_local_mac,
-					)?;
+					compute_key(remote_to_local_nonce, &mut nonce, cipher.nonce_len())?;
+					compute_key(remote_to_local_mac_key, &mut mac, remote_to_local_mac.key_len())?;
+					let remote_to_local =
+						cipher.make_opening_key(&key, &nonce, &mac, *remote_to_local_mac)?;
 
-					Ok(super::cipher::CipherPair {
-						local_to_remote,
-						remote_to_local,
-					})
+					Ok(super::cipher::CipherPair { local_to_remote, remote_to_local })
 				})
 			})
 		})

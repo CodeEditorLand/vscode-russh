@@ -4,11 +4,7 @@ use log::debug;
 use russh_keys::encoding::{Encoding, Reader};
 
 use super::*;
-use crate::cipher::SealingKey;
-use crate::kex::KEXES;
-use crate::key::PubKey;
-use crate::negotiation::Select;
-use crate::{msg, negotiation};
+use crate::{cipher::SealingKey, kex::KEXES, key::PubKey, msg, negotiation, negotiation::Select};
 
 thread_local! {
 	static HASH_BUF: RefCell<CryptoVec> = RefCell::new(CryptoVec::new());
@@ -17,10 +13,10 @@ thread_local! {
 impl KexInit {
 	pub fn server_parse(
 		mut self,
-		config: &Config,
-		cipher: &mut dyn SealingKey,
-		buf: &[u8],
-		write_buffer: &mut SSHBuffer,
+		config:&Config,
+		cipher:&mut dyn SealingKey,
+		buf:&[u8],
+		write_buffer:&mut SSHBuffer,
 	) -> Result<Kex, Error> {
 		if buf.first() == Some(&msg::KEXINIT) {
 			let algo = {
@@ -33,17 +29,15 @@ impl KexInit {
 			}
 			let mut key = 0;
 			#[allow(clippy::indexing_slicing)] // length checked
-			while key < config.keys.len()
-				&& config.keys[key].name() != algo.key.as_ref()
-			{
+			while key < config.keys.len() && config.keys[key].name() != algo.key.as_ref() {
 				key += 1
 			}
 			let next_kex = if key < config.keys.len() {
 				Kex::Dh(KexDh {
-					exchange: self.exchange,
+					exchange:self.exchange,
 					key,
-					names: algo,
-					session_id: self.session_id,
+					names:algo,
+					session_id:self.session_id,
 				})
 			} else {
 				return Err(Error::UnknownKey);
@@ -57,16 +51,12 @@ impl KexInit {
 
 	pub fn server_write(
 		&mut self,
-		config: &Config,
-		cipher: &mut dyn SealingKey,
-		write_buffer: &mut SSHBuffer,
+		config:&Config,
+		cipher:&mut dyn SealingKey,
+		write_buffer:&mut SSHBuffer,
 	) -> Result<(), Error> {
 		self.exchange.server_kex_init.clear();
-		negotiation::write_kex(
-			&config.preferred,
-			&mut self.exchange.server_kex_init,
-			true,
-		)?;
+		negotiation::write_kex(&config.preferred, &mut self.exchange.server_kex_init, true)?;
 		debug!("server kex init: {:?}", &self.exchange.server_kex_init[..]);
 		self.sent = true;
 		cipher.write(&self.exchange.server_kex_init, write_buffer);
@@ -77,10 +67,10 @@ impl KexInit {
 impl KexDh {
 	pub fn parse(
 		mut self,
-		config: &Config,
-		cipher: &mut dyn SealingKey,
-		buf: &[u8],
-		write_buffer: &mut SSHBuffer,
+		config:&Config,
+		cipher:&mut dyn SealingKey,
+		buf:&[u8],
+		write_buffer:&mut SSHBuffer,
 	) -> Result<Kex, Error> {
 		if self.names.ignore_guessed {
 			// If we need to ignore this packet.
@@ -92,22 +82,21 @@ impl KexDh {
 			let mut r = buf.reader(1);
 			self.exchange.client_ephemeral.extend(r.read_string()?);
 
-			let mut kex =
-				KEXES.get(&self.names.kex).ok_or(Error::UnknownAlgo)?.make();
+			let mut kex = KEXES.get(&self.names.kex).ok_or(Error::UnknownAlgo)?.make();
 
 			kex.server_dh(&mut self.exchange, buf)?;
 
 			// Then, we fill the write buffer right away, so that we
 			// can output it immediately when the time comes.
 			let kexdhdone = KexDhDone {
-				exchange: self.exchange,
+				exchange:self.exchange,
 				kex,
-				key: self.key,
-				names: self.names,
-				session_id: self.session_id,
+				key:self.key,
+				names:self.names,
+				session_id:self.session_id,
 			};
 			#[allow(clippy::indexing_slicing)] // key index checked
-			let hash: Result<_, Error> = HASH_BUF.with(|buffer| {
+			let hash:Result<_, Error> = HASH_BUF.with(|buffer| {
 				let mut buffer = buffer.borrow_mut();
 				buffer.clear();
 				debug!("server kexdhdone.exchange = {:?}", kexdhdone.exchange);

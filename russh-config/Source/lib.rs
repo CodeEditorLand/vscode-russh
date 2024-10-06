@@ -4,9 +4,7 @@
 	clippy::indexing_slicing,
 	clippy::panic
 )]
-use std::io::Read;
-use std::net::ToSocketAddrs;
-use std::path::Path;
+use std::{io::Read, net::ToSocketAddrs, path::Path};
 
 use log::debug;
 use thiserror::*;
@@ -29,23 +27,23 @@ pub use proxy::*;
 
 #[derive(Debug)]
 pub struct Config {
-	pub user: String,
-	pub host_name: String,
-	pub port: u16,
-	pub identity_file: Option<String>,
-	pub proxy_command: Option<String>,
-	pub add_keys_to_agent: AddKeysToAgent,
+	pub user:String,
+	pub host_name:String,
+	pub port:u16,
+	pub identity_file:Option<String>,
+	pub proxy_command:Option<String>,
+	pub add_keys_to_agent:AddKeysToAgent,
 }
 
 impl Config {
-	pub fn default(host_name: &str) -> Self {
+	pub fn default(host_name:&str) -> Self {
 		Config {
-			user: whoami::username(),
-			host_name: host_name.to_string(),
-			port: 22,
-			identity_file: None,
-			proxy_command: None,
-			add_keys_to_agent: AddKeysToAgent::default(),
+			user:whoami::username(),
+			host_name:host_name.to_string(),
+			port:22,
+			identity_file:None,
+			proxy_command:None,
+			add_keys_to_agent:AddKeysToAgent::default(),
 		}
 	}
 }
@@ -61,13 +59,10 @@ impl Config {
 	pub async fn stream(&mut self) -> Result<Stream, Error> {
 		self.update_proxy_command();
 		if let Some(ref proxy_command) = self.proxy_command {
-			let cmd: Vec<&str> = proxy_command.split(' ').collect();
-			Stream::proxy_command(
-				cmd.first().unwrap_or(&""),
-				cmd.get(1..).unwrap_or(&[]),
-			)
-			.await
-			.map_err(Into::into)
+			let cmd:Vec<&str> = proxy_command.split(' ').collect();
+			Stream::proxy_command(cmd.first().unwrap_or(&""), cmd.get(1..).unwrap_or(&[]))
+				.await
+				.map_err(Into::into)
 		} else {
 			let address = (self.host_name.as_str(), self.port)
 				.to_socket_addrs()?
@@ -78,7 +73,7 @@ impl Config {
 	}
 }
 
-pub fn parse_home(host: &str) -> Result<Config, Error> {
+pub fn parse_home(host:&str) -> Result<Config, Error> {
 	let mut home = if let Some(home) = dirs_next::home_dir() {
 		home
 	} else {
@@ -89,10 +84,7 @@ pub fn parse_home(host: &str) -> Result<Config, Error> {
 	parse_path(&home, host)
 }
 
-pub fn parse_path<P: AsRef<Path>>(
-	path: P,
-	host: &str,
-) -> Result<Config, Error> {
+pub fn parse_path<P:AsRef<Path>>(path:P, host:&str) -> Result<Config, Error> {
 	let mut s = String::new();
 	let mut b = std::fs::File::open(path)?;
 	b.read_to_string(&mut s)?;
@@ -108,8 +100,8 @@ pub enum AddKeysToAgent {
 	No,
 }
 
-pub fn parse(file: &str, host: &str) -> Result<Config, Error> {
-	let mut config: Option<Config> = None;
+pub fn parse(file:&str, host:&str) -> Result<Config, Error> {
+	let mut config:Option<Config> = None;
 	for line in file.lines() {
 		let line = line.trim();
 		if let Some(n) = line.find(' ') {
@@ -153,17 +145,14 @@ pub fn parse(file: &str, host: &str) -> Result<Config, Error> {
 							config.identity_file = Some(id.to_string())
 						}
 					},
-					"proxycommand" => {
-						config.proxy_command =
-							Some(value.trim_start().to_string())
-					},
-					"addkeystoagent" => match value.to_lowercase().as_str() {
-						"yes" => config.add_keys_to_agent = AddKeysToAgent::Yes,
-						"confirm" => {
-							config.add_keys_to_agent = AddKeysToAgent::Confirm
-						},
-						"ask" => config.add_keys_to_agent = AddKeysToAgent::Ask,
-						_ => config.add_keys_to_agent = AddKeysToAgent::No,
+					"proxycommand" => config.proxy_command = Some(value.trim_start().to_string()),
+					"addkeystoagent" => {
+						match value.to_lowercase().as_str() {
+							"yes" => config.add_keys_to_agent = AddKeysToAgent::Yes,
+							"confirm" => config.add_keys_to_agent = AddKeysToAgent::Confirm,
+							"ask" => config.add_keys_to_agent = AddKeysToAgent::Ask,
+							_ => config.add_keys_to_agent = AddKeysToAgent::No,
+						}
 					},
 					key => {
 						debug!("{:?}", key);
@@ -176,9 +165,5 @@ pub fn parse(file: &str, host: &str) -> Result<Config, Error> {
 			}
 		}
 	}
-	if let Some(config) = config {
-		Ok(config)
-	} else {
-		Err(Error::HostNotFound)
-	}
+	if let Some(config) = config { Ok(config) } else { Err(Error::HostNotFound) }
 }

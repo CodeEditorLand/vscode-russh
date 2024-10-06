@@ -12,22 +12,17 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-//!
 //! This module exports cipher names for use with [Preferred].
-use std::collections::HashMap;
-use std::fmt::Debug;
 #[cfg(feature = "rs-crypto")]
 use std::marker::PhantomData;
-use std::num::Wrapping;
+use std::{collections::HashMap, fmt::Debug, num::Wrapping};
 
 use byteorder::{BigEndian, ByteOrder};
 use log::debug;
 use once_cell::sync::Lazy;
 use tokio::io::{AsyncRead, AsyncReadExt};
 
-use crate::mac::MacAlgorithm;
-use crate::sshbuffer::SSHBuffer;
-use crate::Error;
+use crate::{mac::MacAlgorithm, sshbuffer::SSHBuffer, Error};
 
 pub(crate) mod clear;
 
@@ -49,142 +44,123 @@ use clear::Clear;
 use gcm::GcmCipher;
 
 pub(crate) trait Cipher {
-	fn needs_mac(&self) -> bool {
-		false
-	}
+	fn needs_mac(&self) -> bool { false }
 	fn key_len(&self) -> usize;
-	fn nonce_len(&self) -> usize {
-		0
-	}
+	fn nonce_len(&self) -> usize { 0 }
 	fn make_opening_key(
 		&self,
-		key: &[u8],
-		nonce: &[u8],
-		mac_key: &[u8],
-		mac: &dyn MacAlgorithm,
+		key:&[u8],
+		nonce:&[u8],
+		mac_key:&[u8],
+		mac:&dyn MacAlgorithm,
 	) -> Result<Box<dyn OpeningKey + Send>, Error>;
 	fn make_sealing_key(
 		&self,
-		key: &[u8],
-		nonce: &[u8],
-		mac_key: &[u8],
-		mac: &dyn MacAlgorithm,
+		key:&[u8],
+		nonce:&[u8],
+		mac_key:&[u8],
+		mac:&dyn MacAlgorithm,
 	) -> Result<Box<dyn SealingKey + Send>, Error>;
 }
 
 /// `clear`
-pub const CLEAR: Name = Name("clear");
+pub const CLEAR:Name = Name("clear");
 /// `aes128-ctr`
-pub const AES_128_CTR: Name = Name("aes128-ctr");
+pub const AES_128_CTR:Name = Name("aes128-ctr");
 /// `aes192-ctr`
-pub const AES_192_CTR: Name = Name("aes192-ctr");
+pub const AES_192_CTR:Name = Name("aes192-ctr");
 /// `aes256-ctr`
-pub const AES_256_CTR: Name = Name("aes256-ctr");
+pub const AES_256_CTR:Name = Name("aes256-ctr");
 /// `aes256-gcm@openssh.com`
-pub const AES_256_GCM: Name = Name("aes256-gcm@openssh.com");
+pub const AES_256_GCM:Name = Name("aes256-gcm@openssh.com");
 /// `chacha20-poly1305@openssh.com`
-pub const CHACHA20_POLY1305: Name = Name("chacha20-poly1305@openssh.com");
+pub const CHACHA20_POLY1305:Name = Name("chacha20-poly1305@openssh.com");
 /// `none`
-pub const NONE: Name = Name("none");
+pub const NONE:Name = Name("none");
 
-static _CLEAR: Clear = Clear {};
+static _CLEAR:Clear = Clear {};
 
 #[cfg(all(feature = "openssl", not(feature = "rs-crypto")))]
-static _AES_128_CTR: aes_openssh::AesSshCipher =
+static _AES_128_CTR:aes_openssh::AesSshCipher =
 	aes_openssh::AesSshCipher(openssl::cipher::Cipher::aes_128_ctr);
 #[cfg(feature = "rs-crypto")]
-static _AES_128_CTR: SshBlockCipher<ctr::Ctr128BE<aes::Aes128>> =
-	SshBlockCipher(PhantomData);
+static _AES_128_CTR:SshBlockCipher<ctr::Ctr128BE<aes::Aes128>> = SshBlockCipher(PhantomData);
 
 #[cfg(all(feature = "openssl", not(feature = "rs-crypto")))]
-static _AES_192_CTR: aes_openssh::AesSshCipher =
+static _AES_192_CTR:aes_openssh::AesSshCipher =
 	aes_openssh::AesSshCipher(openssl::cipher::Cipher::aes_192_ctr);
 #[cfg(feature = "rs-crypto")]
-static _AES_192_CTR: SshBlockCipher<ctr::Ctr128BE<aes::Aes192>> =
-	SshBlockCipher(PhantomData);
+static _AES_192_CTR:SshBlockCipher<ctr::Ctr128BE<aes::Aes192>> = SshBlockCipher(PhantomData);
 
 #[cfg(all(feature = "openssl", not(feature = "rs-crypto")))]
-static _AES_256_CTR: aes_openssh::AesSshCipher =
+static _AES_256_CTR:aes_openssh::AesSshCipher =
 	aes_openssh::AesSshCipher(openssl::cipher::Cipher::aes_256_ctr);
 #[cfg(feature = "rs-crypto")]
-static _AES_256_CTR: SshBlockCipher<ctr::Ctr128BE<aes::Aes256>> =
-	SshBlockCipher(PhantomData);
+static _AES_256_CTR:SshBlockCipher<ctr::Ctr128BE<aes::Aes256>> = SshBlockCipher(PhantomData);
 
 #[cfg(feature = "rs-crypto")]
-static _AES_256_GCM: GcmCipher = GcmCipher {};
+static _AES_256_GCM:GcmCipher = GcmCipher {};
 
 #[cfg(feature = "rs-crypto")]
-static _CHACHA20_POLY1305: SshChacha20Poly1305Cipher =
-	SshChacha20Poly1305Cipher {};
+static _CHACHA20_POLY1305:SshChacha20Poly1305Cipher = SshChacha20Poly1305Cipher {};
 
-pub(crate) static CIPHERS: Lazy<
-	HashMap<&'static Name, &(dyn Cipher + Send + Sync)>,
-> = Lazy::new(|| {
-	let mut h: HashMap<&'static Name, &(dyn Cipher + Send + Sync)> =
-		HashMap::new();
-	h.insert(&CLEAR, &_CLEAR);
-	h.insert(&NONE, &_CLEAR);
-	h.insert(&AES_128_CTR, &_AES_128_CTR);
-	h.insert(&AES_192_CTR, &_AES_192_CTR);
-	h.insert(&AES_256_CTR, &_AES_256_CTR);
-	#[cfg(feature = "rs-crypto")]
-	h.insert(&AES_256_GCM, &_AES_256_GCM);
-	#[cfg(feature = "rs-crypto")]
-	h.insert(&CHACHA20_POLY1305, &_CHACHA20_POLY1305);
-	h
-});
+pub(crate) static CIPHERS:Lazy<HashMap<&'static Name, &(dyn Cipher + Send + Sync)>> =
+	Lazy::new(|| {
+		let mut h:HashMap<&'static Name, &(dyn Cipher + Send + Sync)> = HashMap::new();
+		h.insert(&CLEAR, &_CLEAR);
+		h.insert(&NONE, &_CLEAR);
+		h.insert(&AES_128_CTR, &_AES_128_CTR);
+		h.insert(&AES_192_CTR, &_AES_192_CTR);
+		h.insert(&AES_256_CTR, &_AES_256_CTR);
+		#[cfg(feature = "rs-crypto")]
+		h.insert(&AES_256_GCM, &_AES_256_GCM);
+		#[cfg(feature = "rs-crypto")]
+		h.insert(&CHACHA20_POLY1305, &_CHACHA20_POLY1305);
+		h
+	});
 
 #[derive(Debug, PartialEq, Eq, Copy, Clone, Hash)]
 pub struct Name(&'static str);
 impl AsRef<str> for Name {
-	fn as_ref(&self) -> &str {
-		self.0
-	}
+	fn as_ref(&self) -> &str { self.0 }
 }
 
 pub(crate) struct CipherPair {
-	pub local_to_remote: Box<dyn SealingKey + Send>,
-	pub remote_to_local: Box<dyn OpeningKey + Send>,
+	pub local_to_remote:Box<dyn SealingKey + Send>,
+	pub remote_to_local:Box<dyn OpeningKey + Send>,
 }
 
 impl Debug for CipherPair {
-	fn fmt(&self, _: &mut std::fmt::Formatter) -> Result<(), std::fmt::Error> {
-		Ok(())
-	}
+	fn fmt(&self, _:&mut std::fmt::Formatter) -> Result<(), std::fmt::Error> { Ok(()) }
 }
 
 pub(crate) trait OpeningKey {
 	fn decrypt_packet_length(
 		&self,
-		seqn: u32,
-		encrypted_packet_length: [u8; 4],
+		seqn:u32,
+		encrypted_packet_length:[u8; 4],
 	) -> Result<[u8; 4], Error>;
 
 	fn tag_len(&self) -> usize;
 
 	fn open<'a>(
 		&mut self,
-		seqn: u32,
-		ciphertext_in_plaintext_out: &'a mut [u8],
-		tag: &[u8],
+		seqn:u32,
+		ciphertext_in_plaintext_out:&'a mut [u8],
+		tag:&[u8],
 	) -> Result<&'a [u8], Error>;
 }
 
 pub(crate) trait SealingKey {
-	fn padding_length(&self, plaintext: &[u8]) -> usize;
+	fn padding_length(&self, plaintext:&[u8]) -> usize;
 
-	fn fill_padding(&self, padding_out: &mut [u8]);
+	fn fill_padding(&self, padding_out:&mut [u8]);
 
 	fn tag_len(&self) -> usize;
 
-	fn seal(
-		&mut self,
-		seqn: u32,
-		plaintext_in_ciphertext_out: &mut [u8],
-		tag_out: &mut [u8],
-	);
+	fn seal(&mut self, seqn:u32, plaintext_in_ciphertext_out:&mut [u8], tag_out:&mut [u8]);
 
-	fn write(&mut self, payload: &[u8], buffer: &mut SSHBuffer) {
+	fn write(&mut self, payload:&[u8], buffer:&mut SSHBuffer) {
 		// https://tools.ietf.org/html/rfc4253#section-6
 		//
 		// The variables `payload`, `packet_length` and `padding_length` refer
@@ -211,8 +187,7 @@ pub(crate) trait SealingKey {
 		buffer.buffer.resize_mut(self.tag_len());
 
 		#[allow(clippy::indexing_slicing)] // length checked
-		let (plaintext, tag) = buffer.buffer[offset..]
-			.split_at_mut(PACKET_LENGTH_LEN + packet_length);
+		let (plaintext, tag) = buffer.buffer[offset..].split_at_mut(PACKET_LENGTH_LEN + packet_length);
 
 		self.seal(buffer.seqn.0, plaintext, tag);
 
@@ -223,10 +198,10 @@ pub(crate) trait SealingKey {
 	}
 }
 
-pub(crate) async fn read<'a, R: AsyncRead + Unpin>(
-	stream: &'a mut R,
-	buffer: &'a mut SSHBuffer,
-	cipher: &'a mut (dyn OpeningKey + Send),
+pub(crate) async fn read<'a, R:AsyncRead + Unpin>(
+	stream:&'a mut R,
+	buffer:&'a mut SSHBuffer,
+	cipher:&'a mut (dyn OpeningKey + Send),
 ) -> Result<usize, Error> {
 	if buffer.len == 0 {
 		let mut len = [0; 4];
@@ -255,10 +230,8 @@ pub(crate) async fn read<'a, R: AsyncRead + Unpin>(
 
 	let padding_length = *plaintext.first().to_owned().unwrap_or(&0) as usize;
 	debug!("reading, padding_length {:?}", padding_length);
-	let plaintext_end = plaintext
-		.len()
-		.checked_sub(padding_length)
-		.ok_or(Error::IndexOutOfBounds)?;
+	let plaintext_end =
+		plaintext.len().checked_sub(padding_length).ok_or(Error::IndexOutOfBounds)?;
 
 	// Sequence numbers are on 32 bits and wrap.
 	// https://tools.ietf.org/html/rfc4253#section-6.4
@@ -271,8 +244,8 @@ pub(crate) async fn read<'a, R: AsyncRead + Unpin>(
 	Ok(plaintext_end + 4)
 }
 
-pub(crate) const PACKET_LENGTH_LEN: usize = 4;
+pub(crate) const PACKET_LENGTH_LEN:usize = 4;
 
-const MINIMUM_PACKET_LEN: usize = 16;
+const MINIMUM_PACKET_LEN:usize = 16;
 
-const PADDING_LENGTH_LEN: usize = 1;
+const PADDING_LENGTH_LEN:usize = 1;

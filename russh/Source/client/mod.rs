@@ -27,87 +27,116 @@
 //! when the client receives data.
 //!
 //! ```no_run
-//! use async_trait::async_trait;
-//! use std::sync::Arc;
-//! use russh::*;
-//! use russh::server::{Auth, Session};
-//! use russh_keys::*;
-//! use futures::Future;
-//! use std::io::Read;
+//! use std::{io::Read, sync::Arc};
 //!
-//! struct Client {
-//! }
+//! use async_trait::async_trait;
+//! use futures::Future;
+//! use russh::{
+//! 	server::{Auth, Session},
+//! 	*,
+//! };
+//! use russh_keys::*;
+//!
+//! struct Client {}
 //!
 //! #[async_trait]
 //! impl client::Handler for Client {
-//!    type Error = anyhow::Error;
+//! 	type Error = anyhow::Error;
 //!
-//!    async fn check_server_key(self, server_public_key: &key::PublicKey) -> Result<(Self, bool), Self::Error> {
-//!        println!("check_server_key: {:?}", server_public_key);
-//!        Ok((self, true))
-//!    }
+//! 	async fn check_server_key(
+//! 		self,
+//! 		server_public_key:&key::PublicKey,
+//! 	) -> Result<(Self, bool), Self::Error> {
+//! 		println!("check_server_key: {:?}", server_public_key);
+//! 		Ok((self, true))
+//! 	}
 //!
-//!    async fn data(self, channel: ChannelId, data: &[u8], session: client::Session) -> Result<(Self, client::Session), Self::Error> {
-//!        println!("data on channel {:?}: {:?}", channel, std::str::from_utf8(data));
-//!        Ok((self, session))
-//!    }
+//! 	async fn data(
+//! 		self,
+//! 		channel:ChannelId,
+//! 		data:&[u8],
+//! 		session:client::Session,
+//! 	) -> Result<(Self, client::Session), Self::Error> {
+//! 		println!("data on channel {:?}: {:?}", channel, std::str::from_utf8(data));
+//! 		Ok((self, session))
+//! 	}
 //! }
 //!
 //! #[tokio::main]
 //! async fn main() {
-//!   let config = russh::client::Config::default();
-//!   let config = Arc::new(config);
-//!   let sh = Client{};
+//! 	let config = russh::client::Config::default();
+//! 	let config = Arc::new(config);
+//! 	let sh = Client {};
 //!
-//!   let key = russh_keys::key::KeyPair::generate_ed25519().unwrap();
-//!   let mut agent = russh_keys::agent::client::AgentClient::connect_env().await.unwrap();
-//!   agent.add_identity(&key, &[]).await.unwrap();
-//!   let mut session = russh::client::connect(config, ("127.0.0.1", 22), sh).await.unwrap();
-//!   if session.authenticate_future(std::env::var("USER").unwrap_or("user".to_owned()), key.clone_public_key().unwrap(), agent).await.1.unwrap() {
-//!     let mut channel = session.channel_open_session().await.unwrap();
-//!     channel.data(&b"Hello, world!"[..]).await.unwrap();
-//!     if let Some(msg) = channel.wait().await {
-//!         println!("{:?}", msg)
-//!     }
-//!   }
+//! 	let key = russh_keys::key::KeyPair::generate_ed25519().unwrap();
+//! 	let mut agent = russh_keys::agent::client::AgentClient::connect_env().await.unwrap();
+//! 	agent.add_identity(&key, &[]).await.unwrap();
+//! 	let mut session = russh::client::connect(config, ("127.0.0.1", 22), sh).await.unwrap();
+//! 	if session
+//! 		.authenticate_future(
+//! 			std::env::var("USER").unwrap_or("user".to_owned()),
+//! 			key.clone_public_key().unwrap(),
+//! 			agent,
+//! 		)
+//! 		.await
+//! 		.1
+//! 		.unwrap()
+//! 	{
+//! 		let mut channel = session.channel_open_session().await.unwrap();
+//! 		channel.data(&b"Hello, world!"[..]).await.unwrap();
+//! 		if let Some(msg) = channel.wait().await {
+//! 			println!("{:?}", msg)
+//! 		}
+//! 	}
 //! }
 //! ```
 //!
 //! [Session]: client::Session
 
-use std::cell::RefCell;
-use std::collections::HashMap;
-use std::pin::Pin;
-use std::sync::Arc;
+use std::{cell::RefCell, collections::HashMap, pin::Pin, sync::Arc};
 
 use async_trait::async_trait;
-use futures::task::{Context, Poll};
-use futures::Future;
+use futures::{
+	task::{Context, Poll},
+	Future,
+};
 use log::{debug, error, info, trace};
 use russh_cryptovec::CryptoVec;
-use russh_keys::encoding::Reader;
 #[cfg(feature = "openssl")]
 use russh_keys::key::SignatureHash;
-use russh_keys::key::{self, parse_public_key, PublicKey};
-use tokio;
-use tokio::io::{AsyncRead, AsyncWrite, AsyncWriteExt};
-use tokio::net::{TcpStream, ToSocketAddrs};
-use tokio::pin;
-use tokio::sync::mpsc::{
-	channel, unbounded_channel, Receiver, Sender, UnboundedReceiver,
-	UnboundedSender,
+use russh_keys::{
+	encoding::Reader,
+	key::{self, parse_public_key, PublicKey},
+};
+use tokio::{
+	self,
+	io::{AsyncRead, AsyncWrite, AsyncWriteExt},
+	net::{TcpStream, ToSocketAddrs},
+	pin,
+	sync::mpsc::{
+		channel,
+		unbounded_channel,
+		Receiver,
+		Sender,
+		UnboundedReceiver,
+		UnboundedSender,
+	},
 };
 
-use crate::channels::{Channel, ChannelMsg};
-use crate::cipher::{self, clear, CipherPair, OpeningKey};
-use crate::key::PubKey;
-use crate::session::{
-	CommonSession, EncryptedState, Exchange, Kex, KexDhDone, KexInit, NewKeys,
-};
-use crate::ssh_read::SshRead;
-use crate::sshbuffer::{SSHBuffer, SshId};
 use crate::{
-	auth, msg, negotiation, ChannelId, ChannelOpenFailure, Disconnect, Limits,
+	auth,
+	channels::{Channel, ChannelMsg},
+	cipher::{self, clear, CipherPair, OpeningKey},
+	key::PubKey,
+	msg,
+	negotiation,
+	session::{CommonSession, EncryptedState, Exchange, Kex, KexDhDone, KexInit, NewKeys},
+	ssh_read::SshRead,
+	sshbuffer::{SSHBuffer, SshId},
+	ChannelId,
+	ChannelOpenFailure,
+	Disconnect,
+	Limits,
 	Sig,
 };
 
@@ -121,21 +150,19 @@ mod session;
 /// that may get opened and closed during the lifetime of an SSH session and
 /// allows sending messages to the server.
 pub struct Session {
-	common: CommonSession<Arc<Config>>,
-	receiver: Receiver<Msg>,
-	sender: UnboundedSender<Reply>,
-	channels: HashMap<ChannelId, UnboundedSender<ChannelMsg>>,
-	target_window_size: u32,
-	pending_reads: Vec<CryptoVec>,
-	pending_len: u32,
-	inbound_channel_sender: Sender<Msg>,
-	inbound_channel_receiver: Receiver<Msg>,
+	common:CommonSession<Arc<Config>>,
+	receiver:Receiver<Msg>,
+	sender:UnboundedSender<Reply>,
+	channels:HashMap<ChannelId, UnboundedSender<ChannelMsg>>,
+	target_window_size:u32,
+	pending_reads:Vec<CryptoVec>,
+	pending_len:u32,
+	inbound_channel_sender:Sender<Msg>,
+	inbound_channel_receiver:Receiver<Msg>,
 }
 
 impl Drop for Session {
-	fn drop(&mut self) {
-		debug!("drop session")
-	}
+	fn drop(&mut self) { debug!("drop session") }
 }
 
 #[derive(Debug)]
@@ -144,125 +171,119 @@ enum Reply {
 	AuthSuccess,
 	AuthFailure,
 	ChannelOpenFailure,
-	SignRequest { key: key::PublicKey, data: CryptoVec },
-	AuthInfoRequest { name: String, instructions: String, prompts: Vec<Prompt> },
+	SignRequest { key:key::PublicKey, data:CryptoVec },
+	AuthInfoRequest { name:String, instructions:String, prompts:Vec<Prompt> },
 }
 
 #[derive(Debug)]
 pub enum Msg {
 	Authenticate {
-		user: String,
-		method: auth::Method,
+		user:String,
+		method:auth::Method,
 	},
 	AuthInfoResponse {
-		responses: Vec<String>,
+		responses:Vec<String>,
 	},
 	Signed {
-		data: CryptoVec,
+		data:CryptoVec,
 	},
 	ChannelOpenSession {
-		sender: UnboundedSender<ChannelMsg>,
+		sender:UnboundedSender<ChannelMsg>,
 	},
 	ChannelOpenX11 {
-		originator_address: String,
-		originator_port: u32,
-		sender: UnboundedSender<ChannelMsg>,
+		originator_address:String,
+		originator_port:u32,
+		sender:UnboundedSender<ChannelMsg>,
 	},
 	ChannelOpenDirectTcpIp {
-		host_to_connect: String,
-		port_to_connect: u32,
-		originator_address: String,
-		originator_port: u32,
-		sender: UnboundedSender<ChannelMsg>,
+		host_to_connect:String,
+		port_to_connect:u32,
+		originator_address:String,
+		originator_port:u32,
+		sender:UnboundedSender<ChannelMsg>,
 	},
 	ChannelOpenDirectStreamLocal {
-		socket_path: String,
-		sender: UnboundedSender<ChannelMsg>,
+		socket_path:String,
+		sender:UnboundedSender<ChannelMsg>,
 	},
 	TcpIpForward {
-		want_reply: bool,
-		address: String,
-		port: u32,
+		want_reply:bool,
+		address:String,
+		port:u32,
 	},
 	CancelTcpIpForward {
-		want_reply: bool,
-		address: String,
-		port: u32,
+		want_reply:bool,
+		address:String,
+		port:u32,
 	},
 	Close {
-		id: ChannelId,
+		id:ChannelId,
 	},
 	Disconnect {
-		reason: Disconnect,
-		description: String,
-		language_tag: String,
+		reason:Disconnect,
+		description:String,
+		language_tag:String,
 	},
 	Channel(ChannelId, ChannelMsg),
 }
 
 impl From<(ChannelId, ChannelMsg)> for Msg {
-	fn from((id, msg): (ChannelId, ChannelMsg)) -> Self {
-		Msg::Channel(id, msg)
-	}
+	fn from((id, msg):(ChannelId, ChannelMsg)) -> Self { Msg::Channel(id, msg) }
 }
 
 #[derive(Debug)]
 pub enum KeyboardInteractiveAuthResponse {
 	Success,
 	Failure,
-	InfoRequest { name: String, instructions: String, prompts: Vec<Prompt> },
+	InfoRequest { name:String, instructions:String, prompts:Vec<Prompt> },
 }
 
 #[derive(Debug)]
 pub struct Prompt {
-	pub prompt: String,
-	pub echo: bool,
+	pub prompt:String,
+	pub echo:bool,
 }
 
 /// Handle to a session, used to send messages to a client outside of
 /// the request/response cycle.
-pub struct Handle<H: Handler> {
-	sender: Sender<Msg>,
-	receiver: UnboundedReceiver<Reply>,
-	join: tokio::task::JoinHandle<Result<(), H::Error>>,
+pub struct Handle<H:Handler> {
+	sender:Sender<Msg>,
+	receiver:UnboundedReceiver<Reply>,
+	join:tokio::task::JoinHandle<Result<(), H::Error>>,
 }
 
-impl<H: Handler> Drop for Handle<H> {
-	fn drop(&mut self) {
-		debug!("drop handle")
-	}
+impl<H:Handler> Drop for Handle<H> {
+	fn drop(&mut self) { debug!("drop handle") }
 }
 
-impl<H: Handler> Handle<H> {
-	pub fn is_closed(&self) -> bool {
-		self.sender.is_closed()
-	}
+impl<H:Handler> Handle<H> {
+	pub fn is_closed(&self) -> bool { self.sender.is_closed() }
 
 	/// Perform no authentication. This is useful for testing, but should not be
 	/// used in most other circumstances.
-	pub async fn authenticate_none<U: Into<String>>(
+	pub async fn authenticate_none<U:Into<String>>(
 		&mut self,
-		user: U,
+		user:U,
 	) -> Result<bool, crate::Error> {
 		let user = user.into();
 		self.sender
-			.send(Msg::Authenticate { user, method: auth::Method::None })
+			.send(Msg::Authenticate { user, method:auth::Method::None })
 			.await
 			.map_err(|_| crate::Error::SendError)?;
 		self.wait_recv_reply().await
 	}
 
 	/// Perform password-based SSH authentication.
-	pub async fn authenticate_password<U: Into<String>, P: Into<String>>(
+	pub async fn authenticate_password<U:Into<String>, P:Into<String>>(
 		&mut self,
-		user: U,
-		password: P,
+		user:U,
+		password:P,
 	) -> Result<bool, crate::Error> {
 		let user = user.into();
 		self.sender
 			.send(Msg::Authenticate {
 				user,
-				method: auth::Method::Password { password: password.into() },
+				method:auth::Method::Password { password:password.into() },
 			})
 			.await
 			.map_err(|_| crate::Error::SendError)?;
@@ -271,22 +292,18 @@ impl<H: Handler> Handle<H> {
 
 	/// Initiate Keyboard-Interactive based SSH authentication.
 	///
-	/// * `submethods` - Hnts to the server the preferred methods to be used for authentication
-	pub async fn authenticate_keyboard_interactive_start<
-		U: Into<String>,
-		S: Into<Option<String>>,
-	>(
+	/// * `submethods` - Hnts to the server the preferred methods to be used for
+	///   authentication
+	pub async fn authenticate_keyboard_interactive_start<U:Into<String>, S:Into<Option<String>>>(
 		&mut self,
-		user: U,
-		submethods: S,
+		user:U,
+		submethods:S,
 	) -> Result<KeyboardInteractiveAuthResponse, crate::Error> {
 		self.sender
 			.send(Msg::Authenticate {
-				user: user.into(),
-				method: auth::Method::KeyboardInteractive {
-					submethods: submethods
-						.into()
-						.unwrap_or_else(|| "".to_owned()),
+				user:user.into(),
+				method:auth::Method::KeyboardInteractive {
+					submethods:submethods.into().unwrap_or_else(|| "".to_owned()),
 				},
 			})
 			.await
@@ -294,15 +311,18 @@ impl<H: Handler> Handle<H> {
 		self.wait_recv_keyboard_interactive_reply().await
 	}
 
-	/// Respond to AuthInfoRequests from the server. A server can send any number of these Requests
-	/// including empty requests. You may have to call this function multple times in order to
-	/// complete Keyboard-Interactive based SSH authentication.
+	/// Respond to AuthInfoRequests from the server. A server can send any
+	/// number of these Requests including empty requests. You may have to call
+	/// this function multple times in order to complete Keyboard-Interactive
+	/// based SSH authentication.
 	///
-	/// * `responses` - The responses to each prompt. The number of responses must match the number
-	/// of prompts. If a prompt has an empty string, then the response should be an empty string.
+	/// * `responses` - The responses to each prompt. The number of responses
+	///   must match the number
+	/// of prompts. If a prompt has an empty string, then the response should be
+	/// an empty string.
 	pub async fn authenticate_keyboard_interactive_respond(
 		&mut self,
-		responses: Vec<String>,
+		responses:Vec<String>,
 	) -> Result<KeyboardInteractiveAuthResponse, crate::Error> {
 		self.sender
 			.send(Msg::AuthInfoResponse { responses })
@@ -317,16 +337,12 @@ impl<H: Handler> Handle<H> {
 		loop {
 			match self.receiver.recv().await {
 				Some(Reply::AuthSuccess) => {
-					return Ok(KeyboardInteractiveAuthResponse::Success)
+					return Ok(KeyboardInteractiveAuthResponse::Success);
 				},
 				Some(Reply::AuthFailure) => {
-					return Ok(KeyboardInteractiveAuthResponse::Failure)
+					return Ok(KeyboardInteractiveAuthResponse::Failure);
 				},
-				Some(Reply::AuthInfoRequest {
-					name,
-					instructions,
-					prompts,
-				}) => {
+				Some(Reply::AuthInfoRequest { name, instructions, prompts }) => {
 					return Ok(KeyboardInteractiveAuthResponse::InfoRequest {
 						name,
 						instructions,
@@ -350,17 +366,14 @@ impl<H: Handler> Handle<H> {
 	}
 
 	/// Perform public key-based SSH authentication.
-	pub async fn authenticate_publickey<U: Into<String>>(
+	pub async fn authenticate_publickey<U:Into<String>>(
 		&mut self,
-		user: U,
-		key: Arc<key::KeyPair>,
+		user:U,
+		key:Arc<key::KeyPair>,
 	) -> Result<bool, crate::Error> {
 		let user = user.into();
 		self.sender
-			.send(Msg::Authenticate {
-				user,
-				method: auth::Method::PublicKey { key },
-			})
+			.send(Msg::Authenticate { user, method:auth::Method::PublicKey { key } })
 			.await
 			.map_err(|_| crate::Error::SendError)?;
 		self.wait_recv_reply().await
@@ -370,19 +383,16 @@ impl<H: Handler> Handle<H> {
 	/// [`Signer`][auth::Signer] trait. Currently, this crate only provides an
 	/// implementation for an [SSH
 	/// agent][russh_keys::agent::client::AgentClient].
-	pub async fn authenticate_future<U: Into<String>, S: auth::Signer>(
+	pub async fn authenticate_future<U:Into<String>, S:auth::Signer>(
 		&mut self,
-		user: U,
-		key: key::PublicKey,
-		mut future: S,
+		user:U,
+		key:key::PublicKey,
+		mut future:S,
 	) -> (S, Result<bool, S::Error>) {
 		let user = user.into();
 		if self
 			.sender
-			.send(Msg::Authenticate {
-				user,
-				method: auth::Method::FuturePublicKey { key },
-			})
+			.send(Msg::Authenticate { user, method:auth::Method::FuturePublicKey { key } })
 			.await
 			.is_err()
 		{
@@ -394,8 +404,7 @@ impl<H: Handler> Handle<H> {
 				Some(Reply::AuthSuccess) => return (future, Ok(true)),
 				Some(Reply::AuthFailure) => return (future, Ok(false)),
 				Some(Reply::SignRequest { key, data }) => {
-					let (f, data) =
-						future.auth_publickey_sign(&key, data).await;
+					let (f, data) = future.auth_publickey_sign(&key, data).await;
 					future = f;
 					let data = match data {
 						Ok(data) => data,
@@ -414,14 +423,14 @@ impl<H: Handler> Handle<H> {
 	/// Wait for confirmation that a channel is open
 	async fn wait_channel_confirmation(
 		&self,
-		mut receiver: UnboundedReceiver<ChannelMsg>,
+		mut receiver:UnboundedReceiver<ChannelMsg>,
 	) -> Result<Channel<Msg>, crate::Error> {
 		loop {
 			match receiver.recv().await {
 				Some(ChannelMsg::Open { id, max_packet_size, window_size }) => {
 					return Ok(Channel {
 						id,
-						sender: self.sender.clone(),
+						sender:self.sender.clone(),
 						receiver,
 						max_packet_size,
 						window_size,
@@ -445,9 +454,7 @@ impl<H: Handler> Handle<H> {
 	/// connection is authenticated, but the channel only becomes
 	/// usable when it's confirmed by the server, as indicated by the
 	/// `confirmed` field of the corresponding `Channel`.
-	pub async fn channel_open_session(
-		&self,
-	) -> Result<Channel<Msg>, crate::Error> {
+	pub async fn channel_open_session(&self) -> Result<Channel<Msg>, crate::Error> {
 		let (sender, receiver) = unbounded_channel();
 		self.sender
 			.send(Msg::ChannelOpenSession { sender })
@@ -457,15 +464,15 @@ impl<H: Handler> Handle<H> {
 	}
 
 	/// Request an X11 channel, on which the X11 protocol may be tunneled.
-	pub async fn channel_open_x11<A: Into<String>>(
+	pub async fn channel_open_x11<A:Into<String>>(
 		&self,
-		originator_address: A,
-		originator_port: u32,
+		originator_address:A,
+		originator_port:u32,
 	) -> Result<Channel<Msg>, crate::Error> {
 		let (sender, receiver) = unbounded_channel();
 		self.sender
 			.send(Msg::ChannelOpenX11 {
-				originator_address: originator_address.into(),
+				originator_address:originator_address.into(),
 				originator_port,
 				sender,
 			})
@@ -482,19 +489,19 @@ impl<H: Handler> Handle<H> {
 	/// [`.data()`][Channel::data], be sure to call [`.eof()`][Channel::eof] to
 	/// indicate that no more data will be sent, or you may see hangs when
 	/// writing large streams.
-	pub async fn channel_open_direct_tcpip<A: Into<String>, B: Into<String>>(
+	pub async fn channel_open_direct_tcpip<A:Into<String>, B:Into<String>>(
 		&self,
-		host_to_connect: A,
-		port_to_connect: u32,
-		originator_address: B,
-		originator_port: u32,
+		host_to_connect:A,
+		port_to_connect:u32,
+		originator_address:B,
+		originator_port:u32,
 	) -> Result<Channel<Msg>, crate::Error> {
 		let (sender, receiver) = unbounded_channel();
 		self.sender
 			.send(Msg::ChannelOpenDirectTcpIp {
-				host_to_connect: host_to_connect.into(),
+				host_to_connect:host_to_connect.into(),
 				port_to_connect,
-				originator_address: originator_address.into(),
+				originator_address:originator_address.into(),
 				originator_port,
 				sender,
 			})
@@ -503,32 +510,25 @@ impl<H: Handler> Handle<H> {
 		self.wait_channel_confirmation(receiver).await
 	}
 
-	pub async fn channel_open_direct_streamlocal<S: Into<String>>(
+	pub async fn channel_open_direct_streamlocal<S:Into<String>>(
 		&self,
-		socket_path: S,
+		socket_path:S,
 	) -> Result<Channel<Msg>, crate::Error> {
 		let (sender, receiver) = unbounded_channel();
 		self.sender
-			.send(Msg::ChannelOpenDirectStreamLocal {
-				socket_path: socket_path.into(),
-				sender,
-			})
+			.send(Msg::ChannelOpenDirectStreamLocal { socket_path:socket_path.into(), sender })
 			.await
 			.map_err(|_| crate::Error::SendError)?;
 		self.wait_channel_confirmation(receiver).await
 	}
 
-	pub async fn tcpip_forward<A: Into<String>>(
+	pub async fn tcpip_forward<A:Into<String>>(
 		&mut self,
-		address: A,
-		port: u32,
+		address:A,
+		port:u32,
 	) -> Result<bool, crate::Error> {
 		self.sender
-			.send(Msg::TcpIpForward {
-				want_reply: true,
-				address: address.into(),
-				port,
-			})
+			.send(Msg::TcpIpForward { want_reply:true, address:address.into(), port })
 			.await
 			.map_err(|_| crate::Error::SendError)?;
 		if port == 0 {
@@ -537,17 +537,13 @@ impl<H: Handler> Handle<H> {
 		Ok(true)
 	}
 
-	pub async fn cancel_tcpip_forward<A: Into<String>>(
+	pub async fn cancel_tcpip_forward<A:Into<String>>(
 		&self,
-		address: A,
-		port: u32,
+		address:A,
+		port:u32,
 	) -> Result<bool, crate::Error> {
 		self.sender
-			.send(Msg::CancelTcpIpForward {
-				want_reply: true,
-				address: address.into(),
-				port,
-			})
+			.send(Msg::CancelTcpIpForward { want_reply:true, address:address.into(), port })
 			.await
 			.map_err(|_| crate::Error::SendError)?;
 		Ok(true)
@@ -556,15 +552,15 @@ impl<H: Handler> Handle<H> {
 	/// Sends a disconnect message.
 	pub async fn disconnect(
 		&self,
-		reason: Disconnect,
-		description: &str,
-		language_tag: &str,
+		reason:Disconnect,
+		description:&str,
+		language_tag:&str,
 	) -> Result<(), crate::Error> {
 		self.sender
 			.send(Msg::Disconnect {
 				reason,
-				description: description.into(),
-				language_tag: language_tag.into(),
+				description:description.into(),
+				language_tag:language_tag.into(),
 			})
 			.await
 			.map_err(|_| crate::Error::SendError)?;
@@ -574,31 +570,33 @@ impl<H: Handler> Handle<H> {
 	/// Send data to the session referenced by this handler.
 	///
 	/// This is useful for server-initiated channels; for channels created by
-	/// the client, prefer to use the Channel returned from the `open_*` methods.
-	pub async fn data(
-		&self,
-		id: ChannelId,
-		data: CryptoVec,
-	) -> Result<(), CryptoVec> {
+	/// the client, prefer to use the Channel returned from the `open_*`
+	/// methods.
+	pub async fn data(&self, id:ChannelId, data:CryptoVec) -> Result<(), CryptoVec> {
 		self.sender
 			.send(Msg::Channel(id, ChannelMsg::Data { data }))
 			.await
-			.map_err(|e| match e.0 {
-				Msg::Channel(_, ChannelMsg::Data { data, .. }) => data,
-				_ => unreachable!(),
+			.map_err(|e| {
+				match e.0 {
+					Msg::Channel(_, ChannelMsg::Data { data, .. }) => data,
+					_ => unreachable!(),
+				}
 			})
 	}
 }
 
-impl<H: Handler> Future for Handle<H> {
+impl<H:Handler> Future for Handle<H> {
 	type Output = Result<(), H::Error>;
-	fn poll(mut self: Pin<&mut Self>, cx: &mut Context) -> Poll<Self::Output> {
+
+	fn poll(mut self: Pin<&mut Self>, cx:&mut Context) -> Poll<Self::Output> {
 		match Future::poll(Pin::new(&mut self.join), cx) {
-			Poll::Ready(r) => Poll::Ready(match r {
-				Ok(Ok(x)) => Ok(x),
-				Err(e) => Err(crate::Error::from(e).into()),
-				Ok(Err(e)) => Err(e),
-			}),
+			Poll::Ready(r) => {
+				Poll::Ready(match r {
+					Ok(Ok(x)) => Ok(x),
+					Err(e) => Err(crate::Error::from(e).into()),
+					Ok(Err(e)) => Err(e),
+				})
+			},
 			Poll::Pending => Poll::Pending,
 		}
 	}
@@ -611,10 +609,10 @@ impl<H: Handler> Future for Handle<H> {
 /// commands, etc. The future will resolve to an error if the connection fails.
 /// This function creates a connection to the `addr` specified using a
 /// [`tokio::net::TcpStream`] and then calls [`connect_stream`] under the hood.
-pub async fn connect<H: Handler + Send + 'static, A: ToSocketAddrs>(
-	config: Arc<Config>,
-	addrs: A,
-	handler: H,
+pub async fn connect<H:Handler + Send + 'static, A:ToSocketAddrs>(
+	config:Arc<Config>,
+	addrs:A,
+	handler:H,
 ) -> Result<Handle<H>, H::Error> {
 	let socket = TcpStream::connect(addrs).await.map_err(crate::Error::from)?;
 	connect_stream(config, socket, handler).await
@@ -625,14 +623,13 @@ pub async fn connect<H: Handler + Send + 'static, A: ToSocketAddrs>(
 /// and [`Send`]. Typically, you may prefer to use [`connect`], which uses a
 /// [`tokio::net::TcpStream`] and then calls this function under the hood.
 pub async fn connect_stream<H, R>(
-	config: Arc<Config>,
-	mut stream: R,
-	handler: H,
+	config:Arc<Config>,
+	mut stream:R,
+	handler:H,
 ) -> Result<Handle<H>, H::Error>
 where
 	H: Handler + Send + 'static,
-	R: AsyncRead + AsyncWrite + Unpin + Send + 'static,
-{
+	R: AsyncRead + AsyncWrite + Unpin + Send + 'static, {
 	// Writing SSH id.
 	let mut write_buffer = SSHBuffer::new();
 	write_buffer.send_ssh_id(&config.as_ref().client_id);
@@ -653,40 +650,39 @@ where
 		config.window_size,
 		CommonSession {
 			write_buffer,
-			kex: None,
-			auth_user: String::new(),
-			auth_attempts: 0,
-			auth_method: None, // Client only.
-			cipher: CipherPair {
-				local_to_remote: Box::new(clear::Key),
-				remote_to_local: Box::new(clear::Key),
+			kex:None,
+			auth_user:String::new(),
+			auth_attempts:0,
+			auth_method:None, // Client only.
+			cipher:CipherPair {
+				local_to_remote:Box::new(clear::Key),
+				remote_to_local:Box::new(clear::Key),
 			},
-			encrypted: None,
+			encrypted:None,
 			config,
-			wants_reply: false,
-			disconnected: false,
-			buffer: CryptoVec::new(),
+			wants_reply:false,
+			disconnected:false,
+			buffer:CryptoVec::new(),
 		},
 		session_receiver,
 		session_sender,
 	);
 	session.read_ssh_id(sshid)?;
 	let (encrypted_signal, encrypted_recv) = tokio::sync::oneshot::channel();
-	let join =
-		tokio::spawn(session.run(stream, handler, Some(encrypted_signal)));
+	let join = tokio::spawn(session.run(stream, handler, Some(encrypted_signal)));
 
 	if encrypted_recv.await.is_err() {
 		join.await.map_err(crate::Error::Join)??;
 		return Err(H::Error::from(crate::Error::Disconnect));
 	}
 
-	Ok(Handle { sender: handle_sender, receiver: handle_receiver, join })
+	Ok(Handle { sender:handle_sender, receiver:handle_receiver, join })
 }
 
-async fn start_reading<R: AsyncRead + Unpin>(
-	mut stream_read: R,
-	mut buffer: SSHBuffer,
-	mut cipher: Box<dyn OpeningKey + Send>,
+async fn start_reading<R:AsyncRead + Unpin>(
+	mut stream_read:R,
+	mut buffer:SSHBuffer,
+	mut cipher:Box<dyn OpeningKey + Send>,
 ) -> Result<(usize, R, SSHBuffer, Box<dyn OpeningKey + Send>), crate::Error> {
 	buffer.buffer.clear();
 	let n = cipher::read(&mut stream_read, &mut buffer, &mut *cipher).await?;
@@ -695,10 +691,10 @@ async fn start_reading<R: AsyncRead + Unpin>(
 
 impl Session {
 	fn new(
-		target_window_size: u32,
-		common: CommonSession<Arc<Config>>,
-		receiver: Receiver<Msg>,
-		sender: UnboundedSender<Reply>,
+		target_window_size:u32,
+		common:CommonSession<Arc<Config>>,
+		receiver:Receiver<Msg>,
+		sender:UnboundedSender<Reply>,
 	) -> Self {
 		let (inbound_channel_sender, inbound_channel_receiver) = channel(10);
 		Self {
@@ -708,20 +704,17 @@ impl Session {
 			target_window_size,
 			inbound_channel_sender,
 			inbound_channel_receiver,
-			channels: HashMap::new(),
-			pending_reads: Vec::new(),
-			pending_len: 0,
+			channels:HashMap::new(),
+			pending_reads:Vec::new(),
+			pending_len:0,
 		}
 	}
 
-	async fn run<
-		H: Handler + Send,
-		R: AsyncRead + AsyncWrite + Unpin + Send,
-	>(
+	async fn run<H:Handler + Send, R:AsyncRead + AsyncWrite + Unpin + Send>(
 		mut self,
-		mut stream: SshRead<R>,
-		mut handler: H,
-		mut encrypted_signal: Option<tokio::sync::oneshot::Sender<()>>,
+		mut stream:SshRead<R>,
+		mut handler:H,
+		mut encrypted_signal:Option<tokio::sync::oneshot::Sender<()>>,
 	) -> Result<(), H::Error> {
 		self.flush()?;
 		if !self.common.write_buffer.buffer.is_empty() {
@@ -741,12 +734,8 @@ impl Session {
 		let buffer = SSHBuffer::new();
 
 		// Allow handing out references to the cipher
-		let mut opening_cipher =
-			Box::new(clear::Key) as Box<dyn OpeningKey + Send>;
-		std::mem::swap(
-			&mut opening_cipher,
-			&mut self.common.cipher.remote_to_local,
-		);
+		let mut opening_cipher = Box::new(clear::Key) as Box<dyn OpeningKey + Send>;
+		std::mem::swap(&mut opening_cipher, &mut self.common.cipher.remote_to_local);
 
 		let reading = start_reading(stream_read, buffer, opening_cipher);
 		pin!(reading);
@@ -828,10 +817,7 @@ impl Session {
 			}
 			self.flush()?;
 			if !self.common.write_buffer.buffer.is_empty() {
-				trace!(
-					"writing to stream: {:?} bytes",
-					self.common.write_buffer.buffer.len()
-				);
+				trace!("writing to stream: {:?} bytes", self.common.write_buffer.buffer.len());
 				stream_write
 					.write_all(&self.common.write_buffer.buffer)
 					.await
@@ -853,7 +839,7 @@ impl Session {
 		Ok(())
 	}
 
-	fn handle_msg(&mut self, msg: Msg) -> Result<(), crate::Error> {
+	fn handle_msg(&mut self, msg:Msg) -> Result<(), crate::Error> {
 		match msg {
 			Msg::Authenticate { user, method } => {
 				self.write_auth_request_if_needed(&user, method);
@@ -864,13 +850,8 @@ impl Session {
 				let id = self.channel_open_session()?;
 				self.channels.insert(id, sender);
 			},
-			Msg::ChannelOpenX11 {
-				originator_address,
-				originator_port,
-				sender,
-			} => {
-				let id = self
-					.channel_open_x11(&originator_address, originator_port)?;
+			Msg::ChannelOpenX11 { originator_address, originator_port, sender } => {
+				let id = self.channel_open_x11(&originator_address, originator_port)?;
 				self.channels.insert(id, sender);
 			},
 			Msg::ChannelOpenDirectTcpIp {
@@ -919,27 +900,22 @@ impl Session {
 					pix_height,
 					terminal_modes,
 				},
-			) => self.request_pty(
-				id,
-				want_reply,
-				&term,
-				col_width,
-				row_height,
-				pix_width,
-				pix_height,
-				&terminal_modes,
-			),
-			Msg::Channel(
-				id,
-				ChannelMsg::WindowChange {
+			) => {
+				self.request_pty(
+					id,
+					want_reply,
+					&term,
 					col_width,
 					row_height,
 					pix_width,
 					pix_height,
-				},
-			) => self.window_change(
-				id, col_width, row_height, pix_width, pix_height,
-			),
+					&terminal_modes,
+				)
+			},
+			Msg::Channel(
+				id,
+				ChannelMsg::WindowChange { col_width, row_height, pix_width, pix_height },
+			) => self.window_change(id, col_width, row_height, pix_width, pix_height),
 			Msg::Channel(
 				id,
 				ChannelMsg::RequestX11 {
@@ -949,35 +925,29 @@ impl Session {
 					x11_authentication_cookie,
 					x11_screen_number,
 				},
-			) => self.request_x11(
-				id,
-				want_reply,
-				single_connection,
-				&x11_authentication_protocol,
-				&x11_authentication_cookie,
-				x11_screen_number,
-			),
-			Msg::Channel(
-				id,
-				ChannelMsg::SetEnv {
+			) => {
+				self.request_x11(
+					id,
 					want_reply,
-					variable_name,
-					variable_value,
-				},
-			) => self.set_env(id, want_reply, &variable_name, &variable_value),
+					single_connection,
+					&x11_authentication_protocol,
+					&x11_authentication_cookie,
+					x11_screen_number,
+				)
+			},
+			Msg::Channel(id, ChannelMsg::SetEnv { want_reply, variable_name, variable_value }) => {
+				self.set_env(id, want_reply, &variable_name, &variable_value)
+			},
 			Msg::Channel(id, ChannelMsg::RequestShell { want_reply }) => {
 				self.request_shell(want_reply, id)
 			},
 			Msg::Channel(id, ChannelMsg::Exec { want_reply, command }) => {
 				self.exec(id, want_reply, &command)
 			},
-			Msg::Channel(id, ChannelMsg::Signal { signal }) => {
-				self.signal(id, signal)
+			Msg::Channel(id, ChannelMsg::Signal { signal }) => self.signal(id, signal),
+			Msg::Channel(id, ChannelMsg::RequestSubsystem { want_reply, name }) => {
+				self.request_subsystem(want_reply, id, &name)
 			},
-			Msg::Channel(
-				id,
-				ChannelMsg::RequestSubsystem { want_reply, name },
-			) => self.request_subsystem(want_reply, id, &name),
 			Msg::Channel(id, ChannelMsg::AgentForward { want_reply }) => {
 				self.agent_forward(id, want_reply)
 			},
@@ -985,10 +955,7 @@ impl Session {
 			msg => {
 				// should be unreachable, since the receiver only gets
 				// messages from methods implemented within russh
-				unimplemented!(
-					"unimplemented (server-only?) message: {:?}",
-					msg
-				)
+				unimplemented!("unimplemented (server-only?) message: {:?}", msg)
 			},
 		}
 		Ok(())
@@ -1002,18 +969,15 @@ impl Session {
 		}
 	}
 
-	fn read_ssh_id(&mut self, sshid: &[u8]) -> Result<(), crate::Error> {
+	fn read_ssh_id(&mut self, sshid:&[u8]) -> Result<(), crate::Error> {
 		// self.read_buffer.bytes += sshid.bytes_read + 2;
 
 		let mut exchange = Exchange::new();
 		exchange.server_id.extend(sshid);
 		// Preparing the response
-		exchange
-			.client_id
-			.extend(self.common.config.client_id.as_kex_hash_bytes());
+		exchange.client_id.extend(self.common.config.client_id.as_kex_hash_bytes());
 
-		let mut kexinit =
-			KexInit { exchange, algo: None, sent: false, session_id: None };
+		let mut kexinit = KexInit { exchange, algo:None, sent:false, session_id:None };
 		self.common.write_buffer.buffer.clear();
 		kexinit.client_write(
 			self.common.config.as_ref(),
@@ -1035,11 +999,8 @@ impl Session {
 			)? {
 				info!("Re-exchanging keys");
 				if enc.rekey.is_none() {
-					if let Some(exchange) =
-						std::mem::replace(&mut enc.exchange, None)
-					{
-						let mut kexinit =
-							KexInit::initiate_rekey(exchange, &enc.session_id);
+					if let Some(exchange) = std::mem::replace(&mut enc.exchange, None) {
+						let mut kexinit = KexInit::initiate_rekey(exchange, &enc.session_id);
 						kexinit.client_write(
 							self.common.config.as_ref(),
 							&mut *self.common.cipher.local_to_remote,
@@ -1054,11 +1015,7 @@ impl Session {
 	}
 
 	/// Send a `ChannelMsg` from the background handler to the client.
-	pub fn send_channel_msg(
-		&self,
-		channel: ChannelId,
-		msg: ChannelMsg,
-	) -> bool {
+	pub fn send_channel_msg(&self, channel:ChannelId, msg:ChannelMsg) -> bool {
 		if let Some(chan) = self.channels.get(&channel) {
 			chan.send(msg).unwrap_or(());
 			true
@@ -1073,11 +1030,11 @@ thread_local! {
 }
 
 impl KexDhDone {
-	async fn server_key_check<H: Handler>(
+	async fn server_key_check<H:Handler>(
 		mut self,
-		rekey: bool,
-		mut handler: H,
-		buf: &[u8],
+		rekey:bool,
+		mut handler:H,
+		buf:&[u8],
 	) -> Result<(NewKeys, H), H::Error> {
 		let mut reader = buf.reader(1);
 
@@ -1101,30 +1058,23 @@ impl KexDhDone {
 			let mut buffer = buffer.borrow_mut();
 			buffer.clear();
 			let hash = {
-				let server_ephemeral =
-					reader.read_string().map_err(crate::Error::from)?;
+				let server_ephemeral = reader.read_string().map_err(crate::Error::from)?;
 				self.exchange.server_ephemeral.extend(server_ephemeral);
-				let signature =
-					reader.read_string().map_err(crate::Error::from)?;
+				let signature = reader.read_string().map_err(crate::Error::from)?;
 
-				self.kex
-					.compute_shared_secret(&self.exchange.server_ephemeral)?;
+				self.kex.compute_shared_secret(&self.exchange.server_ephemeral)?;
 				debug!("kexdhdone.exchange = {:?}", self.exchange);
 
 				let mut pubkey_vec = CryptoVec::new();
 				pubkey.push_to(&mut pubkey_vec);
 
-				let hash = self.kex.compute_exchange_hash(
-					&pubkey_vec,
-					&self.exchange,
-					&mut buffer,
-				)?;
+				let hash =
+					self.kex.compute_exchange_hash(&pubkey_vec, &self.exchange, &mut buffer)?;
 
 				debug!("exchange hash: {:?}", hash);
 				let signature = {
 					let mut sig_reader = signature.reader(0);
-					let sig_type =
-						sig_reader.read_string().map_err(crate::Error::from)?;
+					let sig_type = sig_reader.read_string().map_err(crate::Error::from)?;
 					debug!("sig_type: {:?}", sig_type);
 					sig_reader.read_string().map_err(crate::Error::from)?
 				};
@@ -1143,11 +1093,11 @@ impl KexDhDone {
 	}
 }
 
-async fn reply<H: Handler>(
-	mut session: Session,
-	mut handler: H,
-	sender: &mut Option<tokio::sync::oneshot::Sender<()>>,
-	buf: &[u8],
+async fn reply<H:Handler>(
+	mut session:Session,
+	mut handler:H,
+	sender:&mut Option<tokio::sync::oneshot::Sender<()>>,
+	buf:&[u8],
 ) -> Result<(H, Session), H::Error> {
 	match session.common.kex.take() {
 		Some(Kex::Init(kexinit)) => {
@@ -1185,8 +1135,7 @@ async fn reply<H: Handler>(
 				Ok((handler, session))
 			} else if buf.first() == Some(&msg::KEX_ECDH_REPLY) {
 				// We've sent ECDH_INIT, waiting for ECDH_REPLY
-				let (kex, h) =
-					kexdhdone.server_key_check(false, handler, buf).await?;
+				let (kex, h) = kexdhdone.server_key_check(false, handler, buf).await?;
 				handler = h;
 				session.common.kex = Some(Kex::Keys(kex));
 				session
@@ -1209,9 +1158,7 @@ async fn reply<H: Handler>(
 			if let Some(sender) = sender.take() {
 				sender.send(()).unwrap_or(());
 			}
-			session
-				.common
-				.encrypted(initial_encrypted_state(&session), newkeys);
+			session.common.encrypted(initial_encrypted_state(&session), newkeys);
 			// Ok, NEWKEYS received, now encrypted.
 			Ok((handler, session))
 		},
@@ -1223,14 +1170,11 @@ async fn reply<H: Handler>(
 	}
 }
 
-fn initial_encrypted_state(session: &Session) -> EncryptedState {
+fn initial_encrypted_state(session:&Session) -> EncryptedState {
 	if session.common.config.anonymous {
 		EncryptedState::Authenticated
 	} else {
-		EncryptedState::WaitingAuthServiceRequest {
-			accepted: false,
-			sent: false,
-		}
+		EncryptedState::WaitingAuthServiceRequest { accepted:false, sent:false }
 	}
 }
 
@@ -1238,35 +1182,35 @@ fn initial_encrypted_state(session: &Session) -> EncryptedState {
 #[derive(Debug)]
 pub struct Config {
 	/// The client ID string sent at the beginning of the protocol.
-	pub client_id: SshId,
+	pub client_id:SshId,
 	/// The bytes and time limits before key re-exchange.
-	pub limits: Limits,
+	pub limits:Limits,
 	/// The initial size of a channel (used for flow control).
-	pub window_size: u32,
+	pub window_size:u32,
 	/// The maximal size of a single packet.
-	pub maximum_packet_size: u32,
+	pub maximum_packet_size:u32,
 	/// Lists of preferred algorithms.
-	pub preferred: negotiation::Preferred,
+	pub preferred:negotiation::Preferred,
 	/// Time after which the connection is garbage-collected.
-	pub connection_timeout: Option<std::time::Duration>,
+	pub connection_timeout:Option<std::time::Duration>,
 	/// Whether to expect and wait for an authentication call.
-	pub anonymous: bool,
+	pub anonymous:bool,
 }
 
 impl Default for Config {
 	fn default() -> Config {
 		Config {
-			client_id: SshId::Standard(format!(
+			client_id:SshId::Standard(format!(
 				"SSH-2.0-{}_{}",
 				env!("CARGO_PKG_NAME"),
 				env!("CARGO_PKG_VERSION")
 			)),
-			limits: Limits::default(),
-			window_size: 2097152,
-			maximum_packet_size: 32768,
-			preferred: Default::default(),
-			connection_timeout: None,
-			anonymous: false,
+			limits:Limits::default(),
+			window_size:2097152,
+			maximum_packet_size:32768,
+			preferred:Default::default(),
+			connection_timeout:None,
+			anonymous:false,
 		}
 	}
 }
@@ -1274,7 +1218,8 @@ impl Default for Config {
 /// A client handler. Note that messages can be received from the
 /// server at any time during a session.
 ///
-/// Note: this is an `async_trait`. Click `[source]` on the right to see actual async function definitions.
+/// Note: this is an `async_trait`. Click `[source]` on the right to see actual
+/// async function definitions.
 
 #[async_trait]
 pub trait Handler: Sized + Send {
@@ -1289,8 +1234,8 @@ pub trait Handler: Sized + Send {
 	#[allow(unused_variables)]
 	async fn auth_banner(
 		self,
-		banner: &str,
-		session: Session,
+		banner:&str,
+		session:Session,
 	) -> Result<(Self, Session), Self::Error> {
 		Ok((self, session))
 	}
@@ -1301,7 +1246,7 @@ pub trait Handler: Sized + Send {
 	#[allow(unused_variables)]
 	async fn check_server_key(
 		self,
-		server_public_key: &key::PublicKey,
+		server_public_key:&key::PublicKey,
 	) -> Result<(Self, bool), Self::Error> {
 		Ok((self, false))
 	}
@@ -1312,10 +1257,10 @@ pub trait Handler: Sized + Send {
 	#[allow(unused_variables)]
 	async fn channel_open_confirmation(
 		self,
-		id: ChannelId,
-		max_packet_size: u32,
-		window_size: u32,
-		session: Session,
+		id:ChannelId,
+		max_packet_size:u32,
+		window_size:u32,
+		session:Session,
 	) -> Result<(Self, Session), Self::Error> {
 		if let Some(channel) = session.channels.get(&id) {
 			channel
@@ -1331,8 +1276,8 @@ pub trait Handler: Sized + Send {
 	#[allow(unused_variables)]
 	async fn channel_success(
 		self,
-		channel: ChannelId,
-		session: Session,
+		channel:ChannelId,
+		session:Session,
 	) -> Result<(Self, Session), Self::Error> {
 		if let Some(chan) = session.channels.get(&channel) {
 			chan.send(ChannelMsg::Success).unwrap_or(())
@@ -1344,8 +1289,8 @@ pub trait Handler: Sized + Send {
 	#[allow(unused_variables)]
 	async fn channel_failure(
 		self,
-		channel: ChannelId,
-		session: Session,
+		channel:ChannelId,
+		session:Session,
 	) -> Result<(Self, Session), Self::Error> {
 		if let Some(chan) = session.channels.get(&channel) {
 			chan.send(ChannelMsg::Failure).unwrap_or(())
@@ -1357,8 +1302,8 @@ pub trait Handler: Sized + Send {
 	#[allow(unused_variables)]
 	async fn channel_close(
 		self,
-		channel: ChannelId,
-		mut session: Session,
+		channel:ChannelId,
+		mut session:Session,
 	) -> Result<(Self, Session), Self::Error> {
 		session.channels.remove(&channel);
 		Ok((self, session))
@@ -1368,8 +1313,8 @@ pub trait Handler: Sized + Send {
 	#[allow(unused_variables)]
 	async fn channel_eof(
 		self,
-		channel: ChannelId,
-		session: Session,
+		channel:ChannelId,
+		session:Session,
 	) -> Result<(Self, Session), Self::Error> {
 		if let Some(chan) = session.channels.get(&channel) {
 			chan.send(ChannelMsg::Eof).unwrap_or(())
@@ -1381,11 +1326,11 @@ pub trait Handler: Sized + Send {
 	#[allow(unused_variables)]
 	async fn channel_open_failure(
 		self,
-		channel: ChannelId,
-		reason: ChannelOpenFailure,
-		description: &str,
-		language: &str,
-		mut session: Session,
+		channel:ChannelId,
+		reason:ChannelOpenFailure,
+		description:&str,
+		language:&str,
+		mut session:Session,
 	) -> Result<(Self, Session), Self::Error> {
 		if let Some(sender) = session.channels.remove(&channel) {
 			let _ = sender.send(ChannelMsg::OpenFailure(reason));
@@ -1394,16 +1339,17 @@ pub trait Handler: Sized + Send {
 		Ok((self, session))
 	}
 
-	/// Called when the server opens a channel for a new remote port forwarding connection
+	/// Called when the server opens a channel for a new remote port forwarding
+	/// connection
 	#[allow(unused_variables)]
 	async fn server_channel_open_forwarded_tcpip(
 		self,
-		channel: Channel<Msg>,
-		connected_address: &str,
-		connected_port: u32,
-		originator_address: &str,
-		originator_port: u32,
-		session: Session,
+		channel:Channel<Msg>,
+		connected_address:&str,
+		connected_port:u32,
+		originator_address:&str,
+		originator_port:u32,
+		session:Session,
 	) -> Result<(Self, Session), Self::Error> {
 		Ok((self, session))
 	}
@@ -1412,8 +1358,8 @@ pub trait Handler: Sized + Send {
 	#[allow(unused_variables)]
 	async fn server_channel_open_agent_forward(
 		self,
-		channel: ChannelId,
-		session: Session,
+		channel:ChannelId,
+		session:Session,
 	) -> Result<(Self, Session), Self::Error> {
 		Ok((self, session))
 	}
@@ -1422,20 +1368,14 @@ pub trait Handler: Sized + Send {
 	/// if the channel of unknown type should be handled. If it returns `false`,
 	/// the channel will not be created and an error will be sent to the server.
 	#[allow(unused_variables)]
-	fn server_channel_handle_unknown(
-		&self,
-		channel: ChannelId,
-		channel_type: &[u8],
-	) -> bool {
-		false
-	}
+	fn server_channel_handle_unknown(&self, channel:ChannelId, channel_type:&[u8]) -> bool { false }
 
 	/// Called when the server opens a session channel.
 	#[allow(unused_variables)]
 	async fn server_channel_open_session(
 		self,
-		channel: ChannelId,
-		session: Session,
+		channel:ChannelId,
+		session:Session,
 	) -> Result<(Self, Session), Self::Error> {
 		Ok((self, session))
 	}
@@ -1444,12 +1384,12 @@ pub trait Handler: Sized + Send {
 	#[allow(unused_variables)]
 	async fn server_channel_open_direct_tcpip(
 		self,
-		channel: ChannelId,
-		host_to_connect: &str,
-		port_to_connect: u32,
-		originator_address: &str,
-		originator_port: u32,
-		session: Session,
+		channel:ChannelId,
+		host_to_connect:&str,
+		port_to_connect:u32,
+		originator_address:&str,
+		originator_port:u32,
+		session:Session,
 	) -> Result<(Self, Session), Self::Error> {
 		Ok((self, session))
 	}
@@ -1458,10 +1398,10 @@ pub trait Handler: Sized + Send {
 	#[allow(unused_variables)]
 	async fn server_channel_open_x11(
 		self,
-		channel: Channel<Msg>,
-		originator_address: &str,
-		originator_port: u32,
-		session: Session,
+		channel:Channel<Msg>,
+		originator_address:&str,
+		originator_port:u32,
+		session:Session,
 	) -> Result<(Self, Session), Self::Error> {
 		Ok((self, session))
 	}
@@ -1473,13 +1413,12 @@ pub trait Handler: Sized + Send {
 	#[allow(unused_variables)]
 	async fn data(
 		self,
-		channel: ChannelId,
-		data: &[u8],
-		session: Session,
+		channel:ChannelId,
+		data:&[u8],
+		session:Session,
 	) -> Result<(Self, Session), Self::Error> {
 		if let Some(chan) = session.channels.get(&channel) {
-			chan.send(ChannelMsg::Data { data: CryptoVec::from_slice(data) })
-				.unwrap_or(())
+			chan.send(ChannelMsg::Data { data:CryptoVec::from_slice(data) }).unwrap_or(())
 		}
 		Ok((self, session))
 	}
@@ -1491,17 +1430,14 @@ pub trait Handler: Sized + Send {
 	#[allow(unused_variables)]
 	async fn extended_data(
 		self,
-		channel: ChannelId,
-		ext: u32,
-		data: &[u8],
-		session: Session,
+		channel:ChannelId,
+		ext:u32,
+		data:&[u8],
+		session:Session,
 	) -> Result<(Self, Session), Self::Error> {
 		if let Some(chan) = session.channels.get(&channel) {
-			chan.send(ChannelMsg::ExtendedData {
-				ext,
-				data: CryptoVec::from_slice(data),
-			})
-			.unwrap_or(())
+			chan.send(ChannelMsg::ExtendedData { ext, data:CryptoVec::from_slice(data) })
+				.unwrap_or(())
 		}
 		Ok((self, session))
 	}
@@ -1512,9 +1448,9 @@ pub trait Handler: Sized + Send {
 	#[allow(unused_variables)]
 	async fn xon_xoff(
 		self,
-		channel: ChannelId,
-		client_can_do: bool,
-		session: Session,
+		channel:ChannelId,
+		client_can_do:bool,
+		session:Session,
 	) -> Result<(Self, Session), Self::Error> {
 		if let Some(chan) = session.channels.get(&channel) {
 			chan.send(ChannelMsg::XonXoff { client_can_do }).unwrap_or(())
@@ -1526,9 +1462,9 @@ pub trait Handler: Sized + Send {
 	#[allow(unused_variables)]
 	async fn exit_status(
 		self,
-		channel: ChannelId,
-		exit_status: u32,
-		session: Session,
+		channel:ChannelId,
+		exit_status:u32,
+		session:Session,
 	) -> Result<(Self, Session), Self::Error> {
 		if let Some(chan) = session.channels.get(&channel) {
 			chan.send(ChannelMsg::ExitStatus { exit_status }).unwrap_or(())
@@ -1540,19 +1476,19 @@ pub trait Handler: Sized + Send {
 	#[allow(unused_variables)]
 	async fn exit_signal(
 		self,
-		channel: ChannelId,
-		signal_name: Sig,
-		core_dumped: bool,
-		error_message: &str,
-		lang_tag: &str,
-		session: Session,
+		channel:ChannelId,
+		signal_name:Sig,
+		core_dumped:bool,
+		error_message:&str,
+		lang_tag:&str,
+		session:Session,
 	) -> Result<(Self, Session), Self::Error> {
 		if let Some(chan) = session.channels.get(&channel) {
 			chan.send(ChannelMsg::ExitSignal {
 				signal_name,
 				core_dumped,
-				error_message: error_message.to_string(),
-				lang_tag: lang_tag.to_string(),
+				error_message:error_message.to_string(),
+				lang_tag:lang_tag.to_string(),
 			})
 			.unwrap_or(())
 		}
@@ -1567,9 +1503,9 @@ pub trait Handler: Sized + Send {
 	#[allow(unused_variables)]
 	async fn window_adjusted(
 		self,
-		channel: ChannelId,
-		mut new_size: u32,
-		mut session: Session,
+		channel:ChannelId,
+		mut new_size:u32,
+		mut session:Session,
 	) -> Result<(Self, Session), Self::Error> {
 		if let Some(ref mut enc) = session.common.encrypted {
 			new_size -= enc.flush_pending(channel) as u32;
@@ -1583,16 +1519,14 @@ pub trait Handler: Sized + Send {
 	/// Called when this client adjusts the network window. Return the
 	/// next target window and maximum packet size.
 	#[allow(unused_variables)]
-	fn adjust_window(&mut self, channel: ChannelId, window: u32) -> u32 {
-		window
-	}
+	fn adjust_window(&mut self, channel:ChannelId, window:u32) -> u32 { window }
 
 	/// Called when the server signals success.
 	#[allow(unused_variables)]
 	async fn openssh_ext_host_keys_announced(
 		self,
-		keys: Vec<PublicKey>,
-		session: Session,
+		keys:Vec<PublicKey>,
+		session:Session,
 	) -> Result<(Self, Session), Self::Error> {
 		debug!("openssh_ext_hostkeys_announced: {:?}", keys);
 		Ok((self, session))

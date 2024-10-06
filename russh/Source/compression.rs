@@ -21,7 +21,7 @@ pub enum Decompress {
 
 #[cfg(feature = "flate2")]
 impl Compression {
-	pub fn from_string(s: &str) -> Self {
+	pub fn from_string(s:&str) -> Self {
 		if s == "zlib" || s == "zlib@openssh.com" {
 			Compression::Zlib
 		} else {
@@ -29,22 +29,19 @@ impl Compression {
 		}
 	}
 
-	pub fn init_compress(&self, comp: &mut Compress) {
+	pub fn init_compress(&self, comp:&mut Compress) {
 		if let Compression::Zlib = *self {
 			if let Compress::Zlib(ref mut c) = *comp {
 				c.reset()
 			} else {
-				*comp = Compress::Zlib(flate2::Compress::new(
-					flate2::Compression::fast(),
-					true,
-				))
+				*comp = Compress::Zlib(flate2::Compress::new(flate2::Compression::fast(), true))
 			}
 		} else {
 			*comp = Compress::None
 		}
 	}
 
-	pub fn init_decompress(&self, comp: &mut Decompress) {
+	pub fn init_decompress(&self, comp:&mut Decompress) {
 		if let Compression::Zlib = *self {
 			if let Decompress::Zlib(ref mut c) = *comp {
 				c.reset(true)
@@ -59,21 +56,19 @@ impl Compression {
 
 #[cfg(not(feature = "flate2"))]
 impl Compression {
-	pub fn from_string(_: &str) -> Self {
-		Compression::None
-	}
+	pub fn from_string(_:&str) -> Self { Compression::None }
 
-	pub fn init_compress(&self, _: &mut Compress) {}
+	pub fn init_compress(&self, _:&mut Compress) {}
 
-	pub fn init_decompress(&self, _: &mut Decompress) {}
+	pub fn init_decompress(&self, _:&mut Decompress) {}
 }
 
 #[cfg(not(feature = "flate2"))]
 impl Compress {
 	pub fn compress<'a>(
 		&mut self,
-		input: &'a [u8],
-		_: &'a mut russh_cryptovec::CryptoVec,
+		input:&'a [u8],
+		_:&'a mut russh_cryptovec::CryptoVec,
 	) -> Result<&'a [u8], crate::Error> {
 		Ok(input)
 	}
@@ -83,8 +78,8 @@ impl Compress {
 impl Decompress {
 	pub fn decompress<'a>(
 		&mut self,
-		input: &'a [u8],
-		_: &'a mut russh_cryptovec::CryptoVec,
+		input:&'a [u8],
+		_:&'a mut russh_cryptovec::CryptoVec,
 	) -> Result<&'a [u8], crate::Error> {
 		Ok(input)
 	}
@@ -94,8 +89,8 @@ impl Decompress {
 impl Compress {
 	pub fn compress<'a>(
 		&mut self,
-		input: &'a [u8],
-		output: &'a mut russh_cryptovec::CryptoVec,
+		input:&'a [u8],
+		output:&'a mut russh_cryptovec::CryptoVec,
 	) -> Result<&'a [u8], crate::Error> {
 		match *self {
 			Compress::None => Ok(input),
@@ -129,8 +124,8 @@ impl Compress {
 impl Decompress {
 	pub fn decompress<'a>(
 		&mut self,
-		input: &'a [u8],
-		output: &'a mut russh_cryptovec::CryptoVec,
+		input:&'a [u8],
+		output:&'a mut russh_cryptovec::CryptoVec,
 	) -> Result<&'a [u8], crate::Error> {
 		match *self {
 			Decompress::None => Ok(input),
@@ -144,11 +139,7 @@ impl Decompress {
 					let n_in_ = z.total_in() as usize - n_in;
 					let n_out_ = z.total_out() as usize - n_out;
 					#[allow(clippy::indexing_slicing)] // length checked
-					let d = z.decompress(
-						&input[n_in_..],
-						&mut output[n_out_..],
-						flush,
-					);
+					let d = z.decompress(&input[n_in_..], &mut output[n_out_..], flush);
 					match d? {
 						flate2::Status::Ok => {
 							output.resize(output.len() * 2);

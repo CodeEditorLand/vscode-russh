@@ -1,9 +1,10 @@
-use std::collections::HashMap;
-use std::sync::Arc;
+use std::{collections::HashMap, sync::Arc};
 
 use async_trait::async_trait;
-use russh::server::{Msg, Session};
-use russh::*;
+use russh::{
+	server::{Msg, Session},
+	*,
+};
 use russh_keys::*;
 use tokio::sync::Mutex;
 
@@ -12,25 +13,25 @@ async fn main() {
 	env_logger::builder().filter_level(log::LevelFilter::Debug).init();
 
 	let config = russh::server::Config {
-		connection_timeout: Some(std::time::Duration::from_secs(3600)),
-		auth_rejection_time: std::time::Duration::from_secs(3),
-		auth_rejection_time_initial: Some(std::time::Duration::from_secs(0)),
-		keys: vec![generate_keypair()],
+		connection_timeout:Some(std::time::Duration::from_secs(3600)),
+		auth_rejection_time:std::time::Duration::from_secs(3),
+		auth_rejection_time_initial:Some(std::time::Duration::from_secs(0)),
+		keys:vec![generate_keypair()],
 		..Default::default()
 	};
 	let config = Arc::new(config);
-	let sh = Server { clients: Arc::new(Mutex::new(HashMap::new())), id: 0 };
+	let sh = Server { clients:Arc::new(Mutex::new(HashMap::new())), id:0 };
 	russh::server::run(config, ("0.0.0.0", 2222), sh).await.unwrap();
 }
 
 #[derive(Clone)]
 struct Server {
-	clients: Arc<Mutex<HashMap<(usize, ChannelId), russh::server::Handle>>>,
-	id: usize,
+	clients:Arc<Mutex<HashMap<(usize, ChannelId), russh::server::Handle>>>,
+	id:usize,
 }
 
 impl Server {
-	async fn post(&mut self, data: CryptoVec) {
+	async fn post(&mut self, data:CryptoVec) {
 		let mut clients = self.clients.lock().await;
 		for ((id, channel), ref mut s) in clients.iter_mut() {
 			if *id != self.id {
@@ -42,7 +43,8 @@ impl Server {
 
 impl server::Server for Server {
 	type Handler = Self;
-	fn new_client(&mut self, _: Option<std::net::SocketAddr>) -> Self {
+
+	fn new_client(&mut self, _:Option<std::net::SocketAddr>) -> Self {
 		let s = self.clone();
 		self.id += 1;
 		s
@@ -55,8 +57,8 @@ impl server::Handler for Server {
 
 	async fn channel_open_session(
 		self,
-		channel: Channel<Msg>,
-		session: Session,
+		channel:Channel<Msg>,
+		session:Session,
 	) -> Result<(Self, bool, Session), Self::Error> {
 		{
 			let mut clients = self.clients.lock().await;
@@ -67,22 +69,19 @@ impl server::Handler for Server {
 
 	async fn auth_publickey(
 		self,
-		_: &str,
-		_: &key::PublicKey,
+		_:&str,
+		_:&key::PublicKey,
 	) -> Result<(Self, server::Auth), Self::Error> {
 		Ok((self, server::Auth::Accept))
 	}
 
 	async fn data(
 		mut self,
-		channel: ChannelId,
-		data: &[u8],
-		mut session: Session,
+		channel:ChannelId,
+		data:&[u8],
+		mut session:Session,
 	) -> Result<(Self, Session), Self::Error> {
-		let data = CryptoVec::from(format!(
-			"Got data: {}\r\n",
-			String::from_utf8_lossy(data)
-		));
+		let data = CryptoVec::from(format!("Got data: {}\r\n", String::from_utf8_lossy(data)));
 		self.post(data.clone()).await;
 		session.data(channel, data);
 		Ok((self, session))
@@ -90,9 +89,9 @@ impl server::Handler for Server {
 
 	async fn tcpip_forward(
 		self,
-		address: &str,
-		port: &mut u32,
-		session: Session,
+		address:&str,
+		port:&mut u32,
+		session:Session,
 	) -> Result<(Self, bool, Session), Self::Error> {
 		let handle = session.handle();
 
@@ -118,9 +117,5 @@ fn generate_keypair() -> russh_keys::key::KeyPair {
 
 #[cfg(not(feature = "rs-crypto"))]
 fn generate_keypair() -> russh_keys::key::KeyPair {
-	russh_keys::key::KeyPair::generate_rsa(
-		1024,
-		russh_keys::key::SignatureHash::SHA2_512,
-	)
-	.unwrap()
+	russh_keys::key::KeyPair::generate_rsa(1024, russh_keys::key::SignatureHash::SHA2_512).unwrap()
 }

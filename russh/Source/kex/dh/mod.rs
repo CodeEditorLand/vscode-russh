@@ -13,8 +13,7 @@ use sha2::Sha256;
 
 use self::groups::{DhGroup, DH_GROUP1, DH_GROUP14};
 use super::{compute_keys, KexAlgorithm, KexType};
-use crate::session::Exchange;
-use crate::{cipher, mac, msg};
+use crate::{cipher, mac, msg, session::Exchange};
 
 pub struct DhGroup1Sha1KexType {}
 
@@ -39,30 +38,30 @@ impl KexType for DhGroup14Sha256KexType {
 }
 
 #[doc(hidden)]
-pub struct DhGroupKex<D: Digest> {
-	dh: DH,
-	shared_secret: Option<Vec<u8>>,
-	_digest: PhantomData<D>,
+pub struct DhGroupKex<D:Digest> {
+	dh:DH,
+	shared_secret:Option<Vec<u8>>,
+	_digest:PhantomData<D>,
 }
 
-impl<D: Digest> DhGroupKex<D> {
-	pub fn new(group: &DhGroup) -> DhGroupKex<D> {
+impl<D:Digest> DhGroupKex<D> {
+	pub fn new(group:&DhGroup) -> DhGroupKex<D> {
 		let dh = DH::new(group);
-		DhGroupKex { dh, shared_secret: None, _digest: PhantomData }
+		DhGroupKex { dh, shared_secret:None, _digest:PhantomData }
 	}
 }
 
-impl<D: Digest> std::fmt::Debug for DhGroupKex<D> {
-	fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+impl<D:Digest> std::fmt::Debug for DhGroupKex<D> {
+	fn fmt(&self, f:&mut std::fmt::Formatter) -> std::fmt::Result {
 		write!(f, "Algorithm {{ local_secret: [hidden], shared_secret: [hidden] }}",)
 	}
 }
 
-fn biguint_to_mpint(biguint: &BigUint) -> Vec<u8> {
+fn biguint_to_mpint(biguint:&BigUint) -> Vec<u8> {
 	let mut mpint = Vec::new();
 	let bytes = biguint.to_bytes_be();
 	if let Some(b) = bytes.first() {
-		if b > &0x7f {
+		if b > &0x7F {
 			mpint.push(0);
 		}
 	}
@@ -70,13 +69,11 @@ fn biguint_to_mpint(biguint: &BigUint) -> Vec<u8> {
 	mpint
 }
 
-impl<D: Digest> KexAlgorithm for DhGroupKex<D> {
-	fn skip_exchange(&self) -> bool {
-		false
-	}
+impl<D:Digest> KexAlgorithm for DhGroupKex<D> {
+	fn skip_exchange(&self) -> bool { false }
 
 	#[doc(hidden)]
-	fn server_dh(&mut self, exchange: &mut Exchange, payload: &[u8]) -> Result<(), crate::Error> {
+	fn server_dh(&mut self, exchange:&mut Exchange, payload:&[u8]) -> Result<(), crate::Error> {
 		debug!("server_dh");
 
 		let client_pubkey = {
@@ -125,8 +122,8 @@ impl<D: Digest> KexAlgorithm for DhGroupKex<D> {
 	#[doc(hidden)]
 	fn client_dh(
 		&mut self,
-		client_ephemeral: &mut CryptoVec,
-		buf: &mut CryptoVec,
+		client_ephemeral:&mut CryptoVec,
+		buf:&mut CryptoVec,
 	) -> Result<(), crate::Error> {
 		self.dh.generate_private_key(false);
 
@@ -147,7 +144,7 @@ impl<D: Digest> KexAlgorithm for DhGroupKex<D> {
 		Ok(())
 	}
 
-	fn compute_shared_secret(&mut self, remote_pubkey_: &[u8]) -> Result<(), crate::Error> {
+	fn compute_shared_secret(&mut self, remote_pubkey_:&[u8]) -> Result<(), crate::Error> {
 		let remote_pubkey = DH::decode_public_key(remote_pubkey_);
 
 		if !self.dh.validate_public_key(&remote_pubkey) {
@@ -164,9 +161,9 @@ impl<D: Digest> KexAlgorithm for DhGroupKex<D> {
 
 	fn compute_exchange_hash(
 		&self,
-		key: &CryptoVec,
-		exchange: &Exchange,
-		buffer: &mut CryptoVec,
+		key:&CryptoVec,
+		exchange:&Exchange,
+		buffer:&mut CryptoVec,
 	) -> Result<CryptoVec, crate::Error> {
 		// Computing the exchange hash, see page 7 of RFC 5656.
 		buffer.clear();
@@ -193,12 +190,12 @@ impl<D: Digest> KexAlgorithm for DhGroupKex<D> {
 
 	fn compute_keys(
 		&self,
-		session_id: &CryptoVec,
-		exchange_hash: &CryptoVec,
-		cipher: cipher::Name,
-		remote_to_local_mac: mac::Name,
-		local_to_remote_mac: mac::Name,
-		is_server: bool,
+		session_id:&CryptoVec,
+		exchange_hash:&CryptoVec,
+		cipher:cipher::Name,
+		remote_to_local_mac:mac::Name,
+		local_to_remote_mac:mac::Name,
+		is_server:bool,
 	) -> Result<super::cipher::CipherPair, crate::Error> {
 		compute_keys::<D>(
 			self.shared_secret.as_deref(),

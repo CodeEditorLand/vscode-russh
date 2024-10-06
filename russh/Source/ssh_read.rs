@@ -10,10 +10,10 @@ use crate::Error;
 /// The buffer to read the identification string (first line in the
 /// protocol).
 struct ReadSshIdBuffer {
-	pub buf: CryptoVec,
-	pub total: usize,
-	pub bytes_read: usize,
-	pub sshid_len: usize,
+	pub buf:CryptoVec,
+	pub total:usize,
+	pub bytes_read:usize,
+	pub sshid_len:usize,
 }
 
 impl ReadSshIdBuffer {
@@ -25,12 +25,12 @@ impl ReadSshIdBuffer {
 	pub fn new() -> ReadSshIdBuffer {
 		let mut buf = CryptoVec::new();
 		buf.resize(256);
-		ReadSshIdBuffer { buf, sshid_len: 0, bytes_read: 0, total: 0 }
+		ReadSshIdBuffer { buf, sshid_len:0, bytes_read:0, total:0 }
 	}
 }
 
 impl std::fmt::Debug for ReadSshIdBuffer {
-	fn fmt(&self, fmt: &mut std::fmt::Formatter) -> std::fmt::Result {
+	fn fmt(&self, fmt:&mut std::fmt::Formatter) -> std::fmt::Result {
 		write!(fmt, "ReadSshId {:?}", self.id())
 	}
 }
@@ -39,24 +39,22 @@ impl std::fmt::Debug for ReadSshIdBuffer {
 /// read the identification string. After the first line in the
 /// connection, the `id` parameter is never used again.
 pub struct SshRead<R> {
-	id: Option<ReadSshIdBuffer>,
-	pub r: R,
+	id:Option<ReadSshIdBuffer>,
+	pub r:R,
 }
 
-impl<R: AsyncRead + AsyncWrite> SshRead<R> {
-	pub fn split(
-		self,
-	) -> (SshRead<tokio::io::ReadHalf<R>>, tokio::io::WriteHalf<R>) {
+impl<R:AsyncRead + AsyncWrite> SshRead<R> {
+	pub fn split(self) -> (SshRead<tokio::io::ReadHalf<R>>, tokio::io::WriteHalf<R>) {
 		let (r, w) = tokio::io::split(self.r);
-		(SshRead { id: self.id, r }, w)
+		(SshRead { id:self.id, r }, w)
 	}
 }
 
-impl<R: AsyncRead + Unpin> AsyncRead for SshRead<R> {
+impl<R:AsyncRead + Unpin> AsyncRead for SshRead<R> {
 	fn poll_read(
 		mut self: Pin<&mut Self>,
-		cx: &mut Context,
-		buf: &mut ReadBuf,
+		cx:&mut Context,
+		buf:&mut ReadBuf,
 	) -> Poll<Result<(), std::io::Error>> {
 		if let Some(mut id) = self.id.take() {
 			debug!("id {:?} {:?}", id.total, id.bytes_read);
@@ -73,43 +71,35 @@ impl<R: AsyncRead + Unpin> AsyncRead for SshRead<R> {
 	}
 }
 
-impl<R: std::io::Write> std::io::Write for SshRead<R> {
-	fn write(&mut self, buf: &[u8]) -> Result<usize, std::io::Error> {
-		self.r.write(buf)
-	}
-	fn flush(&mut self) -> Result<(), std::io::Error> {
-		self.r.flush()
-	}
+impl<R:std::io::Write> std::io::Write for SshRead<R> {
+	fn write(&mut self, buf:&[u8]) -> Result<usize, std::io::Error> { self.r.write(buf) }
+
+	fn flush(&mut self) -> Result<(), std::io::Error> { self.r.flush() }
 }
 
-impl<R: AsyncWrite + Unpin> AsyncWrite for SshRead<R> {
+impl<R:AsyncWrite + Unpin> AsyncWrite for SshRead<R> {
 	fn poll_write(
 		mut self: Pin<&mut Self>,
-		cx: &mut Context,
-		buf: &[u8],
+		cx:&mut Context,
+		buf:&[u8],
 	) -> Poll<Result<usize, std::io::Error>> {
 		AsyncWrite::poll_write(Pin::new(&mut self.r), cx, buf)
 	}
 
-	fn poll_flush(
-		mut self: Pin<&mut Self>,
-		cx: &mut Context,
-	) -> Poll<Result<(), std::io::Error>> {
+	fn poll_flush(mut self: Pin<&mut Self>, cx:&mut Context) -> Poll<Result<(), std::io::Error>> {
 		AsyncWrite::poll_flush(Pin::new(&mut self.r), cx)
 	}
 
 	fn poll_shutdown(
 		mut self: Pin<&mut Self>,
-		cx: &mut Context,
+		cx:&mut Context,
 	) -> Poll<Result<(), std::io::Error>> {
 		AsyncWrite::poll_shutdown(Pin::new(&mut self.r), cx)
 	}
 }
 
-impl<R: AsyncRead + Unpin> SshRead<R> {
-	pub fn new(r: R) -> Self {
-		SshRead { id: Some(ReadSshIdBuffer::new()), r }
-	}
+impl<R:AsyncRead + Unpin> SshRead<R> {
+	pub fn new(r:R) -> Self { SshRead { id:Some(ReadSshIdBuffer::new()), r } }
 
 	#[allow(clippy::unwrap_used)]
 	pub async fn read_ssh_id(&mut self) -> Result<&[u8], Error> {
@@ -119,17 +109,13 @@ impl<R: AsyncRead + Unpin> SshRead<R> {
 			debug!("read_ssh_id: reading");
 
 			#[allow(clippy::indexing_slicing)] // length checked
-			let n = AsyncReadExt::read(&mut self.r, &mut ssh_id.buf[ssh_id.total..])
-				.await?;
+			let n = AsyncReadExt::read(&mut self.r, &mut ssh_id.buf[ssh_id.total..]).await?;
 			debug!("read {:?}", n);
 
 			ssh_id.total += n;
 			#[allow(clippy::indexing_slicing)] // length checked
 			{
-				debug!(
-					"{:?}",
-					std::str::from_utf8(&ssh_id.buf[..ssh_id.total])
-				);
+				debug!("{:?}", std::str::from_utf8(&ssh_id.buf[..ssh_id.total]));
 			}
 			if n == 0 {
 				return Err(Error::Disconnect);

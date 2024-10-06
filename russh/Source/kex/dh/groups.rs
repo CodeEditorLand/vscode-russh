@@ -3,13 +3,13 @@ use num_bigint::{BigUint, RandBigInt};
 use rand;
 
 pub struct DhGroup {
-	pub(crate) prime: &'static [u8],
-	pub(crate) generator: usize,
-	pub(crate) exp_size: u64,
+	pub(crate) prime:&'static [u8],
+	pub(crate) generator:usize,
+	pub(crate) exp_size:u64,
 }
 
-pub const DH_GROUP1: DhGroup = DhGroup {
-	prime: hex!(
+pub const DH_GROUP1:DhGroup = DhGroup {
+	prime:hex!(
 		"
         FFFFFFFF FFFFFFFF C90FDAA2 2168C234 C4C6628B 80DC1CD1
          29024E08 8A67CC74 020BBEA6 3B139B22 514A0879 8E3404DD
@@ -20,12 +20,12 @@ pub const DH_GROUP1: DhGroup = DhGroup {
         "
 	)
 	.as_slice(),
-	generator: 2,
-	exp_size: 256,
+	generator:2,
+	exp_size:256,
 };
 
-pub const DH_GROUP14: DhGroup = DhGroup {
-	prime: hex!(
+pub const DH_GROUP14:DhGroup = DhGroup {
+	prime:hex!(
 		"
         FFFFFFFF FFFFFFFF C90FDAA2 2168C234 C4C6628B 80DC1CD1
         29024E08 8A67CC74 020BBEA6 3B139B22 514A0879 8E3404DD
@@ -41,33 +41,33 @@ pub const DH_GROUP14: DhGroup = DhGroup {
         "
 	)
 	.as_slice(),
-	generator: 2,
-	exp_size: 256,
+	generator:2,
+	exp_size:256,
 };
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct DH {
-	prime_num: BigUint,
-	generator: usize,
-	exp_size: u64,
-	private_key: BigUint,
-	public_key: BigUint,
-	shared_secret: BigUint,
+	prime_num:BigUint,
+	generator:usize,
+	exp_size:u64,
+	private_key:BigUint,
+	public_key:BigUint,
+	shared_secret:BigUint,
 }
 
 impl DH {
-	pub fn new(group: &DhGroup) -> Self {
+	pub fn new(group:&DhGroup) -> Self {
 		Self {
-			prime_num: BigUint::from_bytes_be(group.prime),
-			generator: group.generator,
-			exp_size: group.exp_size,
-			private_key: BigUint::default(),
-			public_key: BigUint::default(),
-			shared_secret: BigUint::default(),
+			prime_num:BigUint::from_bytes_be(group.prime),
+			generator:group.generator,
+			exp_size:group.exp_size,
+			private_key:BigUint::default(),
+			public_key:BigUint::default(),
+			shared_secret:BigUint::default(),
 		}
 	}
 
-	pub fn generate_private_key(&mut self, is_server: bool) -> BigUint {
+	pub fn generate_private_key(&mut self, is_server:bool) -> BigUint {
 		let q = (&self.prime_num - &BigUint::from(1u8)) / &BigUint::from(2u8);
 
 		let mut rng = rand::thread_rng();
@@ -81,12 +81,12 @@ impl DH {
 		self.public_key.clone()
 	}
 
-	pub fn compute_shared_secret(&mut self, other_public_key: BigUint) -> BigUint {
+	pub fn compute_shared_secret(&mut self, other_public_key:BigUint) -> BigUint {
 		self.shared_secret = other_public_key.modpow(&self.private_key, &self.prime_num);
 		self.shared_secret.clone()
 	}
 
-	pub fn validate_shared_secret(&self, shared_secret: &BigUint) -> bool {
+	pub fn validate_shared_secret(&self, shared_secret:&BigUint) -> bool {
 		let one = BigUint::from(1u8);
 
 		let prime_minus_one = &self.prime_num - &one;
@@ -94,11 +94,9 @@ impl DH {
 		shared_secret > &one && shared_secret < &prime_minus_one
 	}
 
-	pub fn decode_public_key(buffer: &[u8]) -> BigUint {
-		BigUint::from_bytes_be(buffer)
-	}
+	pub fn decode_public_key(buffer:&[u8]) -> BigUint { BigUint::from_bytes_be(buffer) }
 
-	pub fn validate_public_key(&self, public_key: &BigUint) -> bool {
+	pub fn validate_public_key(&self, public_key:&BigUint) -> bool {
 		let one = BigUint::from(1u8);
 
 		let prime_minus_one = &self.prime_num - &one;

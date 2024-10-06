@@ -5,9 +5,9 @@ use crate::{key, Error};
 /// using the supplied password.
 #[cfg(feature = "openssl")]
 pub fn decode_pkcs5(
-	secret: &[u8],
-	password: Option<&str>,
-	enc: Encryption,
+	secret:&[u8],
+	password:Option<&str>,
+	enc:Encryption,
 ) -> Result<key::KeyPair, Error> {
 	use openssl::symm::{decrypt, Cipher};
 
