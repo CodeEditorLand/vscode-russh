@@ -15,8 +15,11 @@ pub fn decode_pkcs5(
 		let sec = match enc {
 			Encryption::Aes128Cbc(ref iv) => {
 				let mut c = md5::Context::new();
+
 				c.consume(pass.as_bytes());
+
 				c.consume(&iv[..8]);
+
 				let md5 = c.compute();
 
 				#[allow(clippy::unwrap_used)] // AES parameters are static
@@ -24,6 +27,7 @@ pub fn decode_pkcs5(
 			},
 			Encryption::Aes256Cbc(_) => unimplemented!(),
 		};
+
 		super::decode_rsa(&sec)
 	} else {
 		Err(Error::KeyIsEncrypted)

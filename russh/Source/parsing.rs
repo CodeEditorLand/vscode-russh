@@ -29,7 +29,9 @@ impl OpenChannelMessage {
 					std::str::from_utf8(r.read_string().map_err(crate::Error::from)?)
 						.map_err(crate::Error::from)?
 						.to_owned();
+
 				let originator_port = r.read_u32().map_err(crate::Error::from)?;
+
 				ChannelType::X11 { originator_address, originator_port }
 			},
 			b"direct-tcpip" => ChannelType::DirectTcpip(TcpChannelInfo::new(r)?),
@@ -56,9 +58,11 @@ impl OpenChannelMessage {
 	) {
 		push_packet!(buffer, {
 			buffer.push(msg::CHANNEL_OPEN_CONFIRMATION);
+
 			buffer.push_u32_be(self.recipient_channel); // remote channel number.
 			buffer.push_u32_be(sender_channel); // our channel number.
 			buffer.push_u32_be(window_size);
+
 			buffer.push_u32_be(packet_size);
 		});
 	}
@@ -67,9 +71,13 @@ impl OpenChannelMessage {
 	pub fn fail(&self, buffer:&mut CryptoVec, reason:u8, message:&[u8]) {
 		push_packet!(buffer, {
 			buffer.push(msg::CHANNEL_OPEN_FAILURE);
+
 			buffer.push_u32_be(self.recipient_channel);
+
 			buffer.push_u32_be(reason as u32);
+
 			buffer.extend_ssh_string(message);
+
 			buffer.extend_ssh_string(b"en");
 		});
 	}

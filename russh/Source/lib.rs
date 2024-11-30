@@ -135,11 +135,13 @@ macro_rules! push_packet {
 		let x = $x;
 
 		let i1 = $buffer.len();
+
 		use std::ops::DerefMut;
 
 		let buf = $buffer.deref_mut();
 		#[allow(clippy::indexing_slicing)] // length checked
 		BigEndian::write_u32(&mut buf[i0..], (i1 - i0 - 4) as u32);
+
 		x
 	}};
 }
@@ -313,6 +315,7 @@ impl Limits {
 	/// nonce reuse.
 	pub fn new(write_limit:usize, read_limit:usize, time_limit:std::time::Duration) -> Limits {
 		assert!(write_limit <= 1 << 30 && read_limit <= 1 << 30);
+
 		Limits {
 			rekey_write_limit:write_limit,
 			rekey_read_limit:read_limit,
@@ -468,7 +471,9 @@ impl ChannelParams {
 	pub fn confirm(&mut self, c:&ChannelOpenConfirmation) {
 		self.recipient_channel = c.sender_channel; // "sender" is the sender of the confirmation
 		self.recipient_window_size = c.initial_window_size;
+
 		self.recipient_maximum_packet_size = c.maximum_packet_size;
+
 		self.confirmed = true;
 	}
 }
@@ -482,12 +487,14 @@ mod test_compress {
 	};
 
 	use async_trait::async_trait;
+
 	use log::debug;
 
 	use super::{
 		server::{Server as _, Session},
 		*,
 	};
+
 	use crate::server::Msg;
 
 	#[cfg(feature = "rs-crypto")]
@@ -508,9 +515,13 @@ mod test_compress {
 		let client_key = geneate_keypair();
 
 		let mut config = server::Config::default();
+
 		config.preferred = Preferred::COMPRESSED;
+
 		config.connection_timeout = None; // Some(std::time::Duration::from_secs(3));
+
 		config.auth_rejection_time = std::time::Duration::from_secs(3);
+
 		config.keys.push(geneate_keypair());
 
 		let config = Arc::new(config);
@@ -523,7 +534,9 @@ mod test_compress {
 
 		tokio::spawn(async move {
 			let (socket, _) = socket.accept().await.unwrap();
+
 			let server = sh.new_client(socket.peer_addr().ok());
+
 			server::run_stream(config, socket, server).await.unwrap();
 		});
 
@@ -542,14 +555,17 @@ mod test_compress {
 			)
 			.await
 			.unwrap();
+
 		assert!(authenticated);
 
 		let mut channel = session.channel_open_session().await.unwrap();
 
 		let data = &b"Hello, world!"[..];
+
 		channel.data(data).await.unwrap();
 
 		let msg = channel.wait().await.unwrap();
+
 		match msg {
 			ChannelMsg::Data { data: msg_data } => {
 				assert_eq!(*data, *msg_data)
@@ -569,7 +585,9 @@ mod test_compress {
 
 		fn new_client(&mut self, _:Option<std::net::SocketAddr>) -> Self {
 			let s = self.clone();
+
 			self.id += 1;
+
 			s
 		}
 	}
@@ -585,8 +603,10 @@ mod test_compress {
 		) -> Result<(Self, bool, Session), Self::Error> {
 			{
 				let mut clients = self.clients.lock().unwrap();
+
 				clients.insert((self.id, channel.id()), session.handle());
 			}
+
 			Ok((self, true, session))
 		}
 
@@ -596,6 +616,7 @@ mod test_compress {
 			_:&russh_keys::key::PublicKey,
 		) -> Result<(Self, server::Auth), Self::Error> {
 			debug!("auth_publickey");
+
 			Ok((self, server::Auth::Accept))
 		}
 
@@ -606,7 +627,9 @@ mod test_compress {
 			mut session:Session,
 		) -> Result<(Self, Session), Self::Error> {
 			debug!("server data = {:?}", std::str::from_utf8(data));
+
 			session.data(channel, CryptoVec::from_slice(data));
+
 			Ok((self, session))
 		}
 	}
@@ -622,6 +645,7 @@ mod test_compress {
 			_server_public_key:&russh_keys::key::PublicKey,
 		) -> Result<(Self, bool), Self::Error> {
 			// println!("check_server_key: {:?}", server_public_key);
+
 			Ok((self, true))
 		}
 	}
@@ -661,13 +685,21 @@ async fn test_session<RC, RS, CH, SH, F1, F2, CERR, SERR>(
 	}
 
 	let _ = env_logger::try_init();
+
 	let client_key = generate_keypair();
+
 	let mut config = server::Config::default();
+
 	config.connection_timeout = None;
+
 	config.auth_rejection_time = std::time::Duration::from_secs(3);
+
 	config.keys.push(generate_keypair());
+
 	let config = Arc::new(config);
+
 	let socket = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+
 	let addr = socket.local_addr().unwrap();
 
 	#[derive(Clone)]
@@ -694,23 +726,31 @@ async fn test_session<RC, RS, CH, SH, F1, F2, CERR, SERR>(
 			)
 			.await
 			.unwrap();
+
 		assert!(authenticated);
+
 		session
 	});
 
 	let (server_session, client_session) = tokio::join!(server_join, client_join);
+
 	let client_handle = tokio::spawn(run_client(client_session.unwrap()));
+
 	let server_handle = tokio::spawn(run_server(server_session.unwrap().handle()));
 
 	let (server_session, client_session) = tokio::join!(server_handle, client_handle);
+
 	drop(client_session);
+
 	drop(server_session);
 }
 
 #[cfg(test)]
 mod test_channels {
 	use async_trait::async_trait;
+
 	use russh_cryptovec::CryptoVec;
+
 	use tokio::io::{AsyncReadExt, AsyncWriteExt};
 
 	use crate::{client, server, server::Session, test_session, Channel, ChannelId, ChannelMsg};
@@ -738,7 +778,9 @@ mod test_channels {
 				mut session:client::Session,
 			) -> Result<(Self, client::Session), Self::Error> {
 				assert_eq!(data, &b"hello world!"[..]);
+
 				session.data(channel, CryptoVec::from_slice(&b"hey there!"[..]));
+
 				Ok((self, session))
 			}
 		}
@@ -750,7 +792,9 @@ mod test_channels {
 		impl ServerHandle {
 			fn get_auth_waiter(&mut self) -> tokio::sync::oneshot::Receiver<()> {
 				let (tx, rx) = tokio::sync::oneshot::channel();
+
 				self.did_auth = Some(tx);
+
 				rx
 			}
 		}
@@ -774,6 +818,7 @@ mod test_channels {
 				if let Some(a) = self.did_auth.take() {
 					a.send(()).unwrap();
 				}
+
 				Ok((self, session))
 			}
 		}
@@ -781,6 +826,7 @@ mod test_channels {
 		let mut sh = ServerHandle { did_auth:None };
 
 		let a = sh.get_auth_waiter();
+
 		test_session(
 			Client {},
 			sh,
@@ -788,15 +834,19 @@ mod test_channels {
 			|s| {
 				async move {
 					a.await.unwrap();
+
 					let mut ch = s.channel_open_session().await.unwrap();
+
 					ch.data(&b"hello world!"[..]).await.unwrap();
 
 					let msg = ch.wait().await.unwrap();
+
 					if let ChannelMsg::Data { data } = msg {
 						assert_eq!(data.as_ref(), &b"hey there!"[..]);
 					} else {
 						panic!("Unexpected message {:?}", msg);
 					}
+
 					s
 				}
 			},
@@ -830,7 +880,9 @@ mod test_channels {
 				&mut self,
 			) -> tokio::sync::oneshot::Receiver<Channel<server::Msg>> {
 				let (tx, rx) = tokio::sync::oneshot::channel::<Channel<server::Msg>>();
+
 				self.channel = Some(tx);
+
 				rx
 			}
 		}
@@ -854,8 +906,10 @@ mod test_channels {
 			) -> Result<(Self, bool, Session), Self::Error> {
 				if let Some(a) = self.channel.take() {
 					println!("channel open session {:?}", a);
+
 					a.send(channel).unwrap();
 				}
+
 				Ok((self, true, session))
 			}
 		}
@@ -870,11 +924,15 @@ mod test_channels {
 			|client| {
 				async move {
 					let ch = client.channel_open_session().await.unwrap();
+
 					let mut stream = ch.into_stream();
+
 					stream.write_all(&b"request"[..]).await.unwrap();
 
 					let mut buf = Vec::new();
+
 					stream.read_buf(&mut buf).await.unwrap();
+
 					assert_eq!(&buf, &b"response"[..]);
 
 					stream.write_all(&b"reply"[..]).await.unwrap();
@@ -885,10 +943,13 @@ mod test_channels {
 			|server| {
 				async move {
 					let channel = scw.await.unwrap();
+
 					let mut stream = channel.into_stream();
 
 					let mut buf = Vec::new();
+
 					stream.read_buf(&mut buf).await.unwrap();
+
 					assert_eq!(&buf, &b"request"[..]);
 
 					stream.write_all(&b"response"[..]).await.unwrap();
@@ -896,6 +957,7 @@ mod test_channels {
 					buf.clear();
 
 					stream.read_buf(&mut buf).await.unwrap();
+
 					assert_eq!(&buf, &b"reply"[..]);
 
 					server
@@ -948,27 +1010,33 @@ mod test_channels {
 						match msg {
 							ChannelMsg::Data { data } => {
 								channel.data(&data[..]).await.unwrap();
+
 								channel.close().await.unwrap();
+
 								break;
 							},
 							_ => {},
 						}
 					}
 				});
+
 				Ok((self, true, session))
 			}
 		}
 
 		let sh = ServerHandle {};
+
 		test_session(
 			Client {},
 			sh,
 			|c| {
 				async move {
 					let mut ch = c.channel_open_session().await.unwrap();
+
 					ch.data(&b"hello world!"[..]).await.unwrap();
 
 					let msg = ch.wait().await.unwrap();
+
 					if let ChannelMsg::Data { data } = msg {
 						assert_eq!(data.as_ref(), &b"hey there!"[..]);
 					} else {
@@ -976,11 +1044,13 @@ mod test_channels {
 					}
 
 					let msg = ch.wait().await.unwrap();
+
 					let ChannelMsg::Close = msg else {
 						panic!("Unexpected message {:?}", msg);
 					};
 
 					ch.close().await.unwrap();
+
 					c
 				}
 			},

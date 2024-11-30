@@ -181,6 +181,7 @@ pub trait Select {
 				from_utf8(kex_string),
 				pref.kex
 			);
+
 			return Err(Error::NoCommonKexAlgo);
 		};
 
@@ -195,20 +196,24 @@ pub trait Select {
 				from_utf8(key_string),
 				pref.key
 			);
+
 			return Err(Error::NoCommonKeyAlgo);
 		};
 
 		let cipher_string = r.read_string()?;
 
 		let cipher = Self::select(pref.cipher, cipher_string);
+
 		if cipher.is_none() {
 			debug!(
 				"Could not find common cipher, other side only supports {:?}, we only support {:?}",
 				from_utf8(cipher_string),
 				pref.cipher
 			);
+
 			return Err(Error::NoCommonCipher);
 		}
+
 		r.read_string()?; // cipher server-to-client.
 		debug!("kex {}", line!());
 
@@ -239,6 +244,7 @@ pub trait Select {
 			} else {
 				return Err(Error::NoCommonCompression);
 			};
+
 		debug!("kex {}", line!());
 		// server-to-client compression.
 		let server_compression =
@@ -247,11 +253,14 @@ pub trait Select {
 			} else {
 				return Err(Error::NoCommonCompression);
 			};
+
 		debug!("client_compression = {:?}", client_compression);
+
 		r.read_string()?; // languages client-to-server
 		r.read_string()?; // languages server-to-client
 
 		let follows = r.read_byte()? != 0;
+
 		match (cipher, follows) {
 			(Some((_, cipher)), fol) => {
 				Ok(Names {
@@ -278,14 +287,17 @@ pub struct Client;
 impl Select for Server {
 	fn select<S:AsRef<str> + Copy>(server_list:&[S], client_list:&[u8]) -> Option<(bool, S)> {
 		let mut both_first_choice = true;
+
 		for c in client_list.split(|&x| x == b',') {
 			for &s in server_list {
 				if c == s.as_ref().as_bytes() {
 					return Some((both_first_choice, s));
 				}
+
 				both_first_choice = false
 			}
 		}
+
 		None
 	}
 }
@@ -293,23 +305,28 @@ impl Select for Server {
 impl Select for Client {
 	fn select<S:AsRef<str> + Copy>(client_list:&[S], server_list:&[u8]) -> Option<(bool, S)> {
 		let mut both_first_choice = true;
+
 		for &c in client_list {
 			for s in server_list.split(|&x| x == b',') {
 				if s == c.as_ref().as_bytes() {
 					return Some((both_first_choice, c));
 				}
+
 				both_first_choice = false
 			}
 		}
+
 		None
 	}
 }
 
 pub fn write_kex(prefs:&Preferred, buf:&mut CryptoVec, as_server:bool) -> Result<(), Error> {
 	// buf.clear();
+
 	buf.push(msg::KEXINIT);
 
 	let mut cookie = [0; 16];
+
 	rand::thread_rng().fill_bytes(&mut cookie);
 
 	buf.extend(&cookie); // cookie

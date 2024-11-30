@@ -21,7 +21,9 @@ impl<M:digest::Mac + KeyInit + Send + 'static, KL:ArrayLength<u8> + 'static> Mac
 
 	fn make_mac(&self, mac_key:&[u8]) -> Box<dyn Mac + Send> {
 		let mut key = GenericArray::<u8, KL>::default();
+
 		key.clone_from_slice(mac_key);
+
 		Box::new(CryptoEtmMac::<M, KL>(CryptoMac::<M, KL> { key, p:PhantomData }))
 			as Box<dyn Mac + Send>
 	}

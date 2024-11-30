@@ -46,15 +46,18 @@ enum Format {
 /// password.
 pub fn decode_secret_key(secret:&str, password:Option<&str>) -> Result<key::KeyPair, Error> {
 	let mut format = None;
+
 	let secret = {
 		let mut started = false;
 
 		let mut sec = String::new();
+
 		for l in secret.lines() {
 			if started {
 				if l.starts_with("-----END ") {
 					break;
 				}
+
 				if l.chars().all(is_base64_char) {
 					sec.push_str(l)
 				} else if l.starts_with(AES_128_CBC) {
@@ -62,17 +65,23 @@ pub fn decode_secret_key(secret:&str, password:Option<&str>) -> Result<key::KeyP
 					{
 						let iv_:Vec<u8> = HEXLOWER_PERMISSIVE
 							.decode(l.split_at(AES_128_CBC.len()).1.as_bytes())?;
+
 						if iv_.len() != 16 {
 							return Err(Error::CouldNotReadKey);
 						}
+
 						let mut iv = [0; 16];
+
 						iv.clone_from_slice(&iv_);
+
 						format = Some(Format::Pkcs5Encrypted(Encryption::Aes128Cbc(iv)))
 					}
 				}
 			}
+
 			if l == "-----BEGIN OPENSSH PRIVATE KEY-----" {
 				started = true;
+
 				format = Some(Format::Openssh);
 			} else if l == "-----BEGIN RSA PRIVATE KEY-----" {
 				#[cfg(not(feature = "openssl"))]
@@ -82,20 +91,25 @@ pub fn decode_secret_key(secret:&str, password:Option<&str>) -> Result<key::KeyP
 				#[cfg(feature = "openssl")]
 				{
 					started = true;
+
 					format = Some(Format::Rsa);
 				}
 			} else if l == "-----BEGIN ENCRYPTED PRIVATE KEY-----" {
 				started = true;
+
 				format = Some(Format::Pkcs8Encrypted);
 			} else if l == "-----BEGIN PRIVATE KEY-----" {
 				started = true;
+
 				format = Some(Format::Pkcs8);
 			}
 		}
+
 		sec
 	};
 
 	let secret = BASE64_MIME.decode(secret.as_bytes())?;
+
 	match format {
 		Some(Format::Openssh) => decode_openssh(&secret, password),
 		#[cfg(feature = "openssl")]
@@ -111,9 +125,13 @@ pub fn decode_secret_key(secret:&str, password:Option<&str>) -> Result<key::KeyP
 
 pub fn encode_pkcs8_pem<W:Write>(key:&key::KeyPair, mut w:W) -> Result<(), Error> {
 	let x = self::pkcs8::encode_pkcs8(key);
+
 	w.write_all(b"-----BEGIN PRIVATE KEY-----\n")?;
+
 	w.write_all(BASE64_MIME.encode(&x).as_bytes())?;
+
 	w.write_all(b"\n-----END PRIVATE KEY-----\n")?;
+
 	Ok(())
 }
 
@@ -124,9 +142,13 @@ pub fn encode_pkcs8_pem_encrypted<W:Write>(
 	mut w:W,
 ) -> Result<(), Error> {
 	let x = self::pkcs8::encode_pkcs8_encrypted(pass, rounds, key)?;
+
 	w.write_all(b"-----BEGIN ENCRYPTED PRIVATE KEY-----\n")?;
+
 	w.write_all(BASE64_MIME.encode(&x).as_bytes())?;
+
 	w.write_all(b"\n-----END ENCRYPTED PRIVATE KEY-----\n")?;
+
 	Ok(())
 }
 

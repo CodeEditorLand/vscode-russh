@@ -66,6 +66,7 @@ impl KexAlgorithm for Curve25519Kex {
 			let mut pubkey = MontgomeryPoint([0; 32]);
 			#[allow(clippy::indexing_slicing)] // length checked
 			pubkey.0.clone_from_slice(&payload[5..5 + 32]);
+
 			pubkey
 		};
 
@@ -75,10 +76,13 @@ impl KexAlgorithm for Curve25519Kex {
 
 		// fill exchange.
 		exchange.server_ephemeral.clear();
+
 		exchange.server_ephemeral.extend(&server_pubkey.0);
 
 		let shared = server_secret * client_pubkey;
+
 		self.shared_secret = Some(shared);
+
 		Ok(())
 	}
 
@@ -94,12 +98,15 @@ impl KexAlgorithm for Curve25519Kex {
 
 		// fill exchange.
 		client_ephemeral.clear();
+
 		client_ephemeral.extend(&client_pubkey.0);
 
 		buf.push(msg::KEX_ECDH_INIT);
+
 		buf.extend_ssh_string(&client_pubkey.0);
 
 		self.local_secret = Some(client_secret);
+
 		Ok(())
 	}
 
@@ -108,10 +115,13 @@ impl KexAlgorithm for Curve25519Kex {
 			std::mem::replace(&mut self.local_secret, None).ok_or(crate::Error::KexInit)?;
 
 		let mut remote_pubkey = MontgomeryPoint([0; 32]);
+
 		remote_pubkey.0.clone_from_slice(remote_pubkey_);
 
 		let shared = local_secret * remote_pubkey;
+
 		self.shared_secret = Some(shared);
+
 		Ok(())
 	}
 
@@ -123,13 +133,19 @@ impl KexAlgorithm for Curve25519Kex {
 	) -> Result<CryptoVec, crate::Error> {
 		// Computing the exchange hash, see page 7 of RFC 5656.
 		buffer.clear();
+
 		buffer.extend_ssh_string(&exchange.client_id);
+
 		buffer.extend_ssh_string(&exchange.server_id);
+
 		buffer.extend_ssh_string(&exchange.client_kex_init);
+
 		buffer.extend_ssh_string(&exchange.server_kex_init);
 
 		buffer.extend(key);
+
 		buffer.extend_ssh_string(&exchange.client_ephemeral);
+
 		buffer.extend_ssh_string(&exchange.server_ephemeral);
 
 		if let Some(ref shared) = self.shared_secret {
@@ -139,10 +155,13 @@ impl KexAlgorithm for Curve25519Kex {
 		use sha2::Digest;
 
 		let mut hasher = sha2::Sha256::new();
+
 		hasher.update(&buffer);
 
 		let mut res = CryptoVec::new();
+
 		res.extend(hasher.finalize().as_slice());
+
 		Ok(res)
 	}
 

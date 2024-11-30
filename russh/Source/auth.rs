@@ -45,6 +45,7 @@ macro_rules! iter {
 	($y:expr, $x:expr) => {{
 		if $y.contains($x) {
 			$y.remove($x);
+
 			return Some($x);
 		}
 	}};
@@ -55,16 +56,22 @@ impl Iterator for MethodSet {
 
 	fn next(&mut self) -> Option<MethodSet> {
 		iter!(self, MethodSet::NONE);
+
 		iter!(self, MethodSet::PASSWORD);
+
 		iter!(self, MethodSet::PUBLICKEY);
+
 		iter!(self, MethodSet::HOSTBASED);
+
 		iter!(self, MethodSet::KEYBOARD_INTERACTIVE);
+
 		None
 	}
 }
 
 pub trait Signer: Sized {
 	type Error: From<crate::SendError>;
+
 	type Future: futures::Future<Output = (Self, Result<CryptoVec, Self::Error>)> + Send;
 
 	fn auth_publickey_sign(self, key:&key::PublicKey, to_sign:CryptoVec) -> Self::Future;
@@ -89,6 +96,7 @@ impl<R:AsyncRead + AsyncWrite + Unpin + Send + 'static> Signer
 
 	fn auth_publickey_sign(self, key:&key::PublicKey, to_sign:CryptoVec) -> Self::Future {
 		let fut = self.sign_request(key, to_sign);
+
 		futures::FutureExt::boxed(async move {
 			let (a, b) = fut.await;
 			(a, b.map_err(AgentAuthError::Key))

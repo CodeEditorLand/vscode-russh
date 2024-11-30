@@ -45,6 +45,7 @@ pub trait Encoding {
 #[allow(clippy::indexing_slicing)]
 pub fn mpint_len(s:&[u8]) -> usize {
 	let mut i = 0;
+
 	while i < s.len() && s[i] == 0 {
 		i += 1
 	}
@@ -55,6 +56,7 @@ impl Encoding for Vec<u8> {
 	#[allow(clippy::unwrap_used)] // writing into Vec<> can't panic
 	fn extend_ssh_string(&mut self, s:&[u8]) {
 		self.write_u32::<BigEndian>(s.len() as u32).unwrap();
+
 		self.extend(s);
 	}
 
@@ -63,6 +65,7 @@ impl Encoding for Vec<u8> {
 		self.write_u32::<BigEndian>(len as u32).unwrap();
 
 		let current = self.len();
+
 		self.resize(current + len, 0u8);
 		#[allow(clippy::indexing_slicing)] // length is known
 		&mut self[current..]
@@ -73,6 +76,7 @@ impl Encoding for Vec<u8> {
 	fn extend_ssh_mpint(&mut self, s:&[u8]) {
 		// Skip initial 0s.
 		let mut i = 0;
+
 		while i < s.len() && s[i] == 0 {
 			i += 1
 		}
@@ -80,27 +84,33 @@ impl Encoding for Vec<u8> {
 		// by 0.
 		if s[i] & 0x80 != 0 {
 			self.write_u32::<BigEndian>((s.len() - i + 1) as u32).unwrap();
+
 			self.push(0)
 		} else {
 			self.write_u32::<BigEndian>((s.len() - i) as u32).unwrap();
 		}
+
 		self.extend(&s[i..]);
 	}
 
 	#[allow(clippy::indexing_slicing)] // length is known
 	fn extend_list<A:Bytes, I:Iterator<Item = A>>(&mut self, list:I) {
 		let len0 = self.len();
+
 		self.extend([0, 0, 0, 0]);
 
 		let mut first = true;
+
 		for i in list {
 			if !first {
 				self.push(b',')
 			} else {
 				first = false;
 			}
+
 			self.extend(i.bytes())
 		}
+
 		let len = (self.len() - len0 - 4) as u32;
 
 		BigEndian::write_u32(&mut self[len0..], len);
@@ -112,6 +122,7 @@ impl Encoding for Vec<u8> {
 impl Encoding for CryptoVec {
 	fn extend_ssh_string(&mut self, s:&[u8]) {
 		self.push_u32_be(s.len() as u32);
+
 		self.extend(s);
 	}
 
@@ -120,6 +131,7 @@ impl Encoding for CryptoVec {
 		self.push_u32_be(len as u32);
 
 		let current = self.len();
+
 		self.resize(current + len);
 		&mut self[current..]
 	}
@@ -128,6 +140,7 @@ impl Encoding for CryptoVec {
 	fn extend_ssh_mpint(&mut self, s:&[u8]) {
 		// Skip initial 0s.
 		let mut i = 0;
+
 		while i < s.len() && s[i] == 0 {
 			i += 1
 		}
@@ -135,26 +148,32 @@ impl Encoding for CryptoVec {
 		// by 0.
 		if s[i] & 0x80 != 0 {
 			self.push_u32_be((s.len() - i + 1) as u32);
+
 			self.push(0)
 		} else {
 			self.push_u32_be((s.len() - i) as u32);
 		}
+
 		self.extend(&s[i..]);
 	}
 
 	fn extend_list<A:Bytes, I:Iterator<Item = A>>(&mut self, list:I) {
 		let len0 = self.len();
+
 		self.extend(&[0, 0, 0, 0]);
 
 		let mut first = true;
+
 		for i in list {
 			if !first {
 				self.push(b',')
 			} else {
 				first = false;
 			}
+
 			self.extend(i.bytes())
 		}
+
 		let len = (self.len() - len0 - 4) as u32;
 
 		#[allow(clippy::indexing_slicing)] // length is known
@@ -189,10 +208,13 @@ impl<'a> Position<'a> {
 	/// Read one string from this reader.
 	pub fn read_string(&mut self) -> Result<&'a [u8], Error> {
 		let len = self.read_u32()? as usize;
+
 		if self.position + len <= self.s.len() {
 			#[allow(clippy::indexing_slicing)] // length is known
 			let result = &self.s[self.position..(self.position + len)];
+
 			self.position += len;
+
 			Ok(result)
 		} else {
 			Err(Error::IndexOutOfBounds)
@@ -204,7 +226,9 @@ impl<'a> Position<'a> {
 		if self.position + 4 <= self.s.len() {
 			#[allow(clippy::indexing_slicing)] // length is known
 			let u = BigEndian::read_u32(&self.s[self.position..]);
+
 			self.position += 4;
+
 			Ok(u)
 		} else {
 			Err(Error::IndexOutOfBounds)
@@ -216,7 +240,9 @@ impl<'a> Position<'a> {
 		if self.position < self.s.len() {
 			#[allow(clippy::indexing_slicing)] // length is known
 			let u = self.s[self.position];
+
 			self.position += 1;
+
 			Ok(u)
 		} else {
 			Err(Error::IndexOutOfBounds)
@@ -226,10 +252,13 @@ impl<'a> Position<'a> {
 	/// Read one byte from this reader.
 	pub fn read_mpint(&mut self) -> Result<&'a [u8], Error> {
 		let len = self.read_u32()? as usize;
+
 		if self.position + len <= self.s.len() {
 			#[allow(clippy::indexing_slicing)] // length was checked
 			let result = &self.s[self.position..(self.position + len)];
+
 			self.position += len;
+
 			Ok(result)
 		} else {
 			Err(Error::IndexOutOfBounds)

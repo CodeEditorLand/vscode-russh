@@ -107,17 +107,25 @@ pub(crate) static KEXES:Lazy<HashMap<&'static Name, &(dyn KexType + Send + Sync)
 		let mut h:HashMap<&'static Name, &(dyn KexType + Send + Sync)> = HashMap::new();
 		#[cfg(feature = "rs-crypto")]
 		h.insert(&CURVE25519, &_CURVE25519);
+
 		h.insert(&DH_G14_SHA256, &_DH_G14_SHA256);
+
 		h.insert(&DH_G14_SHA1, &_DH_G14_SHA1);
+
 		h.insert(&DH_G1_SHA1, &_DH_G1_SHA1);
+
 		h.insert(&NONE, &_NONE);
+
 		h
 	});
 
 thread_local! {
 	static KEY_BUF: RefCell<CryptoVec> = RefCell::new(CryptoVec::new());
+
 	static NONCE_BUF: RefCell<CryptoVec> = RefCell::new(CryptoVec::new());
+
 	static MAC_BUF: RefCell<CryptoVec> = RefCell::new(CryptoVec::new());
+
 	static BUFFER: RefCell<CryptoVec> = RefCell::new(CryptoVec::new());
 }
 
@@ -131,7 +139,9 @@ pub(crate) fn compute_keys<D:Digest>(
 	is_server:bool,
 ) -> Result<super::cipher::CipherPair, crate::Error> {
 	let cipher = CIPHERS.get(&cipher).ok_or(crate::Error::UnknownAlgo)?;
+
 	let remote_to_local_mac = MACS.get(&remote_to_local_mac).ok_or(crate::Error::UnknownAlgo)?;
+
 	let local_to_remote_mac = MACS.get(&local_to_remote_mac).ok_or(crate::Error::UnknownAlgo)?;
 
 	// https://tools.ietf.org/html/rfc4253#section-7.2
@@ -141,7 +151,9 @@ pub(crate) fn compute_keys<D:Digest>(
 				MAC_BUF.with(|mac| {
 					let compute_key = |c, key:&mut CryptoVec, len| -> Result<(), crate::Error> {
 						let mut buffer = buffer.borrow_mut();
+
 						buffer.clear();
+
 						key.clear();
 
 						if let Some(shared) = shared_secret {
@@ -149,32 +161,46 @@ pub(crate) fn compute_keys<D:Digest>(
 						}
 
 						buffer.extend(exchange_hash.as_ref());
+
 						buffer.push(c);
+
 						buffer.extend(session_id.as_ref());
+
 						let hash = {
 							let mut hasher = D::new();
+
 							hasher.update(&buffer[..]);
+
 							hasher.finalize()
 						};
+
 						key.extend(hash.as_ref());
 
 						while key.len() < len {
 							// extend.
 							buffer.clear();
+
 							if let Some(shared) = shared_secret {
 								buffer.extend_ssh_mpint(shared);
 							}
+
 							buffer.extend(exchange_hash.as_ref());
+
 							buffer.extend(key);
+
 							let hash = {
 								let mut hasher = D::new();
+
 								hasher.update(&buffer[..]);
+
 								hasher.finalize()
 							};
+
 							key.extend(hash.as_ref());
 						}
 
 						key.resize(len);
+
 						Ok(())
 					};
 
@@ -188,19 +214,26 @@ pub(crate) fn compute_keys<D:Digest>(
 						if is_server { (b'F', b'E') } else { (b'E', b'F') };
 
 					let mut key = key.borrow_mut();
+
 					let mut nonce = nonce.borrow_mut();
+
 					let mut mac = mac.borrow_mut();
 
 					compute_key(local_to_remote, &mut key, cipher.key_len())?;
+
 					compute_key(local_to_remote_nonce, &mut nonce, cipher.nonce_len())?;
+
 					compute_key(local_to_remote_mac_key, &mut mac, local_to_remote_mac.key_len())?;
 
 					let local_to_remote =
 						cipher.make_sealing_key(&key, &nonce, &mac, *local_to_remote_mac)?;
 
 					compute_key(remote_to_local, &mut key, cipher.key_len())?;
+
 					compute_key(remote_to_local_nonce, &mut nonce, cipher.nonce_len())?;
+
 					compute_key(remote_to_local_mac_key, &mut mac, remote_to_local_mac.key_len())?;
+
 					let remote_to_local =
 						cipher.make_opening_key(&key, &nonce, &mac, *remote_to_local_mac)?;
 

@@ -151,12 +151,14 @@ impl<S:From<(ChannelId, ChannelMsg)> + Send + 'static> Channel<S> {
 			terminal_modes:terminal_modes.to_vec(),
 		})
 		.await?;
+
 		Ok(())
 	}
 
 	/// Request a remote shell.
 	pub async fn request_shell(&mut self, want_reply:bool) -> Result<(), Error> {
 		self.send_msg(ChannelMsg::RequestShell { want_reply }).await?;
+
 		Ok(())
 	}
 
@@ -165,12 +167,14 @@ impl<S:From<(ChannelId, ChannelMsg)> + Send + 'static> Channel<S> {
 	/// tunneling to its standard input).
 	pub async fn exec<A:Into<Vec<u8>>>(&mut self, want_reply:bool, command:A) -> Result<(), Error> {
 		self.send_msg(ChannelMsg::Exec { want_reply, command:command.into() }).await?;
+
 		Ok(())
 	}
 
 	/// Signal a remote process.
 	pub async fn signal(&mut self, signal:Sig) -> Result<(), Error> {
 		self.send_msg(ChannelMsg::Signal { signal }).await?;
+
 		Ok(())
 	}
 
@@ -182,6 +186,7 @@ impl<S:From<(ChannelId, ChannelMsg)> + Send + 'static> Channel<S> {
 	) -> Result<(), Error> {
 		self.send_msg(ChannelMsg::RequestSubsystem { want_reply, name:name.into() })
 			.await?;
+
 		Ok(())
 	}
 
@@ -205,6 +210,7 @@ impl<S:From<(ChannelId, ChannelMsg)> + Send + 'static> Channel<S> {
 			x11_screen_number,
 		})
 		.await?;
+
 		Ok(())
 	}
 
@@ -221,6 +227,7 @@ impl<S:From<(ChannelId, ChannelMsg)> + Send + 'static> Channel<S> {
 			variable_value:variable_value.into(),
 		})
 		.await?;
+
 		Ok(())
 	}
 
@@ -234,12 +241,14 @@ impl<S:From<(ChannelId, ChannelMsg)> + Send + 'static> Channel<S> {
 	) -> Result<(), Error> {
 		self.send_msg(ChannelMsg::WindowChange { col_width, row_height, pix_width, pix_height })
 			.await?;
+
 		Ok(())
 	}
 
 	/// Inform the server that we will accept agent forwarding channels
 	pub async fn agent_forward(&mut self, want_reply:bool) -> Result<(), Error> {
 		self.send_msg(ChannelMsg::AgentForward { want_reply }).await?;
+
 		Ok(())
 	}
 
@@ -265,13 +274,16 @@ impl<S:From<(ChannelId, ChannelMsg)> + Send + 'static> Channel<S> {
 		mut data:R,
 	) -> Result<(), Error> {
 		let mut total = 0;
+
 		loop {
 			// wait for the window to be restored.
 			while self.window_size == 0 {
 				match self.receiver.recv().await {
 					Some(ChannelMsg::WindowAdjusted { new_size }) => {
 						debug!("window adjusted: {:?}", new_size);
+
 						self.window_size = new_size;
+
 						break;
 					},
 					Some(msg) => {
@@ -280,10 +292,12 @@ impl<S:From<(ChannelId, ChannelMsg)> + Send + 'static> Channel<S> {
 					None => break,
 				}
 			}
+
 			debug!(
 				"sending data, self.window_size = {:?}, self.max_packet_size = {:?}, total = {:?}",
 				self.window_size, self.max_packet_size, total
 			);
+
 			let sendable = self.window_size.min(self.max_packet_size) as usize;
 
 			debug!("sendable {:?}", sendable);
@@ -295,17 +309,24 @@ impl<S:From<(ChannelId, ChannelMsg)> + Send + 'static> Channel<S> {
 			}
 
 			let mut c = CryptoVec::new_zeroed(sendable);
+
 			let n = data.read(&mut c[..]).await?;
+
 			total += n;
+
 			c.resize(n);
+
 			self.window_size -= n as u32;
+
 			self.send_data_packet(ext, c).await?;
+
 			if n == 0 {
 				break;
 			} else if self.window_size > 0 {
 				continue;
 			}
 		}
+
 		Ok(())
 	}
 
@@ -316,11 +337,13 @@ impl<S:From<(ChannelId, ChannelMsg)> + Send + 'static> Channel<S> {
 			ChannelMsg::Data { data }
 		})
 		.await?;
+
 		Ok(())
 	}
 
 	pub async fn eof(&mut self) -> Result<(), Error> {
 		self.send_msg(ChannelMsg::Eof).await?;
+
 		Ok(())
 	}
 
@@ -329,6 +352,7 @@ impl<S:From<(ChannelId, ChannelMsg)> + Send + 'static> Channel<S> {
 		match self.receiver.recv().await {
 			Some(ChannelMsg::WindowAdjusted { new_size }) => {
 				self.window_size = new_size;
+
 				Some(ChannelMsg::WindowAdjusted { new_size })
 			},
 			Some(msg) => Some(msg),
@@ -343,6 +367,7 @@ impl<S:From<(ChannelId, ChannelMsg)> + Send + 'static> Channel<S> {
 	/// Request that the channel be closed.
 	pub async fn close(&self) -> Result<(), Error> {
 		self.send_msg(ChannelMsg::Close).await?;
+
 		Ok(())
 	}
 
@@ -357,12 +382,16 @@ impl<S:From<(ChannelId, ChannelMsg)> + Send + 'static> Channel<S> {
 							Some(data) if !data.is_empty() => self.data(&data[..]).await?,
 							Some(_) => {
 								log::debug!("closing chan {:?}, received empty data", &self.id);
+
 								self.eof().await?;
+
 								self.close().await?;
+
 								break;
 							},
 							None => {
 								self.close().await?;
+
 								break
 							}
 						}
@@ -372,19 +401,24 @@ impl<S:From<(ChannelId, ChannelMsg)> + Send + 'static> Channel<S> {
 							Some(ChannelMsg::Data { data }) => {
 								w_tx.send(data[..].into()).map_err(|_| crate::Error::SendError)?;
 							}
+
 							Some(ChannelMsg::Eof) => {
 								// Send a 0-length chunk to indicate EOF.
 								w_tx.send("".into()).map_err(|_| crate::Error::SendError)?;
+
 								break
 							}
+
 							None => break,
 							_ => (),
 						}
 					}
 				}
 			}
+
 			Ok::<_, crate::Error>(())
 		});
+
 		stream
 	}
 }

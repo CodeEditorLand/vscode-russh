@@ -43,10 +43,13 @@ impl super::Cipher for GcmCipher {
 		_:&dyn MacAlgorithm,
 	) -> Result<Box<dyn super::OpeningKey + Send>, Error> {
 		let mut key = GenericArray::<u8, KeySize>::default();
+
 		key.clone_from_slice(k);
 
 		let mut nonce = GenericArray::<u8, NonceSize>::default();
+
 		nonce.clone_from_slice(n);
+
 		Ok(Box::new(OpeningKey { nonce, cipher:Aes256Gcm::new(&key) }))
 	}
 
@@ -58,10 +61,13 @@ impl super::Cipher for GcmCipher {
 		_:&dyn MacAlgorithm,
 	) -> Result<Box<dyn super::SealingKey + Send>, Error> {
 		let mut key = GenericArray::<u8, KeySize>::default();
+
 		key.clone_from_slice(k);
 
 		let mut nonce = GenericArray::<u8, NonceSize>::default();
+
 		nonce.clone_from_slice(n);
+
 		Ok(Box::new(SealingKey { nonce, cipher:Aes256Gcm::new(&key) }))
 	}
 }
@@ -83,6 +89,7 @@ fn make_nonce(
 	sequence_number:u32,
 ) -> GenericArray<u8, NonceSize> {
 	let mut new_nonce = GenericArray::<u8, NonceSize>::default();
+
 	new_nonce.clone_from_slice(nonce);
 	// Increment the nonce
 	let i0 = new_nonce.len() - 8;
@@ -93,6 +100,7 @@ fn make_nonce(
 	// GCM requires the counter to start from 1
 	#[allow(clippy::indexing_slicing)] // length checked
 	BigEndian::write_u64(&mut new_nonce[i0..], ctr + sequence_number as u64 - GCM_COUNTER_OFFSET);
+
 	new_nonce
 }
 
@@ -127,6 +135,7 @@ impl super::OpeningKey for OpeningKey {
 		let nonce = make_nonce(&self.nonce, sequence_number);
 
 		let mut tag_buf = GenericArray::<u8, TagSize>::default();
+
 		tag_buf.clone_from_slice(tag);
 
 		#[allow(clippy::indexing_slicing)]
@@ -154,6 +163,7 @@ impl super::SealingKey for SealingKey {
 		} else {
 			block_size - ((super::PADDING_LENGTH_LEN + payload.len()) % block_size)
 		};
+
 		if padding_len < super::PACKET_LENGTH_LEN {
 			padding_len + block_size
 		} else {

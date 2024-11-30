@@ -41,8 +41,11 @@ impl<C:StreamCipher + KeySizeUser + IvSizeUser + KeyIvInit + Send + 'static> sup
 		let mut key = GenericArray::<u8, C::KeySize>::default();
 
 		let mut nonce = GenericArray::<u8, C::IvSize>::default();
+
 		key.clone_from_slice(k);
+
 		nonce.clone_from_slice(n);
+
 		Ok(Box::new(OpeningKey { cipher:C::new(&key, &nonce), mac:mac.make_mac(m) }))
 	}
 
@@ -56,8 +59,11 @@ impl<C:StreamCipher + KeySizeUser + IvSizeUser + KeyIvInit + Send + 'static> sup
 		let mut key = GenericArray::<u8, C::KeySize>::default();
 
 		let mut nonce = GenericArray::<u8, C::IvSize>::default();
+
 		key.clone_from_slice(k);
+
 		nonce.clone_from_slice(n);
+
 		Ok(Box::new(SealingKey { cipher:C::new(&key, &nonce), mac:mac.make_mac(m) }))
 	}
 }
@@ -83,7 +89,9 @@ impl<C:StreamCipher + KeySizeUser + IvSizeUser> super::OpeningKey for OpeningKey
 		} else {
 			// Work around uncloneable Aes<>
 			let mut cipher:C = unsafe { std::ptr::read(&self.cipher as *const C) };
+
 			cipher.apply_keystream(&mut encrypted_packet_length);
+
 			Ok(encrypted_packet_length)
 		}
 	}
@@ -110,6 +118,7 @@ impl<C:StreamCipher + KeySizeUser + IvSizeUser> super::OpeningKey for OpeningKey
 				return Err(Error::PacketAuth);
 			}
 		}
+
 		Ok(ciphertext_in_plaintext_out)
 	}
 }
@@ -127,6 +136,7 @@ impl<C:StreamCipher + KeySizeUser + IvSizeUser> super::SealingKey for SealingKey
 		} else {
 			block_size - ((pll + super::PADDING_LENGTH_LEN + payload.len()) % block_size)
 		};
+
 		if padding_len < PACKET_LENGTH_LEN {
 			padding_len + block_size
 		} else {
@@ -148,9 +158,11 @@ impl<C:StreamCipher + KeySizeUser + IvSizeUser> super::SealingKey for SealingKey
 			#[allow(clippy::indexing_slicing)]
 			self.cipher
 				.apply_keystream(&mut plaintext_in_ciphertext_out[PACKET_LENGTH_LEN..]);
+
 			self.mac.compute(sequence_number, plaintext_in_ciphertext_out, tag_out);
 		} else {
 			self.mac.compute(sequence_number, plaintext_in_ciphertext_out, tag_out);
+
 			self.cipher.apply_keystream(plaintext_in_ciphertext_out);
 		}
 	}

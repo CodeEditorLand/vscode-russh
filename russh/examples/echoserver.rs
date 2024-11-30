@@ -19,8 +19,11 @@ async fn main() {
 		keys:vec![generate_keypair()],
 		..Default::default()
 	};
+
 	let config = Arc::new(config);
+
 	let sh = Server { clients:Arc::new(Mutex::new(HashMap::new())), id:0 };
+
 	russh::server::run(config, ("0.0.0.0", 2222), sh).await.unwrap();
 }
 
@@ -33,6 +36,7 @@ struct Server {
 impl Server {
 	async fn post(&mut self, data:CryptoVec) {
 		let mut clients = self.clients.lock().await;
+
 		for ((id, channel), ref mut s) in clients.iter_mut() {
 			if *id != self.id {
 				let _ = s.data(*channel, data.clone()).await;
@@ -46,7 +50,9 @@ impl server::Server for Server {
 
 	fn new_client(&mut self, _:Option<std::net::SocketAddr>) -> Self {
 		let s = self.clone();
+
 		self.id += 1;
+
 		s
 	}
 }
@@ -62,8 +68,10 @@ impl server::Handler for Server {
 	) -> Result<(Self, bool, Session), Self::Error> {
 		{
 			let mut clients = self.clients.lock().await;
+
 			clients.insert((self.id, channel.id()), session.handle());
 		}
+
 		Ok((self, true, session))
 	}
 
@@ -82,8 +90,11 @@ impl server::Handler for Server {
 		mut session:Session,
 	) -> Result<(Self, Session), Self::Error> {
 		let data = CryptoVec::from(format!("Got data: {}\r\n", String::from_utf8_lossy(data)));
+
 		self.post(data.clone()).await;
+
 		session.data(channel, data);
+
 		Ok((self, session))
 	}
 
@@ -98,14 +109,18 @@ impl server::Handler for Server {
 		let address = address.to_string();
 
 		let port = *port;
+
 		tokio::spawn(async move {
 			let mut channel = handle
 				.channel_open_forwarded_tcpip(address, port, "1.2.3.4", 1234)
 				.await
 				.unwrap();
+
 			let _ = channel.data(&b"Hello from a forwarded port"[..]).await;
+
 			let _ = channel.eof().await;
 		});
+
 		Ok((self, true, session))
 	}
 }

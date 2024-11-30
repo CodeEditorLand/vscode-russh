@@ -266,10 +266,12 @@ impl<H:Handler> Handle<H> {
 		user:U,
 	) -> Result<bool, crate::Error> {
 		let user = user.into();
+
 		self.sender
 			.send(Msg::Authenticate { user, method:auth::Method::None })
 			.await
 			.map_err(|_| crate::Error::SendError)?;
+
 		self.wait_recv_reply().await
 	}
 
@@ -280,6 +282,7 @@ impl<H:Handler> Handle<H> {
 		password:P,
 	) -> Result<bool, crate::Error> {
 		let user = user.into();
+
 		self.sender
 			.send(Msg::Authenticate {
 				user,
@@ -287,6 +290,7 @@ impl<H:Handler> Handle<H> {
 			})
 			.await
 			.map_err(|_| crate::Error::SendError)?;
+
 		self.wait_recv_reply().await
 	}
 
@@ -308,6 +312,7 @@ impl<H:Handler> Handle<H> {
 			})
 			.await
 			.map_err(|_| crate::Error::SendError)?;
+
 		self.wait_recv_keyboard_interactive_reply().await
 	}
 
@@ -328,6 +333,7 @@ impl<H:Handler> Handle<H> {
 			.send(Msg::AuthInfoResponse { responses })
 			.await
 			.map_err(|_| crate::Error::SendError)?;
+
 		self.wait_recv_keyboard_interactive_reply().await
 	}
 
@@ -372,10 +378,12 @@ impl<H:Handler> Handle<H> {
 		key:Arc<key::KeyPair>,
 	) -> Result<bool, crate::Error> {
 		let user = user.into();
+
 		self.sender
 			.send(Msg::Authenticate { user, method:auth::Method::PublicKey { key } })
 			.await
 			.map_err(|_| crate::Error::SendError)?;
+
 		self.wait_recv_reply().await
 	}
 
@@ -390,6 +398,7 @@ impl<H:Handler> Handle<H> {
 		mut future:S,
 	) -> (S, Result<bool, S::Error>) {
 		let user = user.into();
+
 		if self
 			.sender
 			.send(Msg::Authenticate { user, method:auth::Method::FuturePublicKey { key } })
@@ -398,18 +407,23 @@ impl<H:Handler> Handle<H> {
 		{
 			return (future, Err((crate::SendError {}).into()));
 		}
+
 		loop {
 			let reply = self.receiver.recv().await;
+
 			match reply {
 				Some(Reply::AuthSuccess) => return (future, Ok(true)),
 				Some(Reply::AuthFailure) => return (future, Ok(false)),
 				Some(Reply::SignRequest { key, data }) => {
 					let (f, data) = future.auth_publickey_sign(&key, data).await;
+
 					future = f;
+
 					let data = match data {
 						Ok(data) => data,
 						Err(e) => return (future, Err(e)),
 					};
+
 					if self.sender.send(Msg::Signed { data }).await.is_err() {
 						return (future, Err((crate::SendError {}).into()));
 					}
@@ -456,10 +470,12 @@ impl<H:Handler> Handle<H> {
 	/// `confirmed` field of the corresponding `Channel`.
 	pub async fn channel_open_session(&self) -> Result<Channel<Msg>, crate::Error> {
 		let (sender, receiver) = unbounded_channel();
+
 		self.sender
 			.send(Msg::ChannelOpenSession { sender })
 			.await
 			.map_err(|_| crate::Error::SendError)?;
+
 		self.wait_channel_confirmation(receiver).await
 	}
 
@@ -470,6 +486,7 @@ impl<H:Handler> Handle<H> {
 		originator_port:u32,
 	) -> Result<Channel<Msg>, crate::Error> {
 		let (sender, receiver) = unbounded_channel();
+
 		self.sender
 			.send(Msg::ChannelOpenX11 {
 				originator_address:originator_address.into(),
@@ -478,6 +495,7 @@ impl<H:Handler> Handle<H> {
 			})
 			.await
 			.map_err(|_| crate::Error::SendError)?;
+
 		self.wait_channel_confirmation(receiver).await
 	}
 
@@ -497,6 +515,7 @@ impl<H:Handler> Handle<H> {
 		originator_port:u32,
 	) -> Result<Channel<Msg>, crate::Error> {
 		let (sender, receiver) = unbounded_channel();
+
 		self.sender
 			.send(Msg::ChannelOpenDirectTcpIp {
 				host_to_connect:host_to_connect.into(),
@@ -507,6 +526,7 @@ impl<H:Handler> Handle<H> {
 			})
 			.await
 			.map_err(|_| crate::Error::SendError)?;
+
 		self.wait_channel_confirmation(receiver).await
 	}
 
@@ -515,10 +535,12 @@ impl<H:Handler> Handle<H> {
 		socket_path:S,
 	) -> Result<Channel<Msg>, crate::Error> {
 		let (sender, receiver) = unbounded_channel();
+
 		self.sender
 			.send(Msg::ChannelOpenDirectStreamLocal { socket_path:socket_path.into(), sender })
 			.await
 			.map_err(|_| crate::Error::SendError)?;
+
 		self.wait_channel_confirmation(receiver).await
 	}
 
@@ -531,9 +553,11 @@ impl<H:Handler> Handle<H> {
 			.send(Msg::TcpIpForward { want_reply:true, address:address.into(), port })
 			.await
 			.map_err(|_| crate::Error::SendError)?;
+
 		if port == 0 {
 			self.wait_recv_reply().await?;
 		}
+
 		Ok(true)
 	}
 
@@ -546,6 +570,7 @@ impl<H:Handler> Handle<H> {
 			.send(Msg::CancelTcpIpForward { want_reply:true, address:address.into(), port })
 			.await
 			.map_err(|_| crate::Error::SendError)?;
+
 		Ok(true)
 	}
 
@@ -564,6 +589,7 @@ impl<H:Handler> Handle<H> {
 			})
 			.await
 			.map_err(|_| crate::Error::SendError)?;
+
 		Ok(())
 	}
 
@@ -615,6 +641,7 @@ pub async fn connect<H:Handler + Send + 'static, A:ToSocketAddrs>(
 	handler:H,
 ) -> Result<Handle<H>, H::Error> {
 	let socket = TcpStream::connect(addrs).await.map_err(crate::Error::from)?;
+
 	connect_stream(config, socket, handler).await
 }
 
@@ -632,20 +659,27 @@ where
 	R: AsyncRead + AsyncWrite + Unpin + Send + 'static, {
 	// Writing SSH id.
 	let mut write_buffer = SSHBuffer::new();
+
 	write_buffer.send_ssh_id(&config.as_ref().client_id);
+
 	stream.write_all(&write_buffer.buffer).await.map_err(crate::Error::from)?;
 
 	// Reading SSH id and allocating a session if correct.
 	let mut stream = SshRead::new(stream);
+
 	let sshid = stream.read_ssh_id().await?;
+
 	let (handle_sender, session_receiver) = channel(10);
+
 	let (session_sender, handle_receiver) = unbounded_channel();
+
 	if config.maximum_packet_size > 65535 {
 		error!(
 			"Maximum packet size ({:?}) should not larger than a TCP packet (65535)",
 			config.maximum_packet_size
 		);
 	}
+
 	let mut session = Session::new(
 		config.window_size,
 		CommonSession {
@@ -667,12 +701,16 @@ where
 		session_receiver,
 		session_sender,
 	);
+
 	session.read_ssh_id(sshid)?;
+
 	let (encrypted_signal, encrypted_recv) = tokio::sync::oneshot::channel();
+
 	let join = tokio::spawn(session.run(stream, handler, Some(encrypted_signal)));
 
 	if encrypted_recv.await.is_err() {
 		join.await.map_err(crate::Error::Join)??;
+
 		return Err(H::Error::from(crate::Error::Disconnect));
 	}
 
@@ -685,7 +723,9 @@ async fn start_reading<R:AsyncRead + Unpin>(
 	mut cipher:Box<dyn OpeningKey + Send>,
 ) -> Result<(usize, R, SSHBuffer, Box<dyn OpeningKey + Send>), crate::Error> {
 	buffer.buffer.clear();
+
 	let n = cipher::read(&mut stream_read, &mut buffer, &mut *cipher).await?;
+
 	Ok((n, stream_read, buffer, cipher))
 }
 
@@ -697,6 +737,7 @@ impl Session {
 		sender:UnboundedSender<Reply>,
 	) -> Self {
 		let (inbound_channel_sender, inbound_channel_receiver) = channel(10);
+
 		Self {
 			common,
 			receiver,
@@ -717,14 +758,18 @@ impl Session {
 		mut encrypted_signal:Option<tokio::sync::oneshot::Sender<()>>,
 	) -> Result<(), H::Error> {
 		self.flush()?;
+
 		if !self.common.write_buffer.buffer.is_empty() {
 			debug!("writing {:?} bytes", self.common.write_buffer.buffer.len());
+
 			stream
 				.write_all(&self.common.write_buffer.buffer)
 				.await
 				.map_err(crate::Error::from)?;
+
 			stream.flush().await.map_err(crate::Error::from)?;
 		}
+
 		self.common.write_buffer.buffer.clear();
 
 		let mut decomp = CryptoVec::new();
@@ -735,9 +780,11 @@ impl Session {
 
 		// Allow handing out references to the cipher
 		let mut opening_cipher = Box::new(clear::Key) as Box<dyn OpeningKey + Send>;
+
 		std::mem::swap(&mut opening_cipher, &mut self.common.cipher.remote_to_local);
 
 		let reading = start_reading(stream_read, buffer, opening_cipher);
+
 		pin!(reading);
 
 		#[allow(clippy::panic)] // false positive in select! macro
@@ -769,25 +816,31 @@ impl Session {
 						#[allow(clippy::indexing_slicing)] // length checked
 						&buffer.buffer[5..]
 					};
+
 					if !buf.is_empty() {
 						#[allow(clippy::indexing_slicing)] // length checked
 						if buf[0] == crate::msg::DISCONNECT {
 							break;
 						} else if buf[0] > 4 {
 							let (h, s) = reply(self, handler, &mut encrypted_signal, buf).await?;
+
 							handler = h;
+
 							self = s;
 						}
 					}
 
 					std::mem::swap(&mut opening_cipher, &mut self.common.cipher.remote_to_local);
+
 					reading.set(start_reading(stream_read, buffer, opening_cipher));
 				}
+
 				msg = self.receiver.recv(), if !self.is_rekeying() => {
 					match msg {
 						Some(msg) => self.handle_msg(msg)?,
 						None => {
 							self.common.disconnected = true;
+
 							break
 						}
 					};
@@ -800,6 +853,7 @@ impl Session {
 						}
 					}
 				}
+
 				msg = self.inbound_channel_receiver.recv(), if !self.is_rekeying() => {
 					match msg {
 						Some(msg) => self.handle_msg(msg)?,
@@ -815,27 +869,37 @@ impl Session {
 					}
 				}
 			}
+
 			self.flush()?;
+
 			if !self.common.write_buffer.buffer.is_empty() {
 				trace!("writing to stream: {:?} bytes", self.common.write_buffer.buffer.len());
+
 				stream_write
 					.write_all(&self.common.write_buffer.buffer)
 					.await
 					.map_err(crate::Error::from)?;
+
 				stream_write.flush().await.map_err(crate::Error::from)?;
 			}
+
 			self.common.write_buffer.buffer.clear();
+
 			if let Some(ref mut enc) = self.common.encrypted {
 				if let EncryptedState::InitCompression = enc.state {
 					enc.client_compression.init_compress(&mut enc.compress);
+
 					enc.state = EncryptedState::Authenticated;
 				}
 			}
 		}
+
 		debug!("disconnected");
+
 		if self.common.disconnected {
 			stream_write.shutdown().await.map_err(crate::Error::from)?;
 		}
+
 		Ok(())
 	}
 
@@ -848,10 +912,12 @@ impl Session {
 			Msg::AuthInfoResponse { .. } => {},
 			Msg::ChannelOpenSession { sender } => {
 				let id = self.channel_open_session()?;
+
 				self.channels.insert(id, sender);
 			},
 			Msg::ChannelOpenX11 { originator_address, originator_port, sender } => {
 				let id = self.channel_open_x11(&originator_address, originator_port)?;
+
 				self.channels.insert(id, sender);
 			},
 			Msg::ChannelOpenDirectTcpIp {
@@ -867,10 +933,12 @@ impl Session {
 					&originator_address,
 					originator_port,
 				)?;
+
 				self.channels.insert(id, sender);
 			},
 			Msg::ChannelOpenDirectStreamLocal { socket_path, sender } => {
 				let id = self.channel_open_direct_streamlocal(&socket_path)?;
+
 				self.channels.insert(id, sender);
 			},
 			Msg::TcpIpForward { want_reply, address, port } => {
@@ -958,6 +1026,7 @@ impl Session {
 				unimplemented!("unimplemented (server-only?) message: {:?}", msg)
 			},
 		}
+
 		Ok(())
 	}
 
@@ -973,18 +1042,23 @@ impl Session {
 		// self.read_buffer.bytes += sshid.bytes_read + 2;
 
 		let mut exchange = Exchange::new();
+
 		exchange.server_id.extend(sshid);
 		// Preparing the response
 		exchange.client_id.extend(self.common.config.client_id.as_kex_hash_bytes());
 
 		let mut kexinit = KexInit { exchange, algo:None, sent:false, session_id:None };
+
 		self.common.write_buffer.buffer.clear();
+
 		kexinit.client_write(
 			self.common.config.as_ref(),
 			&mut *self.common.cipher.local_to_remote,
 			&mut self.common.write_buffer,
 		)?;
+
 		self.common.kex = Some(Kex::Init(kexinit));
+
 		Ok(())
 	}
 
@@ -998,19 +1072,23 @@ impl Session {
 				&mut self.common.write_buffer,
 			)? {
 				info!("Re-exchanging keys");
+
 				if enc.rekey.is_none() {
 					if let Some(exchange) = std::mem::replace(&mut enc.exchange, None) {
 						let mut kexinit = KexInit::initiate_rekey(exchange, &enc.session_id);
+
 						kexinit.client_write(
 							self.common.config.as_ref(),
 							&mut *self.common.cipher.local_to_remote,
 							&mut self.common.write_buffer,
 						)?;
+
 						enc.rekey = Some(Kex::Init(kexinit))
 					}
 				}
 			}
 		}
+
 		Ok(())
 	}
 
@@ -1018,6 +1096,7 @@ impl Session {
 	pub fn send_channel_msg(&self, channel:ChannelId, msg:ChannelMsg) -> bool {
 		if let Some(chan) = self.channels.get(&channel) {
 			chan.send(msg).unwrap_or(());
+
 			true
 		} else {
 			false
@@ -1045,49 +1124,73 @@ impl KexDhDone {
 			SignatureHash::from_rsa_hostkey_algo(self.names.key.0.as_bytes()),
 		)
 		.map_err(crate::Error::from)?;
+
 		debug!("server_public_Key: {:?}", pubkey);
+
 		if !rekey {
 			let ret = handler.check_server_key(&pubkey).await?;
+
 			handler = ret.0;
+
 			let check = ret.1;
+
 			if !check {
 				return Err(crate::Error::UnknownKey.into());
 			}
 		}
+
 		HASH_BUFFER.with(|buffer| {
 			let mut buffer = buffer.borrow_mut();
+
 			buffer.clear();
+
 			let hash = {
 				let server_ephemeral = reader.read_string().map_err(crate::Error::from)?;
+
 				self.exchange.server_ephemeral.extend(server_ephemeral);
+
 				let signature = reader.read_string().map_err(crate::Error::from)?;
 
 				self.kex.compute_shared_secret(&self.exchange.server_ephemeral)?;
+
 				debug!("kexdhdone.exchange = {:?}", self.exchange);
 
 				let mut pubkey_vec = CryptoVec::new();
+
 				pubkey.push_to(&mut pubkey_vec);
 
 				let hash =
 					self.kex.compute_exchange_hash(&pubkey_vec, &self.exchange, &mut buffer)?;
 
 				debug!("exchange hash: {:?}", hash);
+
 				let signature = {
 					let mut sig_reader = signature.reader(0);
+
 					let sig_type = sig_reader.read_string().map_err(crate::Error::from)?;
+
 					debug!("sig_type: {:?}", sig_type);
+
 					sig_reader.read_string().map_err(crate::Error::from)?
 				};
+
 				use russh_keys::key::Verify;
+
 				debug!("signature: {:?}", signature);
+
 				if !pubkey.verify_server_auth(hash.as_ref(), signature) {
 					debug!("wrong server sig");
+
 					return Err(crate::Error::WrongServerSig.into());
 				}
+
 				hash
 			};
+
 			let mut newkeys = self.compute_keys(hash, false)?;
+
 			newkeys.sent = true;
+
 			Ok((newkeys, handler))
 		})
 	}
@@ -1124,46 +1227,60 @@ async fn reply<H:Handler>(
 				} else {
 					session.common.kex = Some(Kex::DhDone(done));
 				}
+
 				session.flush()?;
 			}
+
 			Ok((handler, session))
 		},
 		Some(Kex::DhDone(mut kexdhdone)) => {
 			if kexdhdone.names.ignore_guessed {
 				kexdhdone.names.ignore_guessed = false;
+
 				session.common.kex = Some(Kex::DhDone(kexdhdone));
+
 				Ok((handler, session))
 			} else if buf.first() == Some(&msg::KEX_ECDH_REPLY) {
 				// We've sent ECDH_INIT, waiting for ECDH_REPLY
 				let (kex, h) = kexdhdone.server_key_check(false, handler, buf).await?;
+
 				handler = h;
+
 				session.common.kex = Some(Kex::Keys(kex));
+
 				session
 					.common
 					.cipher
 					.local_to_remote
 					.write(&[msg::NEWKEYS], &mut session.common.write_buffer);
+
 				session.flush()?;
+
 				Ok((handler, session))
 			} else {
 				error!("Wrong packet received");
+
 				Err(crate::Error::Inconsistent.into())
 			}
 		},
 		Some(Kex::Keys(newkeys)) => {
 			debug!("newkeys received");
+
 			if buf.first() != Some(&msg::NEWKEYS) {
 				return Err(crate::Error::Kex.into());
 			}
+
 			if let Some(sender) = sender.take() {
 				sender.send(()).unwrap_or(());
 			}
+
 			session.common.encrypted(initial_encrypted_state(&session), newkeys);
 			// Ok, NEWKEYS received, now encrypted.
 			Ok((handler, session))
 		},
 		Some(kex) => {
 			session.common.kex = Some(kex);
+
 			Ok((handler, session))
 		},
 		None => session.client_read_encrypted(handler, buf).await,
@@ -1269,6 +1386,7 @@ pub trait Handler: Sized + Send {
 		} else {
 			error!("no channel for id {:?}", id);
 		}
+
 		Ok((self, session))
 	}
 
@@ -1282,6 +1400,7 @@ pub trait Handler: Sized + Send {
 		if let Some(chan) = session.channels.get(&channel) {
 			chan.send(ChannelMsg::Success).unwrap_or(())
 		}
+
 		Ok((self, session))
 	}
 
@@ -1295,6 +1414,7 @@ pub trait Handler: Sized + Send {
 		if let Some(chan) = session.channels.get(&channel) {
 			chan.send(ChannelMsg::Failure).unwrap_or(())
 		}
+
 		Ok((self, session))
 	}
 
@@ -1306,6 +1426,7 @@ pub trait Handler: Sized + Send {
 		mut session:Session,
 	) -> Result<(Self, Session), Self::Error> {
 		session.channels.remove(&channel);
+
 		Ok((self, session))
 	}
 
@@ -1319,6 +1440,7 @@ pub trait Handler: Sized + Send {
 		if let Some(chan) = session.channels.get(&channel) {
 			chan.send(ChannelMsg::Eof).unwrap_or(())
 		}
+
 		Ok((self, session))
 	}
 
@@ -1335,7 +1457,9 @@ pub trait Handler: Sized + Send {
 		if let Some(sender) = session.channels.remove(&channel) {
 			let _ = sender.send(ChannelMsg::OpenFailure(reason));
 		}
+
 		session.sender.send(Reply::ChannelOpenFailure).unwrap_or(());
+
 		Ok((self, session))
 	}
 
@@ -1420,6 +1544,7 @@ pub trait Handler: Sized + Send {
 		if let Some(chan) = session.channels.get(&channel) {
 			chan.send(ChannelMsg::Data { data:CryptoVec::from_slice(data) }).unwrap_or(())
 		}
+
 		Ok((self, session))
 	}
 
@@ -1439,6 +1564,7 @@ pub trait Handler: Sized + Send {
 			chan.send(ChannelMsg::ExtendedData { ext, data:CryptoVec::from_slice(data) })
 				.unwrap_or(())
 		}
+
 		Ok((self, session))
 	}
 
@@ -1455,6 +1581,7 @@ pub trait Handler: Sized + Send {
 		if let Some(chan) = session.channels.get(&channel) {
 			chan.send(ChannelMsg::XonXoff { client_can_do }).unwrap_or(())
 		}
+
 		Ok((self, session))
 	}
 
@@ -1469,6 +1596,7 @@ pub trait Handler: Sized + Send {
 		if let Some(chan) = session.channels.get(&channel) {
 			chan.send(ChannelMsg::ExitStatus { exit_status }).unwrap_or(())
 		}
+
 		Ok((self, session))
 	}
 
@@ -1492,6 +1620,7 @@ pub trait Handler: Sized + Send {
 			})
 			.unwrap_or(())
 		}
+
 		Ok((self, session))
 	}
 
@@ -1510,9 +1639,11 @@ pub trait Handler: Sized + Send {
 		if let Some(ref mut enc) = session.common.encrypted {
 			new_size -= enc.flush_pending(channel) as u32;
 		}
+
 		if let Some(chan) = session.channels.get(&channel) {
 			chan.send(ChannelMsg::WindowAdjusted { new_size }).unwrap_or(())
 		}
+
 		Ok((self, session))
 	}
 
@@ -1529,6 +1660,7 @@ pub trait Handler: Sized + Send {
 		session:Session,
 	) -> Result<(Self, Session), Self::Error> {
 		debug!("openssh_ext_hostkeys_announced: {:?}", keys);
+
 		Ok((self, session))
 	}
 }

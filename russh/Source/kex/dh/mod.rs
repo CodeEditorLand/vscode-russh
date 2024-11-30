@@ -47,6 +47,7 @@ pub struct DhGroupKex<D:Digest> {
 impl<D:Digest> DhGroupKex<D> {
 	pub fn new(group:&DhGroup) -> DhGroupKex<D> {
 		let dh = DH::new(group);
+
 		DhGroupKex { dh, shared_secret:None, _digest:PhantomData }
 	}
 }
@@ -59,13 +60,17 @@ impl<D:Digest> std::fmt::Debug for DhGroupKex<D> {
 
 fn biguint_to_mpint(biguint:&BigUint) -> Vec<u8> {
 	let mut mpint = Vec::new();
+
 	let bytes = biguint.to_bytes_be();
+
 	if let Some(b) = bytes.first() {
 		if b > &0x7F {
 			mpint.push(0);
 		}
 	}
+
 	mpint.extend(&bytes);
+
 	mpint
 }
 
@@ -96,6 +101,7 @@ impl<D:Digest> KexAlgorithm for DhGroupKex<D> {
 		self.dh.generate_private_key(true);
 
 		let server_pubkey = &self.dh.generate_public_key();
+
 		if !self.dh.validate_public_key(server_pubkey) {
 			return Err(crate::Error::Inconsistent);
 		}
@@ -104,18 +110,23 @@ impl<D:Digest> KexAlgorithm for DhGroupKex<D> {
 
 		// fill exchange.
 		exchange.server_ephemeral.clear();
+
 		exchange.server_ephemeral.extend(&encoded_server_pubkey);
 
 		let decoded_client_pubkey = DH::decode_public_key(client_pubkey);
+
 		if !self.dh.validate_public_key(&decoded_client_pubkey) {
 			return Err(crate::Error::Inconsistent);
 		}
 
 		let shared = self.dh.compute_shared_secret(decoded_client_pubkey);
+
 		if !self.dh.validate_shared_secret(&shared) {
 			return Err(crate::Error::Inconsistent);
 		}
+
 		self.shared_secret = Some(biguint_to_mpint(&shared));
+
 		Ok(())
 	}
 
@@ -135,10 +146,13 @@ impl<D:Digest> KexAlgorithm for DhGroupKex<D> {
 
 		// fill exchange.
 		let encoded_pubkey = biguint_to_mpint(client_pubkey);
+
 		client_ephemeral.clear();
+
 		client_ephemeral.extend(&encoded_pubkey);
 
 		buf.push(msg::KEX_ECDH_INIT);
+
 		buf.extend_ssh_string(&encoded_pubkey);
 
 		Ok(())
@@ -152,10 +166,13 @@ impl<D:Digest> KexAlgorithm for DhGroupKex<D> {
 		}
 
 		let shared = self.dh.compute_shared_secret(remote_pubkey);
+
 		if !self.dh.validate_shared_secret(&shared) {
 			return Err(crate::Error::Inconsistent);
 		}
+
 		self.shared_secret = Some(biguint_to_mpint(&shared));
+
 		Ok(())
 	}
 
@@ -167,13 +184,19 @@ impl<D:Digest> KexAlgorithm for DhGroupKex<D> {
 	) -> Result<CryptoVec, crate::Error> {
 		// Computing the exchange hash, see page 7 of RFC 5656.
 		buffer.clear();
+
 		buffer.extend_ssh_string(&exchange.client_id);
+
 		buffer.extend_ssh_string(&exchange.server_id);
+
 		buffer.extend_ssh_string(&exchange.client_kex_init);
+
 		buffer.extend_ssh_string(&exchange.server_kex_init);
 
 		buffer.extend(key);
+
 		buffer.extend_ssh_string(&exchange.client_ephemeral);
+
 		buffer.extend_ssh_string(&exchange.server_ephemeral);
 
 		if let Some(ref shared) = self.shared_secret {
@@ -181,10 +204,13 @@ impl<D:Digest> KexAlgorithm for DhGroupKex<D> {
 		}
 
 		let mut hasher = D::new();
+
 		hasher.update(&buffer);
 
 		let mut res = CryptoVec::new();
+
 		res.extend(hasher.finalize().as_slice());
+
 		Ok(res)
 	}
 

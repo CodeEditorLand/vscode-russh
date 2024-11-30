@@ -55,10 +55,14 @@ where
 	L: Stream<Item = tokio::io::Result<S>> + Unpin,
 	A: Agent + Send + Sync + 'static, {
 	let keys = KeyStore(Arc::new(RwLock::new(HashMap::new())));
+
 	let lock = Lock(Arc::new(RwLock::new(CryptoVec::new())));
+
 	while let Some(Ok(stream)) = listener.next().await {
 		let mut buf = CryptoVec::new();
+
 		buf.resize(4);
+
 		tokio::spawn(
 			(Connection {
 				lock:lock.clone(),
@@ -70,6 +74,7 @@ where
 			.run(),
 		);
 	}
+
 	Ok(())
 }
 
@@ -90,20 +95,29 @@ struct Connection<S:AsyncRead + AsyncWrite + Send + 'static, A:Agent> {
 impl<S:AsyncRead + AsyncWrite + Send + Unpin + 'static, A:Agent + Send + 'static> Connection<S, A> {
 	async fn run(mut self) -> Result<(), Error> {
 		let mut writebuf = CryptoVec::new();
+
 		loop {
 			// Reading the length
 			self.buf.clear();
+
 			self.buf.resize(4);
+
 			self.s.read_exact(&mut self.buf).await?;
 			// Reading the rest of the buffer
 			let len = BigEndian::read_u32(&self.buf) as usize;
+
 			self.buf.clear();
+
 			self.buf.resize(len);
+
 			self.s.read_exact(&mut self.buf).await?;
 			// respond
 			writebuf.clear();
+
 			self.respond(&mut writebuf).await?;
+
 			self.s.write_all(&writebuf).await?;
+
 			self.s.flush().await?
 		}
 	}
@@ -111,17 +125,22 @@ impl<S:AsyncRead + AsyncWrite + Send + Unpin + 'static, A:Agent + Send + 'static
 	async fn respond(&mut self, writebuf:&mut CryptoVec) -> Result<(), Error> {
 		let is_locked =
 			{ if let Ok(password) = self.lock.0.read() { !password.is_empty() } else { true } };
+
 		writebuf.extend(&[0, 0, 0, 0]);
 
 		let mut r = self.buf.reader(0);
+
 		match r.read_byte() {
 			Ok(11) if !is_locked => {
 				// request identities
 				if let Ok(keys) = self.keys.0.read() {
 					writebuf.push(msg::IDENTITIES_ANSWER);
+
 					writebuf.push_u32_be(keys.len() as u32);
+
 					for (k, _) in keys.iter() {
 						writebuf.extend_ssh_string(k);
+
 						writebuf.extend_ssh_string(b"");
 					}
 				} else {
@@ -131,12 +150,16 @@ impl<S:AsyncRead + AsyncWrite + Send + Unpin + 'static, A:Agent + Send + 'static
 			Ok(13) if !is_locked => {
 				// sign request
 				let agent = self.agent.take().ok_or(Error::AgentFailure)?;
+
 				let (agent, signed) = self.try_sign(agent, r, writebuf).await?;
+
 				self.agent = Some(agent);
+
 				if signed {
 					return Ok(());
 				} else {
 					writebuf.resize(4);
+
 					writebuf.push(msg::FAILURE)
 				}
 			},
@@ -159,6 +182,7 @@ impl<S:AsyncRead + AsyncWrite + Send + Unpin + 'static, A:Agent + Send + 'static
 				// remove all identities
 				if let Ok(mut keys) = self.keys.0.write() {
 					keys.clear();
+
 					writebuf.push(msg::SUCCESS)
 				} else {
 					writebuf.push(msg::FAILURE)
@@ -192,8 +216,11 @@ impl<S:AsyncRead + AsyncWrite + Send + Unpin + 'static, A:Agent + Send + 'static
 				writebuf.push(msg::FAILURE)
 			},
 		}
+
 		let len = writebuf.len() - 4;
+
 		BigEndian::write_u32(&mut writebuf[..], len as u32);
+
 		Ok(())
 	}
 
@@ -201,7 +228,9 @@ impl<S:AsyncRead + AsyncWrite + Send + Unpin + 'static, A:Agent + Send + 'static
 		let password = r.read_string()?;
 
 		let mut lock = self.lock.0.write().or(Err(Error::AgentFailure))?;
+
 		lock.extend(password);
+
 		Ok(())
 	}
 
@@ -209,8 +238,10 @@ impl<S:AsyncRead + AsyncWrite + Send + Unpin + 'static, A:Agent + Send + 'static
 		let password = r.read_string()?;
 
 		let mut lock = self.lock.0.write().or(Err(Error::AgentFailure))?;
+
 		if &lock[..] == password {
 			lock.clear();
+
 			Ok(true)
 		} else {
 			Ok(false)
@@ -240,13 +271,17 @@ impl<S:AsyncRead + AsyncWrite + Send + Unpin + 'static, A:Agent + Send + 'static
 			#[cfg(feature = "rs-crypto")]
 			b"ssh-ed25519" => {
 				let public_ = r.read_string()?;
+
 				let pos1 = r.position;
+
 				let concat = r.read_string()?;
+
 				let _comment = r.read_string()?;
 				#[allow(clippy::indexing_slicing)] // length checked before
 				let public = ed25519_dalek::PublicKey::from_bytes(
 					public_.get(..32).ok_or(Error::KeyIsCorrupt)?,
 				)?;
+
 				let secret = ed25519_dalek::SecretKey::from_bytes(
 					concat.get(..32).ok_or(Error::KeyIsCorrupt)?,
 				)?;
@@ -265,24 +300,40 @@ impl<S:AsyncRead + AsyncWrite + Send + Unpin + 'static, A:Agent + Send + 'static
 					bn::{BigNum, BigNumContext},
 					rsa::Rsa,
 				};
+
 				let n = r.read_mpint()?;
+
 				let e = r.read_mpint()?;
+
 				let d = BigNum::from_slice(r.read_mpint()?)?;
+
 				let q_inv = r.read_mpint()?;
+
 				let p = BigNum::from_slice(r.read_mpint()?)?;
+
 				let q = BigNum::from_slice(r.read_mpint()?)?;
+
 				let (dp, dq) = {
 					let one = BigNum::from_u32(1)?;
+
 					let p1 = p.as_ref() - one.as_ref();
+
 					let q1 = q.as_ref() - one.as_ref();
+
 					let mut context = BigNumContext::new()?;
+
 					let mut dp = BigNum::new()?;
+
 					let mut dq = BigNum::new()?;
+
 					dp.checked_rem(&d, &p1, &mut context)?;
+
 					dq.checked_rem(&d, &q1, &mut context)?;
 					(dp, dq)
 				};
+
 				let _comment = r.read_string()?;
+
 				let key = Rsa::from_private_components(
 					BigNum::from_slice(n)?,
 					BigNum::from_slice(e)?,
@@ -295,13 +346,18 @@ impl<S:AsyncRead + AsyncWrite + Send + Unpin + 'static, A:Agent + Send + 'static
 				)?;
 
 				let len0 = writebuf.len();
+
 				writebuf.extend_ssh_string(b"ssh-rsa");
+
 				writebuf.extend_ssh_mpint(e);
+
 				writebuf.extend_ssh_mpint(n);
 
 				#[allow(clippy::indexing_slicing)] // length is known
 				let blob = writebuf[len0..].to_vec();
+
 				writebuf.resize(len0);
+
 				writebuf.push(msg::SUCCESS);
 				(blob, key::KeyPair::RSA { key, hash:SignatureHash::SHA2_256 })
 			},
@@ -311,24 +367,34 @@ impl<S:AsyncRead + AsyncWrite + Send + Unpin + 'static, A:Agent + Send + 'static
 		let mut w = self.keys.0.write().or(Err(Error::AgentFailure))?;
 
 		let now = SystemTime::now();
+
 		if constrained {
 			let n = r.read_u32()?;
+
 			let mut c = Vec::new();
+
 			for _ in 0..n {
 				let t = r.read_byte()?;
+
 				if t == msg::CONSTRAIN_LIFETIME {
 					let seconds = r.read_u32()?;
+
 					c.push(Constraint::KeyLifetime { seconds });
+
 					let blob = blob.clone();
+
 					let keys = self.keys.clone();
+
 					tokio::spawn(async move {
 						sleep(Duration::from_secs(seconds as u64)).await;
+
 						if let Ok(mut keys) = keys.0.write() {
 							let delete = if let Some(&(_, time, _)) = keys.get(&blob) {
 								time == now
 							} else {
 								false
 							};
+
 							if delete {
 								keys.remove(&blob);
 							}
@@ -340,10 +406,12 @@ impl<S:AsyncRead + AsyncWrite + Send + Unpin + 'static, A:Agent + Send + 'static
 					return Ok(false);
 				}
 			}
+
 			w.insert(blob, (Arc::new(key), now, Vec::new()));
 		} else {
 			w.insert(blob, (Arc::new(key), now, Vec::new()));
 		}
+
 		Ok(true)
 	}
 
@@ -357,11 +425,14 @@ impl<S:AsyncRead + AsyncWrite + Send + Unpin + 'static, A:Agent + Send + 'static
 
 		let key = {
 			let blob = r.read_string()?;
+
 			let k = self.keys.0.read().or(Err(Error::AgentFailure))?;
+
 			if let Some((key, _, constraints)) = k.get(blob) {
 				if constraints.iter().any(|c| *c == Constraint::Confirm) {
 					needs_confirm = true;
 				}
+
 				key.clone()
 			} else {
 				return Ok((agent, false));
@@ -370,19 +441,24 @@ impl<S:AsyncRead + AsyncWrite + Send + Unpin + 'static, A:Agent + Send + 'static
 
 		let agent = if needs_confirm {
 			let (agent, ok) = agent.confirm(key.clone()).await;
+
 			if !ok {
 				return Ok((agent, false));
 			}
+
 			agent
 		} else {
 			agent
 		};
+
 		writebuf.push(msg::SIGN_RESPONSE);
 
 		let data = r.read_string()?;
+
 		key.add_signature(writebuf, data)?;
 
 		let len = writebuf.len();
+
 		BigEndian::write_u32(writebuf, (len - 4) as u32);
 
 		Ok((agent, true))

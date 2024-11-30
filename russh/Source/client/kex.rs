@@ -23,11 +23,16 @@ impl KexInit {
 		let algo = {
 			// read algorithms from packet.
 			debug!("extending {:?}", &self.exchange.server_kex_init[..]);
+
 			self.exchange.server_kex_init.extend(buf);
+
 			negotiation::Client::read_kex(buf, &config.preferred)?
 		};
+
 		debug!("algo = {:?}", algo);
+
 		debug!("write = {:?}", &write_buffer.buffer[..]);
+
 		if !self.sent {
 			self.client_write(config, cipher, write_buffer)?
 		}
@@ -39,6 +44,7 @@ impl KexInit {
 		// then truncate that buffer. Without that, we would need an
 		// extra buffer.
 		let i0 = self.exchange.client_kex_init.len();
+
 		debug!("i0 = {:?}", i0);
 
 		let mut kex = KEXES
@@ -57,9 +63,11 @@ impl KexInit {
 
 		#[allow(clippy::indexing_slicing)] // length checked
 		cipher.write(&self.exchange.client_kex_init[i0..], write_buffer);
+
 		self.exchange.client_kex_init.resize(i0);
 
 		debug!("moving to kexdhdone, exchange = {:?}", self.exchange);
+
 		Ok(
 			KexDhDone {
 				exchange:self.exchange,
@@ -78,9 +86,13 @@ impl KexInit {
 		write_buffer:&mut SSHBuffer,
 	) -> Result<(), crate::Error> {
 		self.exchange.client_kex_init.clear();
+
 		negotiation::write_kex(&config.preferred, &mut self.exchange.client_kex_init, false)?;
+
 		self.sent = true;
+
 		cipher.write(&self.exchange.client_kex_init, write_buffer);
+
 		Ok(())
 	}
 }

@@ -240,6 +240,7 @@ impl<'a> Iterator for Response<'a> {
 			None
 		} else {
 			self.n -= 1;
+
 			self.pos.read_string().ok()
 		}
 	}
@@ -352,6 +353,7 @@ pub trait Handler: Sized {
 		if let Some(chan) = session.channels.get(&channel) {
 			chan.send(ChannelMsg::Eof).unwrap_or(())
 		}
+
 		Ok((self, session))
 	}
 
@@ -427,6 +429,7 @@ pub trait Handler: Sized {
 		} else {
 			error!("no channel for id {:?}", id);
 		}
+
 		Ok((self, session))
 	}
 
@@ -442,6 +445,7 @@ pub trait Handler: Sized {
 		if let Some(chan) = session.channels.get(&channel) {
 			chan.send(ChannelMsg::Data { data:CryptoVec::from_slice(data) }).unwrap_or(())
 		}
+
 		Ok((self, session))
 	}
 
@@ -461,6 +465,7 @@ pub trait Handler: Sized {
 			chan.send(ChannelMsg::ExtendedData { ext:code, data:CryptoVec::from_slice(data) })
 				.unwrap_or(())
 		}
+
 		Ok((self, session))
 	}
 
@@ -476,9 +481,11 @@ pub trait Handler: Sized {
 		if let Some(ref mut enc) = session.common.encrypted {
 			enc.flush_pending(channel);
 		}
+
 		if let Some(chan) = session.channels.get(&channel) {
 			chan.send(ChannelMsg::WindowAdjusted { new_size }).unwrap_or(())
 		}
+
 		Ok((self, session))
 	}
 
@@ -513,6 +520,7 @@ pub trait Handler: Sized {
 			})
 			.unwrap_or(())
 		}
+
 		Ok((self, session))
 	}
 
@@ -537,6 +545,7 @@ pub trait Handler: Sized {
 			})
 			.unwrap_or(())
 		}
+
 		Ok((self, session))
 	}
 
@@ -559,6 +568,7 @@ pub trait Handler: Sized {
 			})
 			.unwrap_or(())
 		}
+
 		Ok((self, session))
 	}
 
@@ -572,6 +582,7 @@ pub trait Handler: Sized {
 		if let Some(chan) = session.channels.get(&channel) {
 			chan.send(ChannelMsg::RequestShell { want_reply:true }).unwrap_or(())
 		}
+
 		Ok((self, session))
 	}
 
@@ -588,6 +599,7 @@ pub trait Handler: Sized {
 			chan.send(ChannelMsg::Exec { want_reply:true, command:data.into() })
 				.unwrap_or(())
 		}
+
 		Ok((self, session))
 	}
 
@@ -604,6 +616,7 @@ pub trait Handler: Sized {
 			chan.send(ChannelMsg::RequestSubsystem { want_reply:true, name:name.into() })
 				.unwrap_or(())
 		}
+
 		Ok((self, session))
 	}
 
@@ -622,6 +635,7 @@ pub trait Handler: Sized {
 			chan.send(ChannelMsg::WindowChange { col_width, row_height, pix_width, pix_height })
 				.unwrap_or(())
 		}
+
 		Ok((self, session))
 	}
 
@@ -635,6 +649,7 @@ pub trait Handler: Sized {
 		if let Some(chan) = session.channels.get(&channel) {
 			chan.send(ChannelMsg::AgentForward { want_reply:true }).unwrap_or(())
 		}
+
 		Ok((self, false, session))
 	}
 
@@ -650,6 +665,7 @@ pub trait Handler: Sized {
 		if let Some(chan) = session.channels.get(&channel) {
 			chan.send(ChannelMsg::Signal { signal }).unwrap_or(())
 		}
+
 		Ok((self, session))
 	}
 
@@ -695,24 +711,29 @@ pub async fn run<H:Server + Send + 'static, A:ToSocketAddrs>(
 	mut server:H,
 ) -> Result<(), std::io::Error> {
 	let socket = TcpListener::bind(addrs).await?;
+
 	if config.maximum_packet_size > 65535 {
 		error!(
 			"Maximum packet size ({:?}) should not larger than a TCP packet (65535)",
 			config.maximum_packet_size
 		);
 	}
+
 	while let Ok((socket, _)) = socket.accept().await {
 		let config = config.clone();
 
 		let server = server.new_client(socket.peer_addr().ok());
+
 		tokio::spawn(run_stream(config, socket, server));
 	}
+
 	Ok(())
 }
 
 use std::cell::RefCell;
 thread_local! {
 	static B1: RefCell<CryptoVec> = RefCell::new(CryptoVec::new());
+
 	static B2: RefCell<CryptoVec> = RefCell::new(CryptoVec::new());
 }
 
@@ -730,7 +751,9 @@ async fn start_reading<R:AsyncRead + Unpin>(
 	mut cipher:Box<dyn OpeningKey + Send>,
 ) -> Result<(usize, R, SSHBuffer, Box<dyn OpeningKey + Send>), Error> {
 	buffer.buffer.clear();
+
 	let n = cipher::read(&mut stream_read, &mut buffer, &mut *cipher).await?;
+
 	Ok((n, stream_read, buffer, cipher))
 }
 
@@ -775,15 +798,23 @@ where
 	R: AsyncRead + AsyncWrite + Unpin + Send + 'static, {
 	// Writing SSH id.
 	let mut write_buffer = SSHBuffer::new();
+
 	write_buffer.send_ssh_id(&config.as_ref().server_id);
+
 	stream.write_all(&write_buffer.buffer[..]).await.map_err(crate::Error::from)?;
+
 	info!("wrote id");
 	// Reading SSH id and allocating a session.
 	let mut stream = SshRead::new(stream);
+
 	let (sender, receiver) = tokio::sync::mpsc::channel(config.event_buffer_size);
+
 	let common = read_ssh_id(config, &mut stream).await?;
+
 	info!("read other id");
+
 	let handle = server::session::Handle { sender };
+
 	let session = Session {
 		target_window_size:common.config.window_size,
 		common,
@@ -797,6 +828,7 @@ where
 	let join = tokio::spawn(session.run(stream, handler));
 
 	info!("session is running");
+
 	Ok(RunningSession { handle, join })
 }
 
@@ -809,15 +841,22 @@ async fn read_ssh_id<R:AsyncRead + Unpin>(
 	} else {
 		read.read_ssh_id().await?
 	};
+
 	let mut exchange = Exchange::new();
+
 	exchange.client_id.extend(sshid);
 	// Preparing the response
 	exchange.server_id.extend(config.as_ref().server_id.as_kex_hash_bytes());
+
 	let mut kexinit = KexInit { exchange, algo:None, sent:false, session_id:None };
+
 	let mut cipher =
 		CipherPair { local_to_remote:Box::new(clear::Key), remote_to_local:Box::new(clear::Key) };
+
 	let mut write_buffer = SSHBuffer::new();
+
 	kexinit.server_write(config.as_ref(), &mut *cipher.local_to_remote, &mut write_buffer)?;
+
 	Ok(CommonSession {
 		write_buffer,
 		kex:Some(Kex::Init(kexinit)),
@@ -849,6 +888,7 @@ async fn reply<H:Handler + Send>(
 						buf,
 						&mut session.common.write_buffer,
 					)?);
+
 					return Ok((handler, session));
 				} else {
 					// Else, i.e. if the other side has not started
@@ -864,6 +904,7 @@ async fn reply<H:Handler + Send>(
 					buf,
 					&mut session.common.write_buffer,
 				)?);
+
 				return Ok((handler, session));
 			},
 			Some(Kex::Keys(newkeys)) => {
@@ -875,15 +916,19 @@ async fn reply<H:Handler + Send>(
 					EncryptedState::WaitingAuthServiceRequest { sent:false, accepted:false },
 					newkeys,
 				);
+
 				session.maybe_send_ext_info();
+
 				return Ok((handler, session));
 			},
 			Some(kex) => {
 				session.common.kex = Some(kex);
+
 				return Ok((handler, session));
 			},
 			None => {},
 		}
+
 		Ok((handler, session))
 	} else {
 		Ok(session.server_read_encrypted(handler, buf).await?)

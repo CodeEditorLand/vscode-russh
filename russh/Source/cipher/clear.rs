@@ -70,6 +70,7 @@ impl super::SealingKey for Key {
 		let block_size = 8;
 
 		let padding_len = block_size - ((5 + payload.len()) % block_size);
+
 		if padding_len < 4 { padding_len + block_size } else { padding_len }
 	}
 

@@ -31,6 +31,7 @@ impl Default for SshSession {
 impl SshSession {
 	pub async fn get_channel(&mut self, channel_id:ChannelId) -> Channel<Msg> {
 		let mut clients = self.clients.lock().await;
+
 		clients.remove(&channel_id).unwrap()
 	}
 }
@@ -41,6 +42,7 @@ impl russh::server::Handler for SshSession {
 
 	async fn auth_password(self, user:&str, password:&str) -> Result<(Self, Auth), Self::Error> {
 		info!("credentials: {}, {}", user, password);
+
 		Ok((self, Auth::Accept))
 	}
 
@@ -50,6 +52,7 @@ impl russh::server::Handler for SshSession {
 		public_key:&russh_keys::key::PublicKey,
 	) -> Result<(Self, Auth), Self::Error> {
 		info!("credentials: {}, {:?}", user, public_key);
+
 		Ok((self, Auth::Accept))
 	}
 
@@ -60,8 +63,10 @@ impl russh::server::Handler for SshSession {
 	) -> Result<(Self, bool, Session), Self::Error> {
 		{
 			let mut clients = self.clients.lock().await;
+
 			clients.insert(channel.id(), channel);
 		}
+
 		Ok((self, true, session))
 	}
 
@@ -75,8 +80,11 @@ impl russh::server::Handler for SshSession {
 
 		if name == "sftp" {
 			let channel = self.get_channel(channel_id).await;
+
 			let sftp = SftpSession::default();
+
 			session.channel_success(channel_id);
+
 			russh_sftp::server::run(channel.into_stream(), sftp).await;
 		} else {
 			session.channel_failure(channel_id);
@@ -105,11 +113,14 @@ impl russh_sftp::server::Handler for SftpSession {
 	) -> Result<Version, Self::Error> {
 		if self.version.is_some() {
 			error!("duplicate SSH_FXP_VERSION packet");
+
 			return Err(StatusCode::ConnectionLost);
 		}
 
 		self.version = Some(version);
+
 		info!("version: {:?}, extensions: {:?}", self.version, extensions);
+
 		Ok(Version::new())
 	}
 
@@ -124,14 +135,18 @@ impl russh_sftp::server::Handler for SftpSession {
 
 	async fn opendir(&mut self, id:u32, path:String) -> Result<Handle, Self::Error> {
 		info!("opendir: {}", path);
+
 		self.root_dir_read_done = false;
+
 		Ok(Handle { id, handle:path })
 	}
 
 	async fn readdir(&mut self, id:u32, handle:String) -> Result<Name, Self::Error> {
 		info!("readdir handle: {}", handle);
+
 		if handle == "/" && !self.root_dir_read_done {
 			self.root_dir_read_done = true;
+
 			return Ok(Name {
 				id,
 				files:vec![
@@ -140,11 +155,13 @@ impl russh_sftp::server::Handler for SftpSession {
 				],
 			});
 		}
+
 		Ok(Name { id, files:vec![] })
 	}
 
 	async fn realpath(&mut self, id:u32, path:String) -> Result<Name, Self::Error> {
 		info!("realpath: {}", path);
+
 		Ok(Name {
 			id,
 			files:vec![File { filename:"/".to_string(), attrs:FileAttributes::default() }],

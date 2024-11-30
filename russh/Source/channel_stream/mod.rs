@@ -67,7 +67,9 @@ impl AsyncWrite for ChannelStream {
 	) -> Poll<Result<usize, io::Error>> {
 		if !self.is_write_fut_valid {
 			let outgoing = self.outgoing.clone();
+
 			self.write_fut.set(make_client_write_fut(Some((outgoing, buf.to_vec()))));
+
 			self.is_write_fut_valid = true;
 		}
 
@@ -86,11 +88,14 @@ impl AsyncWrite for ChannelStream {
 			Poll::Pending => Poll::Pending,
 			Poll::Ready(Ok(_)) => {
 				self.is_write_fut_valid = false;
+
 				Poll::Ready(Ok(()))
 			},
 			Poll::Ready(Err(_)) => {
 				self.is_write_fut_valid = false;
+
 				debug!("ChannelStream AsyncWrite EOF");
+
 				Poll::Ready(Err(io::Error::new(io::ErrorKind::Other, "EOF")))
 			},
 		}
@@ -102,8 +107,10 @@ impl AsyncWrite for ChannelStream {
 	) -> Poll<Result<(), io::Error>> {
 		if let Err(err) = self.outgoing.send("".into()) {
 			let err = format!("{err:?}");
+
 			return Poll::Ready(Err(io::Error::new(io::ErrorKind::Other, err)));
 		}
+
 		Poll::Ready(Ok(()))
 	}
 }
@@ -119,6 +126,7 @@ impl AsyncRead for ChannelStream {
 		}
 
 		let x = self.incoming.poll_recv(cx);
+
 		match x {
 			Poll::Ready(Some(msg)) => self.readbuf.put_data(buf, msg, 0),
 			Poll::Ready(None) => Poll::Ready(Ok(())),

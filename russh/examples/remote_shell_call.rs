@@ -12,22 +12,30 @@ async fn main() -> Result<()> {
 	env_logger::builder().filter_level(log::LevelFilter::Debug).init();
 
 	let args:Vec<String> = std::env::args().collect();
+
 	let (host, key) = match args.get(1..3) {
 		Some(args) => (&args[0], &args[1]),
 		None => {
 			eprintln!("Usage: {} <host:port> <private-key-path>", args[0]);
+
 			std::process::exit(1);
 		},
 	};
 
 	info!("Connecting to {host}");
+
 	info!("Key path: {key}");
 
 	let mut ssh = Session::connect(key, "root", host).await?;
+
 	let r = ssh.call("whoami").await?;
+
 	assert!(r.success());
+
 	println!("Result: {}", r.output());
+
 	ssh.close().await?;
+
 	Ok(())
 }
 
@@ -67,16 +75,19 @@ impl Session {
 		let mut session = client::connect(config, addrs, sh).await?;
 
 		let _auth_res = session.authenticate_publickey(user, Arc::new(key_pair)).await?;
+
 		Ok(Self { session })
 	}
 
 	async fn call(&mut self, command:&str) -> Result<CommandResult> {
 		let mut channel = self.session.channel_open_session().await?;
+
 		channel.exec(true, command).await?;
 
 		let mut output = Vec::new();
 
 		let mut code = None;
+
 		while let Some(msg) = channel.wait().await {
 			match msg {
 				russh::ChannelMsg::Data { ref data } => {
@@ -88,11 +99,13 @@ impl Session {
 				_ => {},
 			}
 		}
+
 		Ok(CommandResult { output, code })
 	}
 
 	async fn close(&mut self) -> Result<()> {
 		self.session.disconnect(Disconnect::ByApplication, "", "English").await?;
+
 		Ok(())
 	}
 }

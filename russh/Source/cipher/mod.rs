@@ -45,8 +45,11 @@ use gcm::GcmCipher;
 
 pub(crate) trait Cipher {
 	fn needs_mac(&self) -> bool { false }
+
 	fn key_len(&self) -> usize;
+
 	fn nonce_len(&self) -> usize { 0 }
+
 	fn make_opening_key(
 		&self,
 		key:&[u8],
@@ -54,6 +57,7 @@ pub(crate) trait Cipher {
 		mac_key:&[u8],
 		mac:&dyn MacAlgorithm,
 	) -> Result<Box<dyn OpeningKey + Send>, Error>;
+
 	fn make_sealing_key(
 		&self,
 		key:&[u8],
@@ -107,15 +111,21 @@ static _CHACHA20_POLY1305:SshChacha20Poly1305Cipher = SshChacha20Poly1305Cipher 
 pub(crate) static CIPHERS:Lazy<HashMap<&'static Name, &(dyn Cipher + Send + Sync)>> =
 	Lazy::new(|| {
 		let mut h:HashMap<&'static Name, &(dyn Cipher + Send + Sync)> = HashMap::new();
+
 		h.insert(&CLEAR, &_CLEAR);
+
 		h.insert(&NONE, &_CLEAR);
+
 		h.insert(&AES_128_CTR, &_AES_128_CTR);
+
 		h.insert(&AES_192_CTR, &_AES_192_CTR);
+
 		h.insert(&AES_256_CTR, &_AES_256_CTR);
 		#[cfg(feature = "rs-crypto")]
 		h.insert(&AES_256_GCM, &_AES_256_GCM);
 		#[cfg(feature = "rs-crypto")]
 		h.insert(&CHACHA20_POLY1305, &_CHACHA20_POLY1305);
+
 		h
 	});
 
@@ -168,9 +178,11 @@ pub(crate) trait SealingKey {
 		debug!("writing, seqn = {:?}", buffer.seqn.0);
 
 		let padding_length = self.padding_length(payload);
+
 		debug!("padding length {:?}", padding_length);
 
 		let packet_length = PADDING_LENGTH_LEN + payload.len() + padding_length;
+
 		debug!("packet_length {:?}", packet_length);
 
 		let offset = buffer.buffer.len();
@@ -178,12 +190,17 @@ pub(crate) trait SealingKey {
 		// Maximum packet length:
 		// https://tools.ietf.org/html/rfc4253#section-6.1
 		assert!(packet_length <= std::u32::MAX as usize);
+
 		buffer.buffer.push_u32_be(packet_length as u32);
 
 		assert!(padding_length <= std::u8::MAX as usize);
+
 		buffer.buffer.push(padding_length as u8);
+
 		buffer.buffer.extend(payload);
+
 		self.fill_padding(buffer.buffer.resize_mut(padding_length));
+
 		buffer.buffer.resize_mut(self.tag_len());
 
 		#[allow(clippy::indexing_slicing)] // length checked
@@ -205,37 +222,54 @@ pub(crate) async fn read<'a, R:AsyncRead + Unpin>(
 ) -> Result<usize, Error> {
 	if buffer.len == 0 {
 		let mut len = [0; 4];
+
 		stream.read_exact(&mut len).await?;
+
 		debug!("reading, len = {:?}", len);
 		{
 			let seqn = buffer.seqn.0;
+
 			buffer.buffer.clear();
+
 			buffer.buffer.extend(&len);
+
 			debug!("reading, seqn = {:?}", seqn);
+
 			let len = cipher.decrypt_packet_length(seqn, len)?;
+
 			buffer.len = BigEndian::read_u32(&len) as usize + cipher.tag_len();
+
 			debug!("reading, clear len = {:?}", buffer.len);
 		}
 	}
 
 	buffer.buffer.resize(buffer.len + 4);
+
 	debug!("read_exact {:?}", buffer.len + 4);
 	#[allow(clippy::indexing_slicing)] // length checked
 	stream.read_exact(&mut buffer.buffer[4..]).await?;
+
 	debug!("read_exact done");
+
 	let seqn = buffer.seqn.0;
+
 	let ciphertext_len = buffer.buffer.len() - cipher.tag_len();
+
 	let (ciphertext, tag) = buffer.buffer.split_at_mut(ciphertext_len);
+
 	let plaintext = cipher.open(seqn, ciphertext, tag)?;
 
 	let padding_length = *plaintext.first().to_owned().unwrap_or(&0) as usize;
+
 	debug!("reading, padding_length {:?}", padding_length);
+
 	let plaintext_end =
 		plaintext.len().checked_sub(padding_length).ok_or(Error::IndexOutOfBounds)?;
 
 	// Sequence numbers are on 32 bits and wrap.
 	// https://tools.ietf.org/html/rfc4253#section-6.4
 	buffer.seqn += Wrapping(1);
+
 	buffer.len = 0;
 
 	// Remove the padding

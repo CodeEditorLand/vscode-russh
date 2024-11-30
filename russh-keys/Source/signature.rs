@@ -29,12 +29,15 @@ impl Signature {
 		use crate::encoding::Encoding;
 
 		let mut bytes_ = Vec::new();
+
 		match self {
 			Signature::Ed25519(ref bytes) => {
 				let t = b"ssh-ed25519";
 				#[allow(clippy::unwrap_used)] // Vec<>.write_all can't fail
 				bytes_.write_u32::<BigEndian>((t.len() + bytes.0.len() + 8) as u32).unwrap();
+
 				bytes_.extend_ssh_string(t);
+
 				bytes_.extend_ssh_string(&bytes.0[..]);
 			},
 			Signature::RSA { ref hash, ref bytes } => {
@@ -45,15 +48,19 @@ impl Signature {
 				};
 				#[allow(clippy::unwrap_used)] // Vec<>.write_all can't fail
 				bytes_.write_u32::<BigEndian>((t.len() + bytes.len() + 8) as u32).unwrap();
+
 				bytes_.extend_ssh_string(t);
+
 				bytes_.extend_ssh_string(&bytes[..]);
 			},
 		}
+
 		data_encoding::BASE64_NOPAD.encode(&bytes_[..])
 	}
 
 	pub fn from_base64(s:&[u8]) -> Result<Self, Error> {
 		let bytes_ = data_encoding::BASE64_NOPAD.decode(s)?;
+
 		use crate::encoding::Reader;
 
 		let mut r = bytes_.reader(0);
@@ -65,10 +72,13 @@ impl Signature {
 		let typ = r.read_string()?;
 
 		let bytes = r.read_string()?;
+
 		match typ {
 			b"ssh-ed25519" => {
 				let mut bytes_ = [0; 64];
+
 				bytes_.clone_from_slice(bytes);
+
 				Ok(Signature::Ed25519(SignatureBytes(bytes_)))
 			},
 			b"rsa-sha2-256" => {
@@ -105,6 +115,7 @@ impl<'de> Deserialize<'de> for SignatureBytes {
 	where
 		D: Deserializer<'de>, {
 		struct Vis;
+
 		impl<'de> Visitor<'de> for Vis {
 			type Value = SignatureBytes;
 
@@ -114,6 +125,7 @@ impl<'de> Deserialize<'de> for SignatureBytes {
 
 			fn visit_seq<A:SeqAccess<'de>>(self, mut seq:A) -> Result<Self::Value, A::Error> {
 				let mut result = [0; 64];
+
 				for x in result.iter_mut() {
 					if let Some(y) = seq.next_element()? {
 						*x = y
@@ -121,9 +133,11 @@ impl<'de> Deserialize<'de> for SignatureBytes {
 						return Err(serde::de::Error::invalid_length(64, &self));
 					}
 				}
+
 				Ok(SignatureBytes(result))
 			}
 		}
+
 		deserializer.deserialize_tuple(64, Vis)
 	}
 }
@@ -133,9 +147,11 @@ impl Serialize for SignatureBytes {
 	where
 		S: Serializer, {
 		let mut tup = serializer.serialize_tuple(64)?;
+
 		for byte in self.0.iter() {
 			tup.serialize_element(byte)?;
 		}
+
 		tup.end()
 	}
 }
@@ -147,7 +163,9 @@ impl fmt::Debug for SignatureBytes {
 impl Clone for SignatureBytes {
 	fn clone(&self) -> Self {
 		let mut result = SignatureBytes([0; 64]);
+
 		result.0.clone_from_slice(&self.0);
+
 		result
 	}
 }

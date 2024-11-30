@@ -54,8 +54,11 @@ impl super::Cipher for SshChacha20Poly1305Cipher {
 		let mut k1 = Key::default();
 
 		let mut k2 = Key::default();
+
 		k1.clone_from_slice(&k[KeyLength::to_usize()..]);
+
 		k2.clone_from_slice(&k[..KeyLength::to_usize()]);
+
 		Ok(Box::new(OpeningKey { k1, k2 }))
 	}
 
@@ -70,8 +73,11 @@ impl super::Cipher for SshChacha20Poly1305Cipher {
 		let mut k1 = Key::default();
 
 		let mut k2 = Key::default();
+
 		k1.clone_from_slice(&k[KeyLength::to_usize()..]);
+
 		k2.clone_from_slice(&k[..KeyLength::to_usize()]);
+
 		Ok(Box::new(SealingKey { k1, k2 }))
 	}
 }
@@ -89,8 +95,11 @@ pub struct SealingKey {
 #[allow(clippy::indexing_slicing)] // length checked
 fn make_counter(sequence_number:u32) -> Nonce {
 	let mut nonce = Nonce::default();
+
 	let i0 = NonceLength::to_usize() - 4;
+
 	BigEndian::write_u32(&mut nonce[i0..], sequence_number);
+
 	nonce
 }
 
@@ -103,7 +112,9 @@ impl super::OpeningKey for OpeningKey {
 		let nonce = make_counter(sequence_number);
 
 		let mut cipher = ChaCha20Legacy::new(&self.k1, &nonce);
+
 		cipher.apply_keystream(&mut encrypted_packet_length);
+
 		Ok(encrypted_packet_length)
 	}
 
@@ -127,6 +138,7 @@ impl super::OpeningKey for OpeningKey {
 		let mut cipher = ChaCha20Legacy::new(&self.k2, &nonce);
 
 		cipher.seek(<ChaCha20LegacyCore as BlockSizeUser>::BlockSize::to_usize());
+
 		cipher.apply_keystream(&mut ciphertext_in_plaintext_out[PACKET_LENGTH_LEN..]);
 
 		Ok(&ciphertext_in_plaintext_out[PACKET_LENGTH_LEN..])
@@ -144,6 +156,7 @@ impl super::SealingKey for SealingKey {
 		} else {
 			block_size - ((super::PADDING_LENGTH_LEN + payload.len()) % block_size)
 		};
+
 		if padding_len < super::PACKET_LENGTH_LEN {
 			padding_len + block_size
 		} else {
@@ -187,7 +200,9 @@ impl super::SealingKey for SealingKey {
 
 fn compute_poly1305(nonce:&Nonce, key:&Key, data:&[u8]) -> poly1305::Tag {
 	let mut cipher = ChaCha20Legacy::new(key, nonce);
+
 	let mut poly_key = GenericArray::<u8, U32>::default();
+
 	cipher.apply_keystream(&mut poly_key);
 
 	Poly1305::new(&poly_key).compute_unpadded(data)

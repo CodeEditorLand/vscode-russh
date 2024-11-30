@@ -24,7 +24,9 @@ impl ReadSshIdBuffer {
 
 	pub fn new() -> ReadSshIdBuffer {
 		let mut buf = CryptoVec::new();
+
 		buf.resize(256);
+
 		ReadSshIdBuffer { buf, sshid_len:0, bytes_read:0, total:0 }
 	}
 }
@@ -58,15 +60,20 @@ impl<R:AsyncRead + Unpin> AsyncRead for SshRead<R> {
 	) -> Poll<Result<(), std::io::Error>> {
 		if let Some(mut id) = self.id.take() {
 			debug!("id {:?} {:?}", id.total, id.bytes_read);
+
 			if id.total > id.bytes_read {
 				let total = id.total.min(id.bytes_read + buf.remaining());
 				#[allow(clippy::indexing_slicing)] // length checked
 				buf.put_slice(&id.buf[id.bytes_read..total]);
+
 				id.bytes_read += total - id.bytes_read;
+
 				self.id = Some(id);
+
 				return Poll::Ready(Ok(()));
 			}
 		}
+
 		AsyncRead::poll_read(Pin::new(&mut self.get_mut().r), cx, buf)
 	}
 }
@@ -104,12 +111,15 @@ impl<R:AsyncRead + Unpin> SshRead<R> {
 	#[allow(clippy::unwrap_used)]
 	pub async fn read_ssh_id(&mut self) -> Result<&[u8], Error> {
 		let ssh_id = self.id.as_mut().unwrap();
+
 		loop {
 			let mut i = 0;
+
 			debug!("read_ssh_id: reading");
 
 			#[allow(clippy::indexing_slicing)] // length checked
 			let n = AsyncReadExt::read(&mut self.r, &mut ssh_id.buf[ssh_id.total..]).await?;
+
 			debug!("read {:?}", n);
 
 			ssh_id.total += n;
@@ -117,6 +127,7 @@ impl<R:AsyncRead + Unpin> SshRead<R> {
 			{
 				debug!("{:?}", std::str::from_utf8(&ssh_id.buf[..ssh_id.total]));
 			}
+
 			if n == 0 {
 				return Err(Error::Disconnect);
 			}
@@ -125,14 +136,18 @@ impl<R:AsyncRead + Unpin> SshRead<R> {
 				if i >= ssh_id.total - 1 {
 					break;
 				}
+
 				if ssh_id.buf[i] == b'\r' && ssh_id.buf[i + 1] == b'\n' {
 					ssh_id.bytes_read = i + 2;
+
 					break;
 				} else if ssh_id.buf[i + 1] == b'\n' {
 					// This is really wrong, but OpenSSH 7.4 uses
 					// it.
 					ssh_id.bytes_read = i + 2;
+
 					i += 1;
+
 					break;
 				} else {
 					i += 1;
@@ -151,8 +166,10 @@ impl<R:AsyncRead + Unpin> SshRead<R> {
 				// https://tools.ietf.org/html/rfc4253#section-4.2),
 				// and we can discard it and read the next one.
 				ssh_id.total = 0;
+
 				ssh_id.bytes_read = 0;
 			}
+
 			debug!("bytes_read: {:?}", ssh_id.bytes_read);
 		}
 	}

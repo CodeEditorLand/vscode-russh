@@ -28,13 +28,17 @@ mod none;
 
 pub(crate) trait MacAlgorithm {
 	fn key_len(&self) -> usize;
+
 	fn make_mac(&self, key:&[u8]) -> Box<dyn Mac + Send>;
 }
 
 pub(crate) trait Mac {
 	fn mac_len(&self) -> usize;
+
 	fn is_etm(&self) -> bool { false }
+
 	fn compute(&self, sequence_number:u32, payload:&[u8], output:&mut [u8]);
+
 	fn verify(&self, sequence_number:u32, payload:&[u8], mac:&[u8]) -> bool;
 }
 
@@ -76,12 +80,20 @@ static _HMAC_SHA512_ETM:CryptoEtmMacAlgorithm<Hmac<Sha512>, U64> =
 pub(crate) static MACS:Lazy<HashMap<&'static Name, &(dyn MacAlgorithm + Send + Sync)>> =
 	Lazy::new(|| {
 		let mut h:HashMap<&'static Name, &(dyn MacAlgorithm + Send + Sync)> = HashMap::new();
+
 		h.insert(&NONE, &_NONE);
+
 		h.insert(&HMAC_SHA1, &_HMAC_SHA1);
+
 		h.insert(&HMAC_SHA256, &_HMAC_SHA256);
+
 		h.insert(&HMAC_SHA512, &_HMAC_SHA512);
+
 		h.insert(&HMAC_SHA1_ETM, &_HMAC_SHA1_ETM);
+
 		h.insert(&HMAC_SHA256_ETM, &_HMAC_SHA256_ETM);
+
 		h.insert(&HMAC_SHA512_ETM, &_HMAC_SHA512_ETM);
+
 		h
 	});

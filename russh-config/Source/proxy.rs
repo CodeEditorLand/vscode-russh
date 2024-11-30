@@ -86,7 +86,9 @@ impl tokio::io::AsyncWrite for Stream {
 				if let Some(ref mut stdin) = c.stdin {
 					ready!(Pin::new(stdin).poll_shutdown(cx))?;
 				}
+
 				drop(c.stdin.take());
+
 				Poll::Ready(Ok(()))
 			},
 			Stream::Tcp(ref mut t) => Pin::new(t).poll_shutdown(cx),

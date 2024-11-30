@@ -35,6 +35,7 @@ impl super::Cipher for AesSshCipher {
 		mac:&dyn MacAlgorithm,
 	) -> Result<Box<dyn super::OpeningKey + Send>, Error> {
 		let mut ctx = CipherCtx::new().expect("expected to make openssl cipher");
+
 		ctx.decrypt_init(Some(self.0()), Some(key), Some(iv))?;
 
 		Ok(Box::new(OpeningKey {
@@ -54,6 +55,7 @@ impl super::Cipher for AesSshCipher {
 		mac:&dyn MacAlgorithm,
 	) -> Result<Box<dyn super::SealingKey + Send>, Error> {
 		let mut ctx = CipherCtx::new().expect("expected to make openssl cipher");
+
 		ctx.encrypt_init(Some(self.0()), Some(key), Some(iv))?;
 
 		Ok(Box::new(SealingKey { ctx, mac:mac.make_mac(mac_key) }))
@@ -84,12 +86,15 @@ impl super::OpeningKey for OpeningKey {
 			Ok(encrypted_packet_length)
 		} else {
 			let mut ctx = CipherCtx::new().expect("expected to make openssl cipher");
+
 			ctx.decrypt_init(Some(self.cipher), Some(&self.key), Some(&self.iv))?;
 
 			let input = encrypted_packet_length;
+
 			let n = ctx.cipher_update(&input, Some(&mut encrypted_packet_length))?;
 			#[allow(clippy::indexing_slicing)]
 			ctx.cipher_final(&mut encrypted_packet_length[n..])?;
+
 			Ok(encrypted_packet_length)
 		}
 	}
@@ -103,6 +108,7 @@ impl super::OpeningKey for OpeningKey {
 		tag:&[u8],
 	) -> Result<&'a [u8], Error> {
 		let input = ciphertext_in_plaintext_out.to_vec();
+
 		if self.mac.is_etm() {
 			if !self.mac.verify(sequence_number, &input, tag) {
 				return Err(Error::PacketAuth);
@@ -140,6 +146,7 @@ impl super::SealingKey for SealingKey {
 		} else {
 			block_size - ((pll + super::PADDING_LENGTH_LEN + payload.len()) % block_size)
 		};
+
 		if padding_len < PACKET_LENGTH_LEN {
 			padding_len + block_size
 		} else {
@@ -166,9 +173,11 @@ impl super::SealingKey for SealingKey {
 					Some(&mut plaintext_in_ciphertext_out[PACKET_LENGTH_LEN..]),
 				)
 				.expect("cipher update should not fail");
+
 			self.mac.compute(sequence_number, plaintext_in_ciphertext_out, tag_out);
 		} else {
 			self.mac.compute(sequence_number, &plaintext, tag_out);
+
 			self.ctx
 				.cipher_update(&plaintext, Some(plaintext_in_ciphertext_out))
 				.expect("cipher update should not fail");

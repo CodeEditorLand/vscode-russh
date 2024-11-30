@@ -96,15 +96,22 @@ impl Compress {
 			Compress::None => Ok(input),
 			Compress::Zlib(ref mut z) => {
 				output.clear();
+
 				let n_in = z.total_in() as usize;
+
 				let n_out = z.total_out() as usize;
+
 				output.resize(input.len() + 10);
+
 				let flush = flate2::FlushCompress::Partial;
+
 				loop {
 					let n_in_ = z.total_in() as usize - n_in;
+
 					let n_out_ = z.total_out() as usize - n_out;
 					#[allow(clippy::indexing_slicing)] // length checked
 					let c = z.compress(&input[n_in_..], &mut output[n_out_..], flush)?;
+
 					match c {
 						flate2::Status::BufError => {
 							output.resize(output.len() * 2);
@@ -112,6 +119,7 @@ impl Compress {
 						_ => break,
 					}
 				}
+
 				let n_out_ = z.total_out() as usize - n_out;
 				#[allow(clippy::indexing_slicing)] // length checked
 				Ok(&output[..n_out_])
@@ -131,15 +139,22 @@ impl Decompress {
 			Decompress::None => Ok(input),
 			Decompress::Zlib(ref mut z) => {
 				output.clear();
+
 				let n_in = z.total_in() as usize;
+
 				let n_out = z.total_out() as usize;
+
 				output.resize(input.len());
+
 				let flush = flate2::FlushDecompress::None;
+
 				loop {
 					let n_in_ = z.total_in() as usize - n_in;
+
 					let n_out_ = z.total_out() as usize - n_out;
 					#[allow(clippy::indexing_slicing)] // length checked
 					let d = z.decompress(&input[n_in_..], &mut output[n_out_..], flush);
+
 					match d? {
 						flate2::Status::Ok => {
 							output.resize(output.len() * 2);
@@ -147,6 +162,7 @@ impl Decompress {
 						_ => break,
 					}
 				}
+
 				let n_out_ = z.total_out() as usize - n_out;
 				#[allow(clippy::indexing_slicing)] // length checked
 				Ok(&output[..n_out_])

@@ -71,18 +71,22 @@ impl DH {
 		let q = (&self.prime_num - &BigUint::from(1u8)) / &BigUint::from(2u8);
 
 		let mut rng = rand::thread_rng();
+
 		self.private_key =
 			rng.gen_biguint_range(&if is_server { 1u8.into() } else { 2u8.into() }, &q);
+
 		self.private_key.clone()
 	}
 
 	pub fn generate_public_key(&mut self) -> BigUint {
 		self.public_key = BigUint::from(self.generator).modpow(&self.private_key, &self.prime_num);
+
 		self.public_key.clone()
 	}
 
 	pub fn compute_shared_secret(&mut self, other_public_key:BigUint) -> BigUint {
 		self.shared_secret = other_public_key.modpow(&self.private_key, &self.prime_num);
+
 		self.shared_secret.clone()
 	}
 
