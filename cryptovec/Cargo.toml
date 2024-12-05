@@ -4,11 +4,11 @@ description = "A vector which zeroes its memory on clears and reallocations."
 documentation = "https://docs.rs/russh-cryptovec"
 edition = "2018"
 include = ["Cargo.toml", "src/lib.rs"]
-license = "Apache-2.0"
+license-file = "LICENSE"
 name = "russh-cryptovec"
 repository = "https://github.com/warp-tech/russh"
 version = "0.7.0"
 
 [dependencies]
-libc = "0.2"
+libc = { version = "0.2" }
 winapi = { version = "0.3", features = ["basetsd", "minwindef", "memoryapi"] }
