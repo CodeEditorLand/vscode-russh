@@ -171,7 +171,6 @@ impl Session {
 		// If we've successfully read a packet.
 		match enc.state {
 			EncryptedState::WaitingAuthServiceRequest { ref mut accepted, .. }
-
 				if buf.first() == Some(&msg::SERVICE_REQUEST) =>
 			{
 				let mut r = buf.reader(1);

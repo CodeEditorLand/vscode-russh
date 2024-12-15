@@ -11,7 +11,7 @@ use yasna::{self, BERReaderSeq};
 use super::Encryption;
 #[cfg(feature = "openssl")]
 use crate::key::SignatureHash;
-use crate::{key, Error};
+use crate::{Error, key};
 
 const PBES2:&[u64] = &[1, 2, 840, 113549, 1, 5, 13];
 const PBKDF2:&[u64] = &[1, 2, 840, 113549, 1, 5, 12];
@@ -348,7 +348,6 @@ fn encrypt_key(key:&[u8], iv:&[u8], plaintext:&mut [u8]) -> Result<Vec<u8>, Erro
 		cipher::{BlockEncryptMut, KeyIvInit},
 		*,
 	};
-
 	use block_padding::NoPadding;
 
 	#[allow(clippy::unwrap_used)] // parameters are static
@@ -518,7 +517,6 @@ impl Encryption {
 			cipher::{BlockDecryptMut, KeyIvInit},
 			*,
 		};
-
 		use block_padding::Pkcs7;
 
 		match *self {
@@ -543,7 +541,7 @@ impl Encryption {
 
 	#[cfg(all(feature = "openssl", not(feature = "rs-crypto")))]
 	fn decrypt(&self, key:&[u8], ciphertext:&[u8]) -> Result<Vec<u8>, Error> {
-		use openssl::symm::{decrypt, Cipher};
+		use openssl::symm::{Cipher, decrypt};
 
 		match *self {
 			Encryption::Aes128Cbc(ref iv) => {

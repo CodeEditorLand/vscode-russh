@@ -1,7 +1,7 @@
 #[cfg(feature = "openssl")]
 use openssl::bn::BigNum;
 
-use crate::{encoding::Reader, key, Error, KEYTYPE_ED25519, KEYTYPE_RSA};
+use crate::{Error, KEYTYPE_ED25519, KEYTYPE_RSA, encoding::Reader, key};
 
 /// Decode a secret key given in the OpenSSH format, deciphering it if
 /// needed using the supplied password.
@@ -164,10 +164,9 @@ fn decrypt_secret_key(
 		#[cfg(feature = "rs-crypto")]
 		{
 			use aes::{
-				cipher::{block_padding::NoPadding, BlockDecryptMut, KeyIvInit, StreamCipher},
+				cipher::{BlockDecryptMut, KeyIvInit, StreamCipher, block_padding::NoPadding},
 				*,
 			};
-
 			use ctr::Ctr64BE;
 
 			match ciphername {
@@ -208,7 +207,7 @@ fn decrypt_secret_key(
 		}
 		#[cfg(all(feature = "openssl", not(feature = "rs-crypto")))]
 		{
-			use openssl::symm::{decrypt, Cipher};
+			use openssl::symm::{Cipher, decrypt};
 
 			dec = match ciphername {
 				b"aes128-cbc" => decrypt(Cipher::aes_128_cbc(), key, Some(iv), &dec)?,

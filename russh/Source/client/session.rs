@@ -2,7 +2,7 @@ use log::error;
 use russh_cryptovec::CryptoVec;
 use russh_keys::encoding::Encoding;
 
-use crate::{client::Session, msg, session::EncryptedState, ChannelId, Disconnect, Pty, Sig};
+use crate::{ChannelId, Disconnect, Pty, Sig, client::Session, msg, session::EncryptedState};
 
 impl Session {
 	fn channel_open_generic<F>(

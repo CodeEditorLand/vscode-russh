@@ -18,13 +18,13 @@
 use aes::cipher::{BlockSizeUser, StreamCipherSeek};
 use byteorder::{BigEndian, ByteOrder};
 use chacha20::{
-	cipher::{KeyInit, KeyIvInit, StreamCipher},
 	ChaCha20Legacy,
 	ChaCha20LegacyCore,
+	cipher::{KeyInit, KeyIvInit, StreamCipher},
 };
 use generic_array::{
-	typenum::{Unsigned, U16, U32, U8},
 	GenericArray,
+	typenum::{U8, U16, U32, Unsigned},
 };
 use poly1305::Poly1305;
 use subtle::ConstantTimeEq;

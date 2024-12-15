@@ -17,13 +17,13 @@ use tokio::{
 	time::sleep,
 };
 
-use super::{msg, Constraint};
+use super::{Constraint, msg};
 #[cfg(feature = "openssl")]
 use crate::key::SignatureHash;
 use crate::{
+	Error,
 	encoding::{Encoding, Position, Reader},
 	key,
-	Error,
 };
 
 #[derive(Clone)]

@@ -23,7 +23,7 @@ use russh_keys::{
 	key::{KeyPair, PublicKey},
 };
 
-use crate::{cipher, cipher::CIPHERS, compression::*, kex, mac, msg, Error};
+use crate::{Error, cipher, cipher::CIPHERS, compression::*, kex, mac, msg};
 
 #[derive(Debug)]
 pub struct Names {

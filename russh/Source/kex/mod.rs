@@ -22,7 +22,7 @@ use std::{cell::RefCell, collections::HashMap, fmt::Debug};
 
 #[cfg(feature = "rs-crypto")]
 use curve25519::Curve25519KexType;
-use dh::{DhGroup14Sha1KexType, DhGroup14Sha256KexType, DhGroup1Sha1KexType};
+use dh::{DhGroup1Sha1KexType, DhGroup14Sha1KexType, DhGroup14Sha256KexType};
 use digest::Digest;
 use once_cell::sync::Lazy;
 use russh_cryptovec::CryptoVec;

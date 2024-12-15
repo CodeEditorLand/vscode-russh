@@ -151,7 +151,7 @@ use tokio::{
 };
 
 use crate::{
-	cipher::{clear, CipherPair, OpeningKey},
+	cipher::{CipherPair, OpeningKey, clear},
 	session::*,
 	ssh_read::*,
 	sshbuffer::*,

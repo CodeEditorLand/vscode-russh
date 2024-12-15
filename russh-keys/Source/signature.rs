@@ -3,15 +3,15 @@ use std::fmt;
 use byteorder::{BigEndian, WriteBytesExt};
 use serde::{
 	self,
-	de::{SeqAccess, Visitor},
-	ser::SerializeTuple,
 	Deserialize,
 	Deserializer,
 	Serialize,
 	Serializer,
+	de::{SeqAccess, Visitor},
+	ser::SerializeTuple,
 };
 
-use crate::{key::SignatureHash, Error};
+use crate::{Error, key::SignatureHash};
 
 pub struct SignatureBytes(pub [u8; 64]);
 

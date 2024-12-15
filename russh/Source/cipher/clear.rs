@@ -13,7 +13,7 @@
 // limitations under the License.
 //
 
-use crate::{mac::MacAlgorithm, Error};
+use crate::{Error, mac::MacAlgorithm};
 
 #[derive(Debug)]
 pub struct Key;

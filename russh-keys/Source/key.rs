@@ -19,8 +19,8 @@ use serde::{Deserialize, Serialize};
 
 pub use crate::signature::*;
 use crate::{
-	encoding::{Encoding, Reader},
 	Error,
+	encoding::{Encoding, Reader},
 };
 
 #[derive(Debug, PartialEq, Eq, Copy, Clone)]
@@ -421,7 +421,7 @@ impl KeyPair {
 		match self {
 			#[cfg(feature = "rs-crypto")]
 			KeyPair::Ed25519(ref secret) => {
-				use ed25519_dalek::{ed25519::signature::Signature as EdSignature, Signer};
+				use ed25519_dalek::{Signer, ed25519::signature::Signature as EdSignature};
 
 				let signature = secret.sign(to_sign.as_ref());
 
@@ -459,7 +459,7 @@ impl KeyPair {
 		match self {
 			#[cfg(feature = "rs-crypto")]
 			KeyPair::Ed25519(ref secret) => {
-				use ed25519_dalek::{ed25519::signature::Signature, Signer};
+				use ed25519_dalek::{Signer, ed25519::signature::Signature};
 
 				let signature = secret.sign(buffer);
 

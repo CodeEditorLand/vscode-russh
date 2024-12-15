@@ -22,7 +22,7 @@ use log::debug;
 use once_cell::sync::Lazy;
 use tokio::io::{AsyncRead, AsyncReadExt};
 
-use crate::{mac::MacAlgorithm, sshbuffer::SSHBuffer, Error};
+use crate::{Error, mac::MacAlgorithm, sshbuffer::SSHBuffer};
 
 pub(crate) mod clear;
 

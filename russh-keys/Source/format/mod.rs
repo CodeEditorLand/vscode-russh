@@ -8,7 +8,7 @@ use data_encoding::{BASE64_MIME, HEXLOWER_PERMISSIVE};
 use openssl::rsa::Rsa;
 
 use super::is_base64_char;
-use crate::{key, Error};
+use crate::{Error, key};
 
 pub mod openssh;
 pub use self::openssh::*;

@@ -1,7 +1,7 @@
 use std::marker::PhantomData;
 
 use byteorder::{BigEndian, ByteOrder};
-use digest::{typenum::Unsigned, KeyInit};
+use digest::{KeyInit, typenum::Unsigned};
 use generic_array::{ArrayLength, GenericArray};
 use subtle::ConstantTimeEq;
 

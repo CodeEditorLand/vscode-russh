@@ -487,14 +487,12 @@ mod test_compress {
 	};
 
 	use async_trait::async_trait;
-
 	use log::debug;
 
 	use super::{
 		server::{Server as _, Session},
 		*,
 	};
-
 	use crate::server::Msg;
 
 	#[cfg(feature = "rs-crypto")]
@@ -748,12 +746,10 @@ async fn test_session<RC, RS, CH, SH, F1, F2, CERR, SERR>(
 #[cfg(test)]
 mod test_channels {
 	use async_trait::async_trait;
-
 	use russh_cryptovec::CryptoVec;
-
 	use tokio::io::{AsyncReadExt, AsyncWriteExt};
 
-	use crate::{client, server, server::Session, test_session, Channel, ChannelId, ChannelMsg};
+	use crate::{Channel, ChannelId, ChannelMsg, client, server, server::Session, test_session};
 
 	#[tokio::test]
 	async fn test_server_channels() {

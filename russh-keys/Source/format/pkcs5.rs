@@ -1,5 +1,5 @@
 use super::Encryption;
-use crate::{key, Error};
+use crate::{Error, key};
 
 /// Decode a secret key in the PKCS#5 format, possible deciphering it
 /// using the supplied password.
@@ -9,7 +9,7 @@ pub fn decode_pkcs5(
 	password:Option<&str>,
 	enc:Encryption,
 ) -> Result<key::KeyPair, Error> {
-	use openssl::symm::{decrypt, Cipher};
+	use openssl::symm::{Cipher, decrypt};
 
 	if let Some(pass) = password {
 		let sec = match enc {

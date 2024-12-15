@@ -4,9 +4,9 @@ use digest::KeyInit;
 use generic_array::{ArrayLength, GenericArray};
 
 use super::{
-	crypto::{CryptoMac, CryptoMacAlgorithm},
 	Mac,
 	MacAlgorithm,
+	crypto::{CryptoMac, CryptoMacAlgorithm},
 };
 
 pub struct CryptoEtmMacAlgorithm<

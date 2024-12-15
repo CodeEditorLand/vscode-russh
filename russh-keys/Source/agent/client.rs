@@ -6,12 +6,12 @@ use tokio::{
 	io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt},
 };
 
-use super::{msg, Constraint};
+use super::{Constraint, msg};
 use crate::{
+	Error,
 	encoding::{Encoding, Reader},
 	key,
 	key::{PublicKey, SignatureHash},
-	Error,
 };
 
 /// SSH agent client.

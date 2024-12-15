@@ -8,7 +8,7 @@ use log::debug;
 use russh_cryptovec::CryptoVec;
 use russh_keys::encoding::Encoding;
 
-use super::{compute_keys, KexAlgorithm, KexType};
+use super::{KexAlgorithm, KexType, compute_keys};
 use crate::{
 	cipher,
 	mac::{self},

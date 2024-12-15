@@ -97,8 +97,8 @@ use std::{cell::RefCell, collections::HashMap, pin::Pin, sync::Arc};
 
 use async_trait::async_trait;
 use futures::{
-	task::{Context, Poll},
 	Future,
+	task::{Context, Poll},
 };
 use log::{debug, error, info, trace};
 use russh_cryptovec::CryptoVec;
@@ -106,7 +106,7 @@ use russh_cryptovec::CryptoVec;
 use russh_keys::key::SignatureHash;
 use russh_keys::{
 	encoding::Reader,
-	key::{self, parse_public_key, PublicKey},
+	key::{self, PublicKey, parse_public_key},
 };
 use tokio::{
 	self,
@@ -114,30 +114,30 @@ use tokio::{
 	net::{TcpStream, ToSocketAddrs},
 	pin,
 	sync::mpsc::{
-		channel,
-		unbounded_channel,
 		Receiver,
 		Sender,
 		UnboundedReceiver,
 		UnboundedSender,
+		channel,
+		unbounded_channel,
 	},
 };
 
 use crate::{
+	ChannelId,
+	ChannelOpenFailure,
+	Disconnect,
+	Limits,
+	Sig,
 	auth,
 	channels::{Channel, ChannelMsg},
-	cipher::{self, clear, CipherPair, OpeningKey},
+	cipher::{self, CipherPair, OpeningKey, clear},
 	key::PubKey,
 	msg,
 	negotiation,
 	session::{CommonSession, EncryptedState, Exchange, Kex, KexDhDone, KexInit, NewKeys},
 	ssh_read::SshRead,
 	sshbuffer::{SSHBuffer, SshId},
-	ChannelId,
-	ChannelOpenFailure,
-	Disconnect,
-	Limits,
-	Sig,
 };
 
 mod encrypted;

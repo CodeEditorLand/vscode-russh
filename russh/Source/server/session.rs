@@ -4,7 +4,7 @@ use log::debug;
 use russh_keys::encoding::{Encoding, Reader};
 use tokio::{
 	io::{AsyncRead, AsyncWrite, AsyncWriteExt},
-	sync::mpsc::{unbounded_channel, Receiver, Sender, UnboundedReceiver, UnboundedSender},
+	sync::mpsc::{Receiver, Sender, UnboundedReceiver, UnboundedSender, unbounded_channel},
 };
 
 use super::*;

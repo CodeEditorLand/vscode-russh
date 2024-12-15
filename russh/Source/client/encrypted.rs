@@ -23,6 +23,11 @@ use russh_keys::{
 use tokio::sync::mpsc::unbounded_channel;
 
 use crate::{
+	Channel,
+	ChannelId,
+	ChannelOpenFailure,
+	ChannelParams,
+	Sig,
 	auth,
 	client::{Handler, Msg, Prompt, Reply, Session},
 	key::PubKey,
@@ -31,11 +36,6 @@ use crate::{
 	negotiation::{Named, Select},
 	parsing::{ChannelOpenConfirmation, ChannelType, OpenChannelMessage},
 	session::{Encrypted, EncryptedState, Kex, KexInit},
-	Channel,
-	ChannelId,
-	ChannelOpenFailure,
-	ChannelParams,
-	Sig,
 };
 
 thread_local! {
