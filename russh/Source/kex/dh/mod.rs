@@ -11,8 +11,8 @@ use russh_keys::encoding::Encoding;
 use sha1::Sha1;
 use sha2::Sha256;
 
-use self::groups::{DhGroup, DH_GROUP1, DH_GROUP14};
-use super::{compute_keys, KexAlgorithm, KexType};
+use self::groups::{DH_GROUP1, DH_GROUP14, DhGroup};
+use super::{KexAlgorithm, KexType, compute_keys};
 use crate::{cipher, mac, msg, session::Exchange};
 
 pub struct DhGroup1Sha1KexType {}
